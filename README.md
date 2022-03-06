@@ -20,40 +20,20 @@ I found that a database with 2% difference between references worked well, so
 
 ### How to run ###
 
-bash binAndBuildConsensus.sh -i reads.fastq -r references.fasta [options ...]
+bash findCoInfections.sh -i reads.fastq -r references.fasta [options ...]
 
 Some options you may be likely to change:
 
 1. -p: prefix to call the output
 2. -a: min read length to keep (also min aligned length for blastn)
 3. -n: max read length to keep
-4. -m: model to used to basecall the reads (currently r941_min_hight_g351)
-5. -t: number of threads to use (when an option)
+4. -m: model to used to basecall the reads (currently r941_min_high_g351)
+5. -t: number of threads to use
 6. -h: print out all parameters you can change (help message)
 
 ### How the pipeline works ###
 
-```
-map reads to references
-       |
-       v
-Filter reads by mapping quality, min length, and mean Q-score
-       |
-       v
-Split reads by reference
-       |
-       v
-Remove bins with low read counts (by % of mapped reads and number of reads)
-       |
-       v
-Sub-sample reads by highest score from filtlong (filter by max length)
-       |
-       v
-Polish highest scoring read with remaining reads (Racon + Medaka)
-       |
-       v
-Remove consensus genomes that are very similar (% mismatches and % identity)
-```
+![Pipeline diagram](figures/co-infection--pipeline-figure.svg]
 
 ### Performance ###
 
