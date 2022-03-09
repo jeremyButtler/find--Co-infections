@@ -30,7 +30,7 @@ Some arguments you may want to change:
 
 <figure>
     <img
-      src="figures/co-infection--pipeline-Figure.svg"
+      src="figures/co-infection--pipeline-figure.svg"
       width=60%
       height=60%
     > <!--show my pipeline flow digram image-->
