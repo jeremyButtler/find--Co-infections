@@ -115,7 +115,7 @@ We found that removing bins with 100 reads combined with removing consensus
 ### Accuracy ###
 
 <figure>
-  <img src="figure/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
+  <img src="figures/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
     width=50%
     height=50%
   > <!--image settings-->
