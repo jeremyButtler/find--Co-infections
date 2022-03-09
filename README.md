@@ -30,7 +30,11 @@ Some options you may be likely to change:
 ### How the pipeline works ###
 
 <figure>
-    <img src="figures/co-infection--pipeline-figure.svg" width=50% height=50%>
+    <img
+      src="figures/co-infection--pipeline-figure.svg"
+      width=60%
+      height=60%
+    > <!--show my pipeline flow digram image-->
     <figcaption>
       <em>
         <b>Figure 1:</b> Flow chart showing each step in our pipeline.
