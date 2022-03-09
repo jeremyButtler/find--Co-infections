@@ -147,9 +147,8 @@ The consensuses from the 50-50 1 reference pairs are almost the only consensus
  (figure 4). The only exception is one case that had 99% of reads from the
  major consensus (99-1 1, figure 4). However, in the 99-1 1 case, the major
  variant lost most of its reads to aggressive filtering, resulting in the minor
- variant having 272 of 949 of reads. So, the 99-1 1 case is more like the
- 50-50 1 case. In both cases, mismatches are likely from the polisher merging
- both variants into one consensus.
+ variant having 272 of 949 of reads. In both cases, mismatches are likely from
+ the polisher merging both variants into one consensus.
 
 A quarter of consensuses with mismatches were from consensus pairs that
  detected two variants and had 99% of reads from the major variant 
