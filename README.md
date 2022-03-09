@@ -5,7 +5,7 @@ This pipeline detects co-infections in Nanopore reads using a database
  variation, instead of the full genome. The pipeline maps the reads to the best 
  reference and then splits the reads into bins by reference. Each bin is
  polished to make a consensus for each sequence in the co-infection. For a
- flow chart showing all steps in this pipeline see figure 1.
+ flow chart showing all steps in this pipeline see Figure 1.
 
 The consensuses can be longer than the region provided, allowing for a region 
  of 600 to 700 bp to bin reads from larger, 2kb amplicons. However, the pipeline
@@ -30,7 +30,7 @@ Some arguments you may want to change:
 
 <figure>
     <img
-      src="figures/co-infection--pipeline-figure.svg"
+      src="Figures/co-infection--pipeline-Figure.svg"
       width=60%
       height=60%
     > <!--show my pipeline flow digram image-->
@@ -65,12 +65,12 @@ bash findCoInfections.sh \
 	-K 0;
 ```
 
-<figure>                             <!--make a figure-->
-    <image src="figures/Num-con-graph.png" 
+<figure>                             <!--make a Figure-->
+    <image src="Figures/Num-con-graph.png" 
        width=50%
        height=50%
     >
-    <figcaption>             <!--Add a caption to the figure-->
+    <figcaption>             <!--Add a caption to the Figure-->
       <em>                   <!--<em> for italics, <b> for bold-->
         <b>Figure 2:</b>
         Number of co-infections detected for each reference pair.
@@ -89,7 +89,7 @@ We found that our initial settings detected co-infections at least half of the
 &nbsp; <!--Add an empty line-->
     
 <figure>
-    <img src="figures/Num-con-depth100-misPerc0_3-filter-graph.png" 
+    <img src="Figures/Num-con-depth100-misPerc0_3-filter-graph.png" 
        width=50%
        height=50%
      >
@@ -113,12 +113,12 @@ We simulated what would happen if we had removed bins will less than 100 reads
 We found that removing bins with 100 reads combined with removing consensus
  genomes with less than 0.3% mismatches removed all noise (extra co-infections),
  while having only a slight increase in missed co-infections (Figure 3). Also, a
- MAPQ of 20 detected more co-infections than a MAPQ of 30 (figure 3).
+ MAPQ of 20 detected more co-infections than a MAPQ of 30 (Figure 3).
 
 ### Accuracy ###
 
 <figure>
-  <img src="figures/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
+  <img src="Figures/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
     width=50%
     height=50%
   > <!--image settings-->
@@ -137,15 +137,15 @@ We found that removing bins with 100 reads combined with removing consensus
 &nbsp;
 
 We looked at the error rate in our consensuses by looking at the number of
- indels (figure 5) and the number of mismatches (figure 4) in each consensus.
+ indels (Figure 5) and the number of mismatches (Figure 4) in each consensus.
  We found mismatches were rare (13 out of 237 consensuses). Half of 
  the consensuses with mismatches were from reference pairs that detected only
- one variant and had 50% of reads from the minor variant (50-50 1, figure 4).
+ one variant and had 50% of reads from the minor variant (50-50 1, Figure 4).
 
 The consensuses from the 50-50 1 reference pairs are almost the only consensus 
  with mismatches from reference pairs that detected only one consensus
- (figure 4). The only exception is one case that had 99% of reads from the
- major consensus (99-1 1, figure 4). However, in the 99-1 1 case, the major
+ (Figure 4). The only exception is one case that had 99% of reads from the
+ major consensus (99-1 1, Figure 4). However, in the 99-1 1 case, the major
  variant lost most of its reads to aggressive filtering, resulting in the minor
  variant having 272 of 949 of reads. In both cases, mismatches are likely from
  the polisher merging both variants into one consensus.
@@ -161,7 +161,7 @@ A quarter of consensuses with mismatches were from consensus pairs that
 
 <figure>
     <img
-      src="figures/Num-con-depth100-misPerc0_3-indel-filter-graph.png"
+      src="Figures/Num-con-depth100-misPerc0_3-indel-filter-graph.png"
       width=50%
       height=50%
     > <!--img: insert the indel graph image-->
