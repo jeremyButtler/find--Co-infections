@@ -30,7 +30,7 @@ Some arguments you may want to change:
 
 <figure>
     <img
-      src="Figures/co-infection--pipeline-Figure.svg"
+      src="figures/co-infection--pipeline-Figure.svg"
       width=60%
       height=60%
     > <!--show my pipeline flow digram image-->
@@ -66,7 +66,7 @@ bash findCoInfections.sh \
 ```
 
 <figure>                             <!--make a Figure-->
-    <image src="Figures/Num-con-graph.png" 
+    <image src="figures/Num-con-graph.png" 
        width=50%
        height=50%
     >
@@ -89,7 +89,7 @@ We found that our initial settings detected co-infections at least half of the
 &nbsp; <!--Add an empty line-->
     
 <figure>
-    <img src="Figures/Num-con-depth100-misPerc0_3-filter-graph.png" 
+    <img src="figures/Num-con-depth100-misPerc0_3-filter-graph.png" 
        width=50%
        height=50%
      >
@@ -118,7 +118,7 @@ We found that removing bins with 100 reads combined with removing consensus
 ### Accuracy ###
 
 <figure>
-  <img src="Figures/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
+  <img src="figures/Num-con-depth100-misPerc0_3-mismatch-filter-graph.png"
     width=50%
     height=50%
   > <!--image settings-->
@@ -161,7 +161,7 @@ A quarter of consensuses with mismatches were from consensus pairs that
 
 <figure>
     <img
-      src="Figures/Num-con-depth100-misPerc0_3-indel-filter-graph.png"
+      src="figures/Num-con-depth100-misPerc0_3-indel-filter-graph.png"
       width=50%
       height=50%
     > <!--img: insert the indel graph image-->
