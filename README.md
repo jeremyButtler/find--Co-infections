@@ -187,7 +187,7 @@ We found that most consensuses (300 of 474) had at least one indel when the
 
 ### Some future questions and directions ###
 
-1. Only do the % similarity and % mismatch checks between consensus genomes on
-   the region of interest. Right know it does these checks on the entire
-   consensus.
+1. Right now similarity is found by comparing the entire consensus, instead of
+   just the region of interest. This is ok when the amplicons only target the
+   region of interest, but will results in errors if amplicons are larger.
 2. Use a full genome reference to detect and use longer reads for polishing.
