@@ -189,6 +189,6 @@ We found that most consensuses (300 of 474) had at least one indel when the
 
 1. Right now, the similarity between consensuses is found by comparing the
    entire consensus, instead of just the region of interest. This is ok when
-   the amplicons only amplify the region of interest, but will result in
-   missed co-infections if amplicons are larger.
+   the amplicons only amplify the region of interest, but may cause missed
+   co-infections if amplicons are larger.
 2. Use a full genome reference to detect and use longer reads for polishing.
