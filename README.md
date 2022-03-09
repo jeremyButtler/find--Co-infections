@@ -48,11 +48,12 @@ Some arguments you may want to change:
 We tested our pipeline by simulating reads from 237 pairs of porcine circovirus
  type 2 capsid genes, which are roughly 700bp long. Each pair of capsid genes
  were from a single subtype and were 98% to 98.5% similar to each other. We had
- multiple capsid gene pairs for each subtype. Reads were simulated with badread,
- using a mean accuracy of 90% and 20000x read depth. We simulated reads for
- co-infections by having the minor strain produce 50%, 5%, and 1% of reads.
+ at least one capsid pair for each PCV2 subtype. Reads were simulated with
+ badread, using a mean accuracy of 90% and 20000x read depth. For each capsid 
+ pair, we varied the percentage of reads from the minor variant. Our levels 
+ were 50%, 5%, and 1% of reads from the minor variant.
 
-command line: 
+Command line: 
 
 ```
 bash findCoInfections.sh \
@@ -80,8 +81,9 @@ bash findCoInfections.sh \
     
 &nbsp; <!--Add an empty line-->
     
-We found that our initial settings detected co-infections at least half of the
- time (Figure 2). However, some of time we missed co-infections or detected
+We found that our initial pipeline settings detected co-infections at least half
+ of the time (Figure 2). However, some of time we missed co-infections or
+ detected
  extra co-infections, which were from noisy reads (Figure 2). The number of
  missed co-infections or extra co-infections increased as the percentage of
  reads from the minor variant decreased (Figure 2).
@@ -97,14 +99,14 @@ We found that our initial settings detected co-infections at least half of the
         <em>
           <b>Figure 3:</b> Number of co-infections detected for each reference
           pair when we require at least 100 reads per consensus and a minimum
-          difference of 0.3% mismatches between all consensus.
+          difference of 0.3% mismatches between all consensuses.
          </em>
     <figcaption>
 </figure>
     
 &nbsp;
         
-We simulated what would happen if we had removed bins will less than 100 reads
+We simulated what would happen if we had removed bins will fewer than 100 reads
  and consensus genomes with fewer than 0.3% of mismatches in R. To simulate the
  percent of mismatches between consensus genomes mapping to the same reference
  we multiplied the number of mismatches for the most error prone consensus
@@ -128,8 +130,8 @@ We found that removing bins with 100 reads combined with removing consensus
       horizontal bar shows the number of consensuses from minor variants when
       95% or 99% of reads were from the major variant. The number of consensus
       detected in each consensuses pair is shown on the x-axis as 1 or 2. The
-      high error rate in the 99% major reference point that detected one
-      consensus had aggressive filtering on the major variant.
+      high error rate in the consensus from 99-1 1 was due to aggressive
+      filtering on the major variant.
     </em>
   </figcaption>
 <figure>
@@ -142,21 +144,22 @@ We looked at the error rate in our consensuses by looking at the number of
  the consensuses with mismatches were from reference pairs that detected only
  one variant and had 50% of reads from the minor variant (50-50 1, Figure 4).
 
-The consensuses from the 50-50 1 reference pairs are almost the only consensus 
- with mismatches from reference pairs that detected only one consensus
- (Figure 4). The only exception is one case that had 99% of reads from the
- major consensus (99-1 1, Figure 4). However, in the 99-1 1 case, the major
- variant lost most of its reads to aggressive filtering, resulting in the minor
- variant having 272 of 949 of reads. In both cases, mismatches are likely from
- the polisher merging both variants into one consensus.
+Mismatches in consensuses built from reference pairs that detected only one
+ variant were mostly from the reference pairs that had 50% of reads from the
+ minor variant (Figure 4). The only exception is one case that had 99% of reads
+ from the major consensus (99-1 1, Figure 4). However, in the 99-1 1 case, the
+ major variant lost most of its reads to aggressive filtering. Which, resulted
+ in the minor variant having 272 of the 949 reads in the bin used to make the
+ consensus. In both cases, mismatches are likely from the polisher merging both
+ variants into one consensus.
 
 A quarter of consensuses with mismatches were from consensus pairs that
  detected two variants and had 99% of reads from the major variant 
  (99-1 2, Figure 4). All 99-1 2 consensuses with mismatches were from the minor
  variant (Figure 4.). Sometimes, the minor variant had fewer than 200 reads
  in a bin and had some misbinned, noisy reads from the major variant.
- Allowing either lower read depth or merging of two variants to have increased
- the number of mismatches in the minor variant.
+ Allowing mismatches from lower read depths or merging of the misbinned major
+ variant reads with the correctly binned minor variant reads.
  
 
 <figure>
@@ -180,15 +183,17 @@ A quarter of consensuses with mismatches were from consensus pairs that
 
 We found that most consensuses (300 of 474) had at least one indel when the 
  minor variant contributed 50% of reads (Figure 5). Most of the difference
- between the different ratios of major and minor variants were due to an
- increase in missed co-infections (Figure 5). The missed co-infections explain
- the reduced the number of minor variant consensuses seen as the percent of
- reads from the major variant increases.
+ between the ratios of major and minor variants were due to an increase in
+ missed co-infections (Figure 5). The missed co-infections explain the reduced
+ the number of minor variant consensuses seen as the percent of reads from the
+ major variant increases.
 
 ### Some future questions and directions ###
 
 1. Right now, the similarity between consensuses is found by comparing the
    entire consensus, instead of just the region of interest. This is ok when
    the amplicons only amplify the region of interest, but may cause missed
-   co-infections if amplicons are larger.
+   co-infections if amplicons are larger than the region of interest.
 2. Use a full genome reference to detect and use longer reads for polishing.
+   Allowing the user to not have to do manual steps to ensure consensuses are
+   longer than the region of interest.
