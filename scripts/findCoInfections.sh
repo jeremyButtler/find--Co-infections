@@ -19,7 +19,7 @@
 #    -a: Min aligned length needed to keep a read (integer)
 #        Default: 600
 #    -k: Min percentage of reads needed to keep a bin (Double)
-#        Default: 0.3 (0.4% of reads)
+#        Default: 0.4 (0.4% of reads)
 #    -K: Min number of reads to keep a bin (integer)
 #        Default 100
 #  Sub-sampling variables
@@ -126,7 +126,7 @@ helpStr="$(basename "$0") -i reads.fastq -r references.fasta
     -n: max read length allowed [Default: 0 (any length)]
 
   Building consensus genome parameters
-    -c: Min read depth to not mask bases in the consensus genome (Default: 300)
+    -c: Min read depth to not mask bases in the consensus genome (Default: 30)
     -r: Number of rounds to run racon (Default: 1)
     -m: Model to use with medaka polishing (Default: r941_min_high_g351)
 
@@ -160,7 +160,7 @@ do # loop through all user input
         Q) minMapQInt="$OPTARG";;
         q) minQInt="$OPTARG";;
         a) minAlignedLenInt="$OPTARG";;
-        s) subsampleToInt="$OPTRAG";;
+        s) subsampleToInt="$OPTARG";;
         n) maxReadLenInt="$OPTARG";;
         c) minMaskDepthInt="$OPTARG";;
         r) roundsRaconInt="$OPTARG";;
@@ -207,7 +207,7 @@ fi # check if the references to bin with are a valid fasta file
 # Sec-3 Sub-1: sort reads into bins
 #*******************************************************************************
 
-printf "Binning reads\n";
+printf "\nBinning reads\n\n";
 
 bash "$scriptDirStr/bin.sh" \
 	-i "$fastqFileStr" \
@@ -230,7 +230,14 @@ for strFastq in "$prefixStr--bins/"*.fastq;
 
 do # loop and subsample all fastq files
 
-    refStr="$(printf "%s" "$strFastq" | sed "s/.*$prefixStr--//; s/\.fastq//; s/--.*//")";
+    if [[ ! -f "$strFastq" ]]; then
+        continue;
+    fi # if on the null case
+
+    printf "\nSubsampling reads for %s\n\n" "$strFastq";
+
+    refStr="$(printf "%s" "$strFastq" |
+				sed "s/.*$prefixStr--//; s/\.fastq//; s/--.*//")";
     bash "$scriptDirStr/subsample.sh" \
 		-i "$strFastq" \
 		-n "$maxReadLenInt" \
@@ -255,7 +262,11 @@ do # loop and build consensus genomes for all subsampled fastq files
         continue;
     fi # if on the null case
 
-    refStr="$(printf "%s" "$strFastq" | sed 's/.*\///; s/\.fastq//; s/--subsample.*//')"; # get new prefix
+    printf "\nBuilding consensus for %s\n\n" "$strFastq";
+
+    # get new prefix
+    refStr="$(printf "%s" "$strFastq" |
+				sed 's/.*\///; s/\.fastq//; s/--subsample.*//')";
     sed -n '1s/@/>/;
         1s/$/--top-hit/p;
         2p;' \
@@ -266,7 +277,7 @@ do # loop and build consensus genomes for all subsampled fastq files
 		-i "$strFastq" \
 		-I "$refStr--top-hit.fasta" \
 		-t "$threadsInt" \
-        -c "$minMaskDepthInt" \
+		-c "$minMaskDepthInt" \
 		-r "$roundsRaconInt" \
 		-m "$medakaModelStr" \
 		-p "$refStr";
@@ -283,9 +294,10 @@ mv "$prefixStr"*medaka \
 # Sec-3 Sub-4: Check and make sure no consensus are identical
 #*******************************************************************************
 
+printf "\nChecking consensus similarity\n\n" "$strFastq";
 bash "$scriptDirStr/checkConsensus.sh" \
 	-i "$prefixStr--number-reads.tsv" \
-	-p "$prefixStr";
+	-p "$prefixStr" \
 	-a "$minAlignedLenInt" \
 	-g "$minConDiffDbl" \
 	-x "$minMismatchId" \

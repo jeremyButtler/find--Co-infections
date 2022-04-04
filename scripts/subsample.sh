@@ -81,7 +81,7 @@ while getopts 'i:s:n:a:q:t:p:h:z' argsStr;
 do # loop through all user input
     case $argsStr in
         i) readsFastqStr="$OPTARG";;
-        s) subsampleToInt="$OPTRAG";;
+        s) subsampleToInt="$OPTARG";;
         n) maxReadLenInt="$OPTARG";;
         a) minReadLenInt="$OPTARG";;
         q) minQInt="$OPTARG";;
