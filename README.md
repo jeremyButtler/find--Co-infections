@@ -26,6 +26,19 @@ Some arguments you may want to change:
 5. -t: number of threads to use
 6. -h: print out all parameters you can change (help message)
 
+### Requirements: ###
+
+1. minimap2
+2. samtools version 1.14: Needs to be able to run this command
+    - samtools view --min-qlen number -e "avg(qual)>=number" -q number
+3. bamtools
+4. filtlong
+5. racon
+6. medaka
+    - Should be installed by miniconda.
+    - If not change lines 179, 180, and 188 to your command to activate medaka.
+7. blastn and makeblastdb (in same blast install package from ncbi)
+
 ### How the pipeline works ###
 
 <figure>
