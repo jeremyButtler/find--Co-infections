@@ -36,7 +36,8 @@ Some arguments you may want to change:
 5. racon
 6. medaka
     - Should be installed by miniconda.
-    - If not change lines 179, 180, and 188 to your command to activate medaka.
+    - If not change lines 179, 180, and 188 in buildConsensus.sh to your command
+      to activate and deactivate medaka.
 7. blastn and makeblastdb (in same blast install package from ncbi)
 
 ### How the pipeline works ###
