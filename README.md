@@ -1,5 +1,11 @@
 ## Co-infection detection scripts ##
           
+I am currently working on testing the second version of this pipeline.
+One problem I found is that by not trimming reads to the references
+can result in some false postives being kept. I think it is due to
+the pipeline including untrimmed regions in the comparision. The next
+version will trim reads and consensuses.
+
 This pipeline detects co-infections in Nanopore reads using a database
  of references. References should be a region of the genome with high
  variation, instead of the full genome. The pipeline maps the reads to the best 
