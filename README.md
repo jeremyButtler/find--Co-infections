@@ -2,6 +2,19 @@
 
 Used to find co-infections in nanopore sequenced reads.
 
+## Requirements:
+
+1. minimap2 (https://github.com/lh3/minimap2)
+2. samtools (https://github.com/samtools)
+  - You can typically install this from a repository.
+3. racon (https://github.com/isovic/racon)
+4. medaka (https://github.com/nanoporetech/medaka)
+  - Install as a python virtual environment in the users home directory (~)
+  - Change to conda by uncommenting (remove # symbol) lines 176, 177, and 188 in
+    coInfectScripts/buildConsensus.sh. You will also need to comment out
+    (add a # at start) lines 179 and 187.
+    
+
 ## Install:
 
 make;
