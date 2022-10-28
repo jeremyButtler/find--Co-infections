@@ -8,20 +8,12 @@ fastqGrep reduces the number of dependencies needed for findCoInfections.
   However, fastqGrep is also slightly slower than seqkit. This is not a problem
   because, the clustering step and initial read mapping steps will always take
   much larger amounts of time then the read extraction steps
-  (under one minute. See comparison of gmp fastqGrep and seqkit in
-  libGMPVersioN folder). So, taking slightly more time then seqkit will have
-  little effect on noticed pipeline performance.
 
-The libGMPVersioN of fastqGrep is faster then the default version, though still
-  slower then seqkit. However, it also requires the dev files for the gmp
-  library and thus, is not the default install. I am only using the gmp library
-  for string to number conversions and large number comparisons, which could
-  easily be done without gmp. I am planning to remove this dependency later in
-  the next version of findCoInfections, which I just started working on.
-
-If you wish to use the libgmp version install the libgmp dev files for your OS.
-  For debain this can be done with apt-get install libgmp-dev. Then move the 
-  contents of libGMPVersion to this directory.
+The regular version of fastqGrep converts the hex characters in read ids to
+  large numbers. However, in the process it ignores and letter that is not
+  0 to 9 or a to f. This works well for nanopore sequence reads, which have
+  read id's in hex and somewhat well for Illuminia, which only has a few non-hex
+  characters for machine and flow cell ids.
 
 # How to use:
 
@@ -46,13 +38,12 @@ chmod a+x /path/to/install;
 fastqGrep uses a hash table combined with a balanced tree (using AVL method) to
    identify matching read ids. The hash table reduces the best case look up time
    to O(1), while the balanced tree ensures that the worst case look up time is
-   around, but not quite O(nlog(n)). This reduces the impact of collisions in 
-   hashing and is likely why the gmp version of the pipeline is faster then
-   seqkit when extracting all reads (see if figures in libGMPVersion folder).
+   around, but not quite O(nlog(n)).
 
 The string version (default) finds the hash by multiplying all characters in a
-  c-string and then taking the modulo of the array size. While the gmp version
-  flips the c-string, discards any non-hex digits (not 0-9 or a-f) and converts
-  the c-string to a big number. The hash is found using Knuths multiplicate hash
-  on the 64 most significant bits of the big number. The non-hashed big number
-  is also used to detect if the read id matches any input read ids.
+  c-string and then taking the modulo of the array size. While the default
+  version reverses the c-string, discards any non-hex digits
+  (not 0 to 9 or a to f) and converts the c-string to a big number. The hash is
+  then found using Knuths multiplicate hash on the 64 most significant bits of
+  the big number. The non-hashed big number is also used to detect if the read
+  id matches any input read ids.
