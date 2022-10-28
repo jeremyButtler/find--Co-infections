@@ -14,9 +14,11 @@ The sam file needs to have an eqx cigar entry (minimap2 --eqx). The stats,
 
 ## Install:
 
-make
-mv scoreReads /path/to/install
-chmod a+x /path/to/install/scoreReads
+make;
+
+mv scoreReads /path/to/install;
+
+chmod a+x /path/to/install/scoreReads;
 
 ## How to use:
 

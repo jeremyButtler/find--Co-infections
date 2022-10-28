@@ -4,6 +4,14 @@
 
 Clusters reads by mapping quality.
 
+## Install:
+
+make;
+
+mv cluster /path/to/install/cluster;
+
+chmod a+x /path/to/install/cluster;
+
 ## Reason exists:
 
 This is not the best clustering algorithm, so it should not be used. However,

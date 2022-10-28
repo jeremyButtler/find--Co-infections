@@ -4,13 +4,13 @@ Used to find co-infections in nanopore sequenced reads.
 
 ## Install:
 
-make
+make;
 
 ### Install in specific location
 
-mv findCoInfections.sh coInfectScripts /path/to/install
+mv findCoInfections.sh coInfectScripts /path/to/install;
 
-chmod -R a+x /path/to/install/coInfectScripts /path/to/install/findCoInfections.sh
+chmod -R a+x /path/to/install/coInfectScripts /path/to/install/findCoInfections.sh;
 
 ## Run:
 
@@ -40,7 +40,8 @@ bash findCoInfections.sh -f reads.fastq -ref reference-database.fastq -p prefix
 
 This may not be the best analysis, but is just a quick run through of what I 
   found and how findCoInfections compares to other pipelines. I will be updating
-  this with a comparison to Nano-Q in a bit.
+  this with a comparison to Nano-Q in a bit. It also is not the best writing,
+  but it will do for now.
 
 We compared findCoInfections to Longshot and Clair3 using simulated
   co-infections. Reads for the major strain and minor strain in each simulated 

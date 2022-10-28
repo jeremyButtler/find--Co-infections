@@ -30,7 +30,9 @@ The regular version of fastqGrep converts the hex characters in read ids to
 # How to install:
 
 make;
+
 mv fastqGrep /path/to/install;
+
 chmod a+x /path/to/install;
 
 # How fastqGrep works:
