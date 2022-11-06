@@ -1,9 +1,10 @@
 # Using gmp library for big numbers
 # For debain: need libgmp-dev
+# O3 makes slightly faster (unrolls some key loops)
 CC=gcc # most likely default on a unix OS
 compileCmdStr=-g \
               -Wall \
-              -O2 \
+              -O3 \
               fastqGrepFastqFun.c \
               fastqGrepStructs.c \
               fastqGrepAVLTree.c \

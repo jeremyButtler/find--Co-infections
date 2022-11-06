@@ -316,8 +316,8 @@ char extractReadsInTree(
     lenInputInt = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    lenIdULng = 40;
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abcdef012",&lenIdULng);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -340,6 +340,7 @@ char extractReadsInTree(
                &lenInputInt,
                buffSizeULng,
                &lenIdULng,     /*Will hold the lenght of read id*/
+               idBigNum,
                fastqFile
         ); /*Get read name from file*/
 
@@ -356,8 +357,6 @@ char extractReadsInTree(
         # Fun-3 Sec-3 Sub-2: Determine if read is in tree
         ***********************************************************************/
 
-        /*Convert read id to number*/
-        strToBackwardsBigNum(idBigNum, startReadCStr, &lenIdULng);
         lastRead = searchTree(idBigNum, readTree); /*Check if id is in tree*/
 
         /***********************************************************************
@@ -463,8 +462,8 @@ char extractReadsNotInTree(
     lenInputInt = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    lenIdULng = 40;
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abcdef012",&lenIdULng);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -487,6 +486,7 @@ char extractReadsNotInTree(
                &lenInputInt,
                buffSizeULng,
                &lenIdULng,     /*Will hold the lenght of read id*/
+               idBigNum,
                fastqFile
         ); /*Get read name from file*/
 
@@ -503,8 +503,6 @@ char extractReadsNotInTree(
         # Fun-4 Sec-3 Sub-2: Determine if read is in tree
         ***********************************************************************/
 
-        /*Convert read id to number*/
-        strToBackwardsBigNum(idBigNum, startReadCStr, &lenIdULng);
         lastRead = searchTree(idBigNum, readTree); /*Check if id is in tree*/
 
         /***********************************************************************
@@ -612,8 +610,8 @@ char extractReadsInHash(
     lenInputInt = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    lenIdULng = 40;
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abcdef012",&lenIdULng);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -636,6 +634,7 @@ char extractReadsInHash(
                 &lenInputInt,
                 buffSizeULng,
                 &lenIdULng,     /*Will hold the lenght of read id*/
+                idBigNum,
                 fastqFile
         ); /*Get read name from file*/
 
@@ -651,9 +650,6 @@ char extractReadsInHash(
         /***********************************************************************
         # Fun-5 Sec-3 Sub-2: Determine if read is in tree
         ***********************************************************************/
-
-        /*Convert read id to number*/
-        strToBackwardsBigNum(idBigNum, startReadCStr, &lenIdULng);
 
         lastRead = 
             findReadInHashTbl(
@@ -770,8 +766,8 @@ char extractReadsNotInHash(
     lenInputInt = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    lenIdULng = 40;
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abcdef012",&lenIdULng);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -793,6 +789,7 @@ char extractReadsNotInHash(
                            &lenInputInt,
                            buffSizeULng,
                            &lenIdULng,     /*Will hold the lenght of read id*/
+                           idBigNum,
                            fastqFile
         ); /*Get read name from file*/
 
@@ -808,9 +805,6 @@ char extractReadsNotInHash(
         /***********************************************************************
         # Fun-6 Sec-3 Sub-2: Determine if read is in tree
         ***********************************************************************/
-
-        /*Convert read id to number*/
-        strToBackwardsBigNum(idBigNum, startReadCStr, &lenIdULng);
 
         lastRead = 
             findReadInHashTbl(

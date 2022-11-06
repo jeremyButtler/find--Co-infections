@@ -13,6 +13,39 @@
 
 #include "fastqGrepFastqFun.h"
 
+/*Make look up table to look if character is valid hex character
+    64 is invisivle character
+    32 is non-hex character (printable)
+*/
+char hexTblCharAry[] =
+    {
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
+
+     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
+
+     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
+
+     10, 11, 12, 13, 14, 15,     /*A-F*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32,  /*G-` (71 to 96)*/
+
+     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32 /*g to ascii limit (103 to 256)*/
+    };
+
 /*##############################################################################
 # Output:
 #    Modifies: startNameCStr to point to the start of the read name
@@ -30,6 +63,7 @@ char parseFastqHeader(
     int *lenInputInt,        /*Length of input from fread*/
     int buffSizeInt,         /*Size of buffer to work on*/
     unsigned long *lenIdULng,/*Lengtho of the read id*/
+    struct bigNum *idBigNum,  /*Will hold big number found*/
     FILE *fastqFile          /*Fastq file to get data from*/
 ) /*Reads input from file & sets pointer to start of read name*/
 { /*parseFastqHeader*/
@@ -41,11 +75,15 @@ char parseFastqHeader(
     #    fun-1 sec-3: Copy header over, recored length, & incurment pointers
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    char charBit = 0;
+    unsigned long *elmOnPtrULng = 0;
+
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-1 Sec-2: loop through buffer & check if need to get input from file
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     *lenIdULng = 0; /*Make sure starts at 0*/
+    idBigNum->lenUsedElmChar = 0;
 
     if(**endNameCStr == '\n')
         (*endNameCStr)++;
@@ -67,41 +105,52 @@ char parseFastqHeader(
 
     *startNameCStr = *endNameCStr;    /*know at the start of the read name*/
       
-    while(**endNameCStr != ' ' &&          /*End of read name*/
-          **endNameCStr != '\n'            /*End of line*/
-    ) { /*While still on the read name part of header*/
+     do { /*While still on the read name part of header*/
 
-        if(**endNameCStr == '\0')
-        { /*If ran out of buffer & need to read in more of the file*/
-            if(*lenInputInt < buffSizeInt)
-                return 0;                    /*At end of file, but no sequence*/
+        /*Graph unsigned long element working on*/
+        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
+        *elmOnPtrULng = 0;
+        charBit = 0;
 
-            /*Go to the start of the name*/
-            fseek(
-                fastqFile,
-                *lenIdULng * -1,
-                SEEK_CUR
-            ); /*Put file pointer back to the start of read name*/
+        while(charBit < (sizeof(unsigned long) << 3))
+        { /*while empty bits in the current big number unsigned long element*/
+            if(hexTblCharAry[**endNameCStr] & 64)
+                break; /*If have finshed converting the hex string*/
 
-            *lenInputInt = fread(bufferCStr,
-                                 sizeof(char),
-                                 buffSizeInt,
-                                 fastqFile
-            ); /*Read in more of the file*/
+            else if(!(hexTblCharAry[**endNameCStr] & 32)) /*Was hex char*/
+            { /*Else if is a hex character*/
+                *elmOnPtrULng =
+                    *elmOnPtrULng +
+                    (hexTblCharAry[**endNameCStr] << charBit);
+                charBit += 4;   /*make sureo only recored conversion*/
+            } /*Else if is a hex character*/
 
-            *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *startNameCStr = bufferCStr;
-            *endNameCStr = bufferCStr;
-            continue;
-        } /*If ran out of buffer & need to read more of the file*/
+            (*lenIdULng)++;
+            (*endNameCStr)++;
 
-        /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        # Fun-1 Sec-3: Copy header over, recored length, & incurment pointers
-        <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+            if(**endNameCStr == '\0')
+            { /*If ran out of buffer & need to read in more of the file*/
+                if(*lenInputInt < buffSizeInt)
+                    return 0;     /*At end of file, but no sequence*/
 
-        (*lenIdULng)++;
-        (*endNameCStr)++;
-    } /*While still on the read name part of header*/
+                /*Put file pointer back to the start of read name*/
+                fseek(fastqFile, *lenIdULng * -1, SEEK_CUR);
+
+                *lenInputInt = fread(bufferCStr,
+                                     sizeof(char),
+                                     buffSizeInt,
+                                     fastqFile
+                ); /*Read in more of the file*/
+
+                *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
+                *startNameCStr = bufferCStr;
+                *endNameCStr = bufferCStr + *lenIdULng;
+                continue;
+            } /*If ran out of buffer & need to read more of the file*/
+        } /*while empty bits in the current big number unsigned long element*/
+
+        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
+    } while(**endNameCStr > 32); /*While still on the read name part of header*/
 
     return 2; /*Copied name sucessfully*/
 } /*parseFastqHeader*/

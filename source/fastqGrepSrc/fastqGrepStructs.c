@@ -17,6 +17,39 @@
 
 #include "fastqGrepStructs.h"
 
+/*Make look up table to look if character is valid hex character
+    64 is invisivle character
+    32 is non-hex character (printable)
+*/
+char hexLookUpTblCharAry[] =
+    {
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
+
+     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
+
+     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
+
+     10, 11, 12, 13, 14, 15,     /*A-F*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32,  /*G-` (71 to 96)*/
+
+     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32 /*g to ascii limit (103 to 256)*/
+    };
+
 /*##############################################################################
 # Output: Modifies: readInfoStruct to have default values (all 0's)
 ##############################################################################*/
@@ -208,30 +241,32 @@ void strToBackwardsBigNum(
     # Fun-6 Sec-1: Variable declerations
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    char numULngsChar = 1 + (*lenCStrULng >> (sizeof(unsigned long) >> 1));
-        /* Each hex number takes up 4 bits
-           sizeof returns number of bytes so multipy by 8 (<< 3)
-           (sizeof(unsigned long) << 3) >> 1 = sizeof(unsigned long) >> 1)
-        */
-    
+    char charBit = 0; /*Number bits to shift*/
+
     unsigned long *elmOnPtrULng = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-2: Resize big number array if needed
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    idBigNum->lenUsedElmChar = 0; /*Make sure starts at 0 (re-finding)*/
+    idBigNum->lenUsedElmChar =
+        1 + (*lenCStrULng >> (sizeof(unsigned long) >> 1));
+        /* Each hex number takes up 4 bits
+           sizeof returns number of bytes so multipy by 8 (<< 3)
+           (sizeof(unsigned long) << 3) >> 1 = sizeof(unsigned long) >> 1)
+        */
 
     /*Make sure have an array large enough to store number*/
-    if(idBigNum->lenAllElmChar < numULngsChar)
+    if(idBigNum->lenAllElmChar < idBigNum->lenUsedElmChar)
     { /*If I need to make the array biger*/
         if(idBigNum->bigNumAryULng == 0)
-            idBigNum->bigNumAryULng =malloc(sizeof(unsigned long)*numULngsChar);
+            idBigNum->bigNumAryULng =
+                malloc(sizeof(unsigned long) * idBigNum->lenUsedElmChar);
         else
             idBigNum->bigNumAryULng =
                 realloc(
                     idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * numULngsChar
+                    sizeof(unsigned long) * idBigNum->lenUsedElmChar
             ); /*Need to reallocate memory*/
 
  
@@ -246,14 +281,14 @@ void strToBackwardsBigNum(
             return;
         } /*If memory reallocation failed*/
 
-        idBigNum->lenAllElmChar = numULngsChar;
+        idBigNum->lenAllElmChar = idBigNum->lenUsedElmChar;
     } /*If I need to make the array biger*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-3: Convert string to big number (work backwards)
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    numULngsChar = 0; /*Array element on*/
+    idBigNum->lenUsedElmChar = 0;
 
     if(*cStrToCnvt == '@')
         cStrToCnvt++; /*Move off header for fastq entry*/
@@ -262,29 +297,26 @@ void strToBackwardsBigNum(
     { /*While there are array elements to fill*/
 
         /*Graph unsigned long element working on*/
-        elmOnPtrULng = idBigNum->bigNumAryULng + numULngsChar;
+        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
         *elmOnPtrULng = 0;
+        charBit = 0;
 
-        for(
-            unsigned char charBit = 0;       /*Using ULng to make easiy*/
-            charBit < (sizeof(unsigned long) << 3); /*While bits to fill in*/
-            charBit += 4                     /*Bits used per hex character*/
-        ) { /*For empty bits in the current big number unsigned long element*/
-            if(*cStrToCnvt < 33)
+        while(charBit < (sizeof(unsigned long) << 3))
+        { /*while empty bits in the current big number unsigned long element*/
+            if(hexLookUpTblCharAry[*cStrToCnvt] & 64)
                 break; /*If have finshed converting the hex string*/
 
-            if(*cStrToCnvt > 47 && *cStrToCnvt < 71) /*0-9 or A-F, (covers 0-15)*/
-                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-48) << charBit);
-
-            else if(*cStrToCnvt > 96 && *cStrToCnvt < 103) /*a-f, (covers 10-15)*/
-                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-87) << charBit);
-            else
-                charBit -= 4;   /*make sureo only recored conversion*/
+            else if(!(hexLookUpTblCharAry[*cStrToCnvt] & 32)) /*Was hex char*/
+            { /*Else if is a hex character*/
+                *elmOnPtrULng =
+                    *elmOnPtrULng +
+                    (hexLookUpTblCharAry[*cStrToCnvt] << charBit);
+                charBit += 4;   /*make sureo only recored conversion*/
+            } /*Else if is a hex character*/
 
             cStrToCnvt++; /*move to next character in id*/
-        } /*For empty bits in the current big number unsigned long element*/
+        } /*while empty bits in the current big number unsigned long element*/
 
-        numULngsChar++;
         (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
     } /*While there are array elements to fill*/
 

@@ -8,6 +8,7 @@
 #define FASTQGREPFASTQFUN_H
 
 #include <stdio.h>
+#include "fastqGrepStructs.h"
 
 /*##############################################################################
 # Output:
@@ -25,6 +26,7 @@ char parseFastqHeader(
     int *lenInputInt,        /*Length of input from fread*/
     int buffSizeInt,         /*Size of buffer to work on*/
     unsigned long *lenIdULng,/*Lengtho of the read id*/
+    struct bigNum *idBigNum,  /*Will hold big number found*/
     FILE *fastqFile          /*Fastq file to get data from*/
 ); /*Reads input from file & sets pointer to start of read name*/
 
