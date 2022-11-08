@@ -27,10 +27,11 @@
 #    Returns: pointer to found or new readInfo node (with readnameCStr)
 #             0: If the read name was not in the tree
 #    Modifes: readTree to have a new node with readIdCStr in it
+#    Modifies: numElmUChar, if a larger number of longs are needed
 ##############################################################################*/
 struct readInfo * findAddNodeToReadTree(
     char * readIdCStr,                 /*c-string with read id to insert*/
-    const unsigned long *lenIdULng,    /*Length of read id*/
+    unsigned char *numElmUChar,         /*Number of U longs needed per big num*/
     struct readInfo **readTree,        /*tree to search for readIdCStr*/
     struct readNodeStack *readStackAry /*Stack, (as array) for searching*/
 ) /*Finds or creates node with input read name in a read info tree*/
@@ -62,7 +63,7 @@ struct readInfo * findAddNodeToReadTree(
     readStackAry++; /*Get off 0 at start*/
 
     /*Make readInfo node (converts id to number)*/
-    queryNode = makeReadInfoStruct(readIdCStr, lenIdULng);
+    queryNode = makeReadInfoStruct(readIdCStr, numElmUChar);
 
     if(queryNode == 0)
     { /*If malloc did not allocate memory for the new readInfo node*/

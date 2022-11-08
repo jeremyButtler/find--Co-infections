@@ -78,22 +78,4 @@ void freeHashTbl(
     struct readNodeStack *readStack   /*Stack, (as array) for searching*/
 ); /*Fres a hash table of read trees*/
 
-/*##############################################################################
-# Output:
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
-#    Modifies: lenIdULng to hold the length of the read id
-#    Modifies: lenInputInt to hold length of input buffer
-#    Returns: readInfo struct with bigNum struct having read id converted to hex
-#        - 0 if fails or end of file (lenIdULng < buffSizeInt)
-##############################################################################*/
-struct readInfo * cnvtIdToBigNum(
-    char *bufferCStr,        /*buffer to hold fread input (can have data)*/
-    int buffSizeInt,         /*Size of buffer to work on*/
-    char **endNameCStr,      /*Points to start of read name, will point to end*/
-    int *lenInputInt,        /*Length of input from fread*/
-    unsigned long *lenIdULng,/*Lengtho of the read id*/
-    unsigned char *lenBigNumChar, /*Holds size to make bigNumber*/
-    FILE *fastqFile          /*Fastq file to get data from*/
-); /*Reads input from file & sets pointer to start of read name*/
-
 #endif

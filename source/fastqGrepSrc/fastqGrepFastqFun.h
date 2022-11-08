@@ -13,21 +13,23 @@
 /*##############################################################################
 # Output:
 #    Modifies: startNameCStr to point to the start of the read name
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
+#    Modifies: idBigNum to holder head as hex big number (set to 0 for 
+#    Modifies: lenBigNumAryUChar when string needs more longs, set to 0 when
+#              memory allocatoin failed
 #    Returns:
+#        8: memory allocation failed
 #        4: If the end of the file
 #        2: if nothing went wrong
 #        0: If ran out of file
 ##############################################################################*/
 char parseFastqHeader(
-    char *bufferCStr,        /*buffer to hold fread input (can have data)*/
-    char **startNameCStr,    /*Will hold the start of the name*/
-    char **endNameCStr,      /*Points to start of read name, will point to end*/
-    int *lenInputInt,        /*Length of input from fread*/
-    int buffSizeInt,         /*Size of buffer to work on*/
-    unsigned long *lenIdULng,/*Lengtho of the read id*/
-    struct bigNum *idBigNum,  /*Will hold big number found*/
-    FILE *fastqFile          /*Fastq file to get data from*/
+    char *buffCStr,              /*buffer to hold fread input (can have data)*/
+    char **startNameCStr,        /*Start of read id*/
+    int *lenInInt,               /*Length of input from fread*/
+    int lenBuffInt,             /*Size of buffer to work on*/
+    struct bigNum *idBigNum,   /*Big number struct to hold read id*/
+    unsigned char *lenBigNumAryUChar,  /*Length of U longs in big number*/
+    FILE *fqFILE              /*Fastq file to get data from*/
 ); /*Reads input from file & sets pointer to start of read name*/
 
 /*##############################################################################
@@ -42,7 +44,6 @@ char parseFastqHeader(
 ##############################################################################*/
 char printFastqEntry(
     char *bufferCStr,            /*buffer to hold fread input (can have data)*/
-    char **pointInBufferCStr,     /*Points to locatoin working on in buffer*/
     char **readStartCStr,         /*Points to start of read name*/
     int buffSizeInt,              /*Size of buffer to work on*/
     int *lenInputInt,             /*Length of input from fread*/

@@ -13,144 +13,174 @@
 
 #include "fastqGrepFastqFun.h"
 
-/*Make look up table to look if character is valid hex character
-    64 is invisivle character
-    32 is non-hex character (printable)
-*/
-char hexTblCharAry[] =
-    {
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
-
-     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
-
-     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
-
-     10, 11, 12, 13, 14, 15,     /*A-F*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32,  /*G-` (71 to 96)*/
-
-     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32 /*g to ascii limit (103 to 256)*/
-    };
-
 /*##############################################################################
 # Output:
 #    Modifies: startNameCStr to point to the start of the read name
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
-#    Modifies: lenIdULng to hold the length of the read id
+#    Modifies: idBigNum to holder head as hex big number (set to 0 for 
+#    Modifies: lenBigNumAryUChar when string needs more longs, set to 0 when
+#              memory allocatoin failed
 #    Returns:
+#        8: memory allocation failed
 #        4: If the end of the file
 #        2: if nothing went wrong
 #        0: If ran out of file
 ##############################################################################*/
 char parseFastqHeader(
-    char *bufferCStr,        /*buffer to hold fread input (can have data)*/
-    char **startNameCStr,    /*Will hold the start of the name*/
-    char **endNameCStr,      /*Points to start of read name, will point to end*/
-    int *lenInputInt,        /*Length of input from fread*/
-    int buffSizeInt,         /*Size of buffer to work on*/
-    unsigned long *lenIdULng,/*Lengtho of the read id*/
-    struct bigNum *idBigNum,  /*Will hold big number found*/
-    FILE *fastqFile          /*Fastq file to get data from*/
+    char *buffCStr,              /*buffer to hold fread input (can have data)*/
+    char **startNameCStr,        /*Start of read id*/
+    int *lenInInt,               /*Length of input from fread*/
+    int lenBuffInt,             /*Size of buffer to work on*/
+    struct bigNum *idBigNum,   /*Big number struct to hold read id*/
+    unsigned char *lenBigNumAryUChar,  /*Length of U longs in big number*/
+    FILE *fqFILE              /*Fastq file to get data from*/
 ) /*Reads input from file & sets pointer to start of read name*/
 { /*parseFastqHeader*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-1 TOC:
     #    fun-1 sec-1: Variable declerations
-    #    fun-1 sec-2: loop through buffer & check if need to get input from file
-    #    fun-1 sec-3: Copy header over, recored length, & incurment pointers
+    #    fun-1 sec-2: Make sure the bigNum struct has been initalized
+    #    fun-1 sec-3: Find an move past @ makring header start
+    #    fun-1 sec-4: loop through buffer & check if need to get input from file
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    char charBit = 0;
-    unsigned long *elmOnPtrULng = 0;
+    char *seqIterCStr = *startNameCStr;
+
+    unsigned long
+        lenIdLng = 0,   /*Number of offset fseek by, if need to regrab*/
+        *elmOnPtrULng = 0; /*For number conversion*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-2: loop through buffer & check if need to get input from file
+    # Fun-1 Sec-2: Make sure the bigNum struct has been initalized
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    *lenIdULng = 0; /*Make sure starts at 0*/
-    idBigNum->lenUsedElmChar = 0;
+    /*Make sure have an array large enough to store number*/
+    if(idBigNum->lenAllElmChar < *lenBigNumAryUChar)
+    { /*If I need to make the array biger*/
+        if(idBigNum->bigNumAryULng == 0)
+            idBigNum->bigNumAryULng =
+                malloc(sizeof(unsigned long) * (*lenBigNumAryUChar));
+        else
+            idBigNum->bigNumAryULng =
+                realloc(
+                    idBigNum->bigNumAryULng,
+                    sizeof(unsigned long) * (*lenBigNumAryUChar)
+            ); /*Need to reallocate memory*/
 
-    if(**endNameCStr == '\n')
-        (*endNameCStr)++;
+        if(idBigNum->bigNumAryULng == 0)
+        { /*If memory reallocation failed*/
+            idBigNum->lenUsedElmChar = 0;
+            fprintf(
+                stderr,
+               "Memory allocation failed: Fun-1 fastqFastqRun.c line 60 to 63\n"
+            ); /*Print error message to user*/
 
-    if(**endNameCStr == '\0')
-    { /*If at the end of the buffer, but not at start of read*/
-        if(*lenInputInt < buffSizeInt)
-          return 4;                    /*Done with file*/
+            return 8;
+        } /*If memory reallocation failed*/
 
-        *lenInputInt = fread(
-                           bufferCStr,
-                           sizeof(char),
-                           buffSizeInt,
-                           fastqFile
-        ); /*Read in more of the file*/
+        idBigNum->lenAllElmChar = *lenBigNumAryUChar;
+    } /*If I need to make the array biger*/
 
-      *endNameCStr = bufferCStr;
-    } /*If at the end of the buffer, but not at start of read*/
+    else
+        *lenBigNumAryUChar = idBigNum->lenAllElmChar; /*more longs in stuct*/
 
-    *startNameCStr = *endNameCStr;    /*know at the start of the read name*/
-      
-     do { /*While still on the read name part of header*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-1 Sec-3: Find an move past @ makring header start
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-        /*Graph unsigned long element working on*/
+    while(*seqIterCStr != '@')
+    { /*While not at header*/
+
+        if(*seqIterCStr == '\0')
+        { /*If at the end of the buffer, but not at start of read*/
+            if(*lenInInt < lenBuffInt)
+                return 4;                    /*Done with file*/
+
+            *lenInInt=fread(buffCStr, sizeof(char), lenBuffInt, fqFILE);
+
+            seqIterCStr = buffCStr;
+            *startNameCStr = buffCStr;
+        } /*If at the end of the buffer, but not at start of read*/
+
+        else
+            seqIterCStr++; /*Move to the header*/
+    } /*While not at header*/
+
+    seqIterCStr++; /*Move off the header symbol*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-1 Sec-4: loop through id & convert to big number
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    idBigNum->lenUsedElmChar = 0; /*Make sure 0, since copying new number*/
+
+    do
+    { /*While still on the read name part of header*/
+
+        if(idBigNum->lenUsedElmChar >= idBigNum->lenAllElmChar)
+        { /*If need to resize the unsigned long array*/
+            idBigNum->bigNumAryULng =
+                realloc(
+                    idBigNum->bigNumAryULng,
+                    sizeof(unsigned long) * (*lenBigNumAryUChar)
+            ); /*Need to make the unsigned long array biger*/
+
+            if(idBigNum->bigNumAryULng == 0)
+            { /*If memory reallocation failed*/
+                idBigNum->lenUsedElmChar = 0;
+                fprintf(
+                    stderr,
+                   "Memory allocation failed: Fun-1 fastqGrepFastqFun.c 121\n"
+                ); /*Print error message to user*/
+    
+                return 8;
+            } /*If memory reallocation failed*/
+
+            idBigNum->lenAllElmChar++;
+            (*lenBigNumAryUChar)++;
+        } /*If need to resize the unsigned long array*/
+
         elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
         *elmOnPtrULng = 0;
-        charBit = 0;
 
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexTblCharAry[**endNameCStr] & 64)
+        for(
+            unsigned char charBit = 0;       /*Using ULng to make easiy*/
+            charBit < (sizeof(unsigned long) << 3); /*While bits to fill in*/
+            charBit += 4                     /*Bits used per hex character*/
+        ) { /*For empty bits in the current big number unsigned long element*/
+            if(*seqIterCStr < 33)
                 break; /*If have finshed converting the hex string*/
 
-            else if(!(hexTblCharAry[**endNameCStr] & 32)) /*Was hex char*/
-            { /*Else if is a hex character*/
-                *elmOnPtrULng =
-                    *elmOnPtrULng +
-                    (hexTblCharAry[**endNameCStr] << charBit);
-                charBit += 4;   /*make sureo only recored conversion*/
-            } /*Else if is a hex character*/
+            if(*seqIterCStr > 47 && *seqIterCStr < 71) /*0-9 or A-F, (0-15)*/
+                *elmOnPtrULng = *elmOnPtrULng + (((*seqIterCStr)-48) << charBit);
 
-            (*lenIdULng)++;
-            (*endNameCStr)++;
+            else if(*seqIterCStr > 96 && *seqIterCStr < 103) /*a-f, (10-15)*/
+                *elmOnPtrULng = *elmOnPtrULng + (((*seqIterCStr)-87) << charBit);
+            else
+                charBit -= 4;   /*make sureo only recored conversion*/
 
-            if(**endNameCStr == '\0')
+            seqIterCStr++;  /*move to next character in id*/
+            lenIdLng++; /*count number of characters read in*/
+
+            if(*seqIterCStr == '\0')
             { /*If ran out of buffer & need to read in more of the file*/
-                if(*lenInputInt < buffSizeInt)
-                    return 0;     /*At end of file, but no sequence*/
+                if(*lenInInt < lenBuffInt)
+                    return 0; /*At end of file, but no sequence*/
 
-                /*Put file pointer back to the start of read name*/
-                fseek(fastqFile, *lenIdULng * -1, SEEK_CUR);
+                lenIdLng++; /*Is one off the @ symbol*/
 
-                *lenInputInt = fread(bufferCStr,
-                                     sizeof(char),
-                                     buffSizeInt,
-                                     fastqFile
-                ); /*Read in more of the file*/
+                fseek(fqFILE, lenIdLng * -1 /*start of header*/, SEEK_CUR);
+                *lenInInt = fread(buffCStr, sizeof(char), lenBuffInt, fqFILE);
 
-                *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-                *startNameCStr = bufferCStr;
-                *endNameCStr = bufferCStr + *lenIdULng;
-                continue;
+                *(buffCStr + *lenInInt) = '\0';/*make sure a c-string*/
+                seqIterCStr = buffCStr + lenIdLng; /*move back to position at*/
+                *startNameCStr = buffCStr;  /*Start of read id*/
             } /*If ran out of buffer & need to read more of the file*/
-        } /*while empty bits in the current big number unsigned long element*/
+        } /*For empty bits in the current big number unsigned long element*/
 
-        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
-    } while(**endNameCStr > 32); /*While still on the read name part of header*/
+        (idBigNum->lenUsedElmChar)++;
+    } while(*seqIterCStr > 32); /*32 is space, < 33 '\n', '\t', '\r', & \0*/
+       /*Ensured that the loop never starts at \0*/
 
     return 2; /*Copied name sucessfully*/
 } /*parseFastqHeader*/
@@ -167,7 +197,6 @@ char parseFastqHeader(
 ##############################################################################*/
 char printFastqEntry(
     char *bufferCStr,            /*buffer to hold fread input (can have data)*/
-    char **pointInBufferCStr,     /*Points to locatoin working on in buffer*/
     char **readStartCStr,         /*Points to start of read name*/
     int buffSizeInt,              /*Size of buffer to work on*/
     int *lenInputInt,             /*Length of input from fread*/
@@ -189,17 +218,38 @@ char printFastqEntry(
     # Fun-2 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    unsigned long
-        numSeqlinesULng = 0;  /*Record the number of new lines in the sequence*/
+    char *seqIterCStr = *readStartCStr;
+    unsigned long numSeqlinesULng = 0; /*Holds number of new lines in sequence*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-2 Sec-2: Print out the header
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
- 
-    while(**pointInBufferCStr != '\n')
-    { /*While on header, move to sequence line*/
 
-        if(**pointInBufferCStr == '\0')
+    while(*seqIterCStr != '@')
+    { /*While not at start of fastq header*/
+        if(*seqIterCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+            if(*lenInputInt < buffSizeInt)
+                return 0;         /*Is not a complete fastq file*/
+
+            *lenInputInt = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
+            seqIterCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
+        } /*If ran out of buffer & need to read in more of the file*/
+
+        else
+            seqIterCStr++; /*Move off any new lines*/
+    } /*While not at start of fastq header*/
+ 
+    while(*seqIterCStr != '\n')
+    { /*While on header, move to sequence line*/
+        if(*seqIterCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             printf("%s", *readStartCStr); /*print out old buffer*/
@@ -214,22 +264,22 @@ char printFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
-            *readStartCStr = *pointInBufferCStr;
+            seqIterCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        (*pointInBufferCStr)++;
+        seqIterCStr++; /*Move to next character in header*/
     } /*While on header, move to sequence line*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-2 Sec-3: Print out & find number new lines in seqence line
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    while(**pointInBufferCStr != '+')
+    while(*seqIterCStr != '+')
     { /*While on sequence line, count number new lines & move to spacer*/
 
-        if(**pointInBufferCStr == '\0')
+        if(*seqIterCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             printf("%s", *readStartCStr); /*print out old buffer*/
@@ -244,25 +294,25 @@ char printFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
-            *readStartCStr = *pointInBufferCStr;
+            seqIterCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        if(**pointInBufferCStr == '\n')
+        if(*seqIterCStr == '\n')
             numSeqlinesULng++;    /*Record number new lines, for q-score entry*/
 
-        (*pointInBufferCStr)++;
+        seqIterCStr++;
     } /*While on sequence line, count number new lines & move to spacer*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-2 Sec-4: Print out the spacer entry
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
  
-    while(**pointInBufferCStr != '\n')
+    while(*seqIterCStr != '\n')
     { /*While on the spacer entry*/
 
-        if(**pointInBufferCStr == '\0')
+        if(*seqIterCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             printf("%s", *readStartCStr); /*print out old buffer*/
@@ -277,12 +327,12 @@ char printFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
-            *readStartCStr = *pointInBufferCStr;
+            seqIterCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        (*pointInBufferCStr)++;
+        seqIterCStr++;
     } /*While on the spacer entry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -292,7 +342,7 @@ char printFastqEntry(
     while(numSeqlinesULng > 0)
     { /*While have q-score entry lines to print out*/
 
-        if(**pointInBufferCStr == '\0')
+        if(*seqIterCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             printf("%s", *readStartCStr); /*print out old buffer*/
@@ -312,25 +362,25 @@ char printFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
-            *readStartCStr = *pointInBufferCStr;
+            seqIterCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        if(**pointInBufferCStr == '\n')
+        if(*seqIterCStr == '\n')
             numSeqlinesULng--;    /*Record number new lines, for q-score entry*/
 
-        (*pointInBufferCStr)++;
+        seqIterCStr++;
     } /*While have q-score entry lines to print out*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-2 Sec-6: Print out remaning parts of entry in buffer
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    (*pointInBufferCStr)--;      /*Get back on the new line*/
-    **pointInBufferCStr = '\0'; /*Turn '\n' into '\0', so print stops at line*/
+    seqIterCStr--;               /*Get back on the new line*/
+    *seqIterCStr = '\0';         /*Turn '\n' into '\0', so print stops at line*/
     printf("%s\n", *readStartCStr); /*Print out the read name*/
-    **pointInBufferCStr = '\n'; /*Convert back to \n so no longer c-string*/
+    *readStartCStr = seqIterCStr + 1; /*Move to header in next entry*/
     
     return 2; /*Copied name sucessfully*/
 } /*printFastqEntry*/
@@ -346,7 +396,7 @@ char printFastqEntry(
 ##############################################################################*/
 char moveToNextFastqEntry(
     char *bufferCStr,            /*buffer to hold fread input (can have data)*/
-    char **pointInBufferCStr,     /*Points to locatoin working on in buffer*/
+    char **readStartCStr,        /*Points to locatoin working on in buffer*/
     int buffSizeInt,              /*Size of buffer to work on*/
     int *lenInputInt,             /*Length of input from fread*/
     FILE *fastqFile               /*Fastq file to get data from*/
@@ -366,17 +416,38 @@ char moveToNextFastqEntry(
     # Fun-3 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    unsigned long
-        numSeqlinesULng = 0;  /*Record the number of new lines in the sequence*/
+    unsigned long numSeqlinesULng = 0; /*Holds number of new lines in sequence*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-3 Sec-2: Move past header
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
  
-    while(**pointInBufferCStr != '\n')
+    while(**readStartCStr != '@')
+    { /*While not at start of fastq header*/
+        if(**readStartCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+            if(*lenInputInt < buffSizeInt)
+                return 0;         /*Is not a complete fastq file*/
+
+            *lenInputInt = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
+            *readStartCStr = bufferCStr;
+        } /*If ran out of buffer & need to read in more of the file*/
+
+        else
+            (*readStartCStr)++; /*Move off any new lines*/
+    } /*While not at start of fastq header*/
+
+
+    while(**readStartCStr != '\n')
     { /*While on header, move to sequence line*/
 
-        if(**pointInBufferCStr == '\0')
+        if(**readStartCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             if(*lenInputInt < buffSizeInt)
@@ -389,21 +460,21 @@ char moveToNextFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        (*pointInBufferCStr)++;
+        (*readStartCStr)++;
     } /*While on header, move to sequence line*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-3 Sec-3: Find number new lines in seqence line & move to spacer
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    while(**pointInBufferCStr != '+')
+    while(**readStartCStr != '+')
     { /*While on sequence line, count number new lines & move to spacer*/
 
-        if(**pointInBufferCStr == '\0')
+        if(**readStartCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             if(*lenInputInt < buffSizeInt)
@@ -416,24 +487,24 @@ char moveToNextFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        if(**pointInBufferCStr == '\n')
+        if(**readStartCStr == '\n')
             numSeqlinesULng++;    /*Record number new lines, for q-score entry*/
 
-        (*pointInBufferCStr)++;
+        (*readStartCStr)++;
     } /*While on sequence line, count number new lines & move to spacer*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-3 Sec-4: Move past spacer entry
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
  
-    while(**pointInBufferCStr != '\n')
+    while(**readStartCStr != '\n')
     { /*While on the spacer entry*/
 
-        if(**pointInBufferCStr == '\0')
+        if(**readStartCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             if(*lenInputInt < buffSizeInt)
@@ -446,11 +517,11 @@ char moveToNextFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        (*pointInBufferCStr)++;
+        (*readStartCStr)++;
     } /*While on the spacer entry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -460,7 +531,7 @@ char moveToNextFastqEntry(
     while(numSeqlinesULng > 0)
     { /*While have q-score entry lines to print out*/
 
-        if(**pointInBufferCStr == '\0')
+        if(**readStartCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
 
             if(*lenInputInt < buffSizeInt)
@@ -478,14 +549,14 @@ char moveToNextFastqEntry(
             ); /*Read in more of the file*/
 
             *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-            *pointInBufferCStr = bufferCStr;
+            *readStartCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
-        if(**pointInBufferCStr == '\n')
+        if(**readStartCStr == '\n')
             numSeqlinesULng--;    /*Record number new lines, for q-score entry*/
 
-        (*pointInBufferCStr)++;
+        (*readStartCStr)++;
     } /*While have q-score entry lines to print out*/
 
     return 2; /*Copied name sucessfully*/

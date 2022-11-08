@@ -22,7 +22,7 @@
 ##############################################################################*/
 struct readInfo * findAddNodeToReadTree(
     char * readIdCStr,                 /*c-string with name of read to find*/
-    const unsigned long *lenIdULng,    /*Length of read id*/
+    unsigned char *numElmUChar,         /*Number of U longs needed per big num*/
     struct readInfo **readTree,        /*tree to search for readNameCStr*/
     struct readNodeStack *readStackAry /*Stack, (as array) for searching*/
 ); /*Finds or creates node with input read name in a read info tree*/

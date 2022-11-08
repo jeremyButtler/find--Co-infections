@@ -41,7 +41,7 @@ typedef struct readInfo
 ##############################################################################*/
 struct readInfo * makeReadInfoStruct(
     char *readIdCStr,         /*c-string with read name to copy*/
-    const unsigned long *lenCStrULng /*Length of cString to convert*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ); /*Allocates memomory and makes a readInfo structer (variables set to 0)*/
 
 void freeReadInfoStruct(
@@ -76,7 +76,7 @@ void popReadNodeStack(
 ##############################################################################*/
 struct bigNum * makeBigNumStruct(
     char *cStrToCnvt,        /*C-string to convert hex elements to big number*/
-    const unsigned long *lenCStrULng /*Length of cString to convert*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ); /*Converts hex characters in c-string to a bitNum struct with a big number*/
 
 /*##############################################################################
@@ -87,7 +87,7 @@ struct bigNum * makeBigNumStruct(
 void strToBackwardsBigNum(
     struct bigNum *idBigNum,  /*Holds the output big number*/
     char *cStrToCnvt,         /*C-string to convert to large number*/
-    const unsigned long *lenCStrULng /*Length of cString to convert*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ); /*Flips c-string & converts to big number*/
 
 /*##############################################################################
@@ -106,5 +106,14 @@ unsigned long cmpBigNums(
     struct bigNum *bigNumOne,
     struct bigNum *bigNumTwo
 ); /*Compares bigNumOne to bigNumTwo to see if equal, >, or <*/
+
+/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Output:
+#    Returns: unsigned char with the number of unsigned longs needed to hold
+#             the hex c-string
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+unsigned char cnvtStrLenToNumHexULng(
+    const unsigned long *lenHexCStrULng /*Number of characters in hex c-string*/
+); /*Converts the number of unsinged longs needed to store the hex characters*/
 
 #endif

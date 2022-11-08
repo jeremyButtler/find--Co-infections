@@ -17,45 +17,12 @@
 
 #include "fastqGrepStructs.h"
 
-/*Make look up table to look if character is valid hex character
-    64 is invisivle character
-    32 is non-hex character (printable)
-*/
-char hexLookUpTblCharAry[] =
-    {
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
-
-     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
-
-     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
-
-     10, 11, 12, 13, 14, 15,     /*A-F*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32,  /*G-` (71 to 96)*/
-
-     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32 /*g to ascii limit (103 to 256)*/
-    };
-
 /*##############################################################################
 # Output: Modifies: readInfoStruct to have default values (all 0's)
 ##############################################################################*/
 struct readInfo * makeReadInfoStruct(
-    char *readIdCStr,         /*c-string with read name to copy*/
-    const unsigned long *lenCStrULng /*Length of cString to convert*/
+    char *readIdCStr,          /*c-string with read name to copy*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ) /*Allocates memomory and makes a readInfo structer (variables set to 0)*/
 { /*makeReadInfoStruct*/
 
@@ -88,7 +55,7 @@ struct readInfo * makeReadInfoStruct(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*Convert hex elements in read id to big number*/
-    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr, lenCStrULng);
+    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr, numElmUChar);
 
     if(readInfoStruct->idBigNum == 0)
     { /*If mallac failed to allocate memory*/
@@ -171,11 +138,12 @@ void popReadNodeStack(
 /*##############################################################################
 # Output:
 #    returns: bigNum structer with the converted big number
+#    Modifies: numElmUChar if a larger number of unsigned longs are needed
 #    returns: 0 if memory alloaction failed
 ##############################################################################*/
 struct bigNum * makeBigNumStruct(
     char *cStrToCnvt,          /*C-string to convert hex elements to big number*/
-    const unsigned long *lenCStrULng /*Length of cString to convert*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ) /*Converts hex characters in c-string to a bitNum struct with a big number*/
 { /*makeBigNumStruct*/
 
@@ -200,7 +168,7 @@ struct bigNum * makeBigNumStruct(
     idBigNum->bigNumAryULng = 0;  /*Just in case realloc needs*/
 
     /*Convert the c-string to a big number*/
-    strToBackwardsBigNum(idBigNum, cStrToCnvt, lenCStrULng); 
+    strToBackwardsBigNum(idBigNum, cStrToCnvt, numElmUChar); 
 
     if(idBigNum->lenUsedElmChar == 0)
     { /*If memory allocation failed*/
@@ -222,11 +190,12 @@ struct bigNum * makeBigNumStruct(
 # Output:
 #    Modifies: idBigNum to hold the converted big number.
 #        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
+#    Modifies: numElmUChar if a larger number of unsigned longs are needed
 ##############################################################################*/
 void strToBackwardsBigNum(
-    struct bigNum *idBigNum,  /*Holds the output big number*/
-    char *cStrToCnvt,             /*C-string to convert to large number*/
-    const unsigned long *lenCStrULng
+    struct bigNum *idBigNum,   /*Holds the output big number*/
+    char *cStrToCnvt,          /*C-string to convert to large number*/
+    unsigned char *numElmUChar /*Number of unsinged longs needed*/
 ) /*Flips c-string & converts to big number*/
 { /*strToBackwardsBigNum*/
 
@@ -241,34 +210,26 @@ void strToBackwardsBigNum(
     # Fun-6 Sec-1: Variable declerations
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    char charBit = 0; /*Number bits to shift*/
-
     unsigned long *elmOnPtrULng = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-2: Resize big number array if needed
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    idBigNum->lenUsedElmChar =
-        1 + (*lenCStrULng >> (sizeof(unsigned long) >> 1));
-        /* Each hex number takes up 4 bits
-           sizeof returns number of bytes so multipy by 8 (<< 3)
-           (sizeof(unsigned long) << 3) >> 1 = sizeof(unsigned long) >> 1)
-        */
+    idBigNum->lenUsedElmChar = 0; /*Make sure starts at 0 (re-finding)*/
 
     /*Make sure have an array large enough to store number*/
-    if(idBigNum->lenAllElmChar < idBigNum->lenUsedElmChar)
+    if(idBigNum->lenAllElmChar < *numElmUChar)
     { /*If I need to make the array biger*/
         if(idBigNum->bigNumAryULng == 0)
             idBigNum->bigNumAryULng =
-                malloc(sizeof(unsigned long) * idBigNum->lenUsedElmChar);
+                malloc(sizeof(unsigned long) * (*numElmUChar));
         else
             idBigNum->bigNumAryULng =
                 realloc(
                     idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * idBigNum->lenUsedElmChar
+                    sizeof(unsigned long) * (*numElmUChar)
             ); /*Need to reallocate memory*/
-
  
         if(idBigNum->bigNumAryULng == 0)
         { /*If memory reallocation failed*/
@@ -281,14 +242,15 @@ void strToBackwardsBigNum(
             return;
         } /*If memory reallocation failed*/
 
-        idBigNum->lenAllElmChar = idBigNum->lenUsedElmChar;
+        idBigNum->lenAllElmChar = (*numElmUChar);
     } /*If I need to make the array biger*/
+
+    else
+        *numElmUChar = idBigNum->lenAllElmChar;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-3: Convert string to big number (work backwards)
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    idBigNum->lenUsedElmChar = 0;
 
     if(*cStrToCnvt == '@')
         cStrToCnvt++; /*Move off header for fastq entry*/
@@ -296,26 +258,47 @@ void strToBackwardsBigNum(
     while(*cStrToCnvt > 32)
     { /*While there are array elements to fill*/
 
+        /*This allows me to work on strings that have no lengths provided.
+          The idea is that fastq id's are generally the same length, so I can
+          just keep providing the same numElmUChar again. If they are not I
+          will eventaully hit the max length, and have it set
+        */
+        if(idBigNum->lenUsedElmChar >= idBigNum->lenAllElmChar)
+        { /*If need to resize the unsigned long array*/
+            (*numElmUChar)++; /*Number of elements needed are bigger*/
+
+            idBigNum->bigNumAryULng =
+                realloc(
+                    idBigNum->bigNumAryULng,
+                    sizeof(unsigned long) * (*numElmUChar)
+            ); /*Need to make the unsigned long array biger*/
+
+            idBigNum->lenAllElmChar++; /*More elements added to structer*/
+            (*numElmUChar)++;
+        } /*If need to resize the unsigned long array*/
+
         /*Graph unsigned long element working on*/
         elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
         *elmOnPtrULng = 0;
-        charBit = 0;
 
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexLookUpTblCharAry[*cStrToCnvt] & 64)
+        for(
+            unsigned char charBit = 0;       /*Using ULng to make easiy*/
+            charBit < (sizeof(unsigned long) << 3); /*While bits to fill in*/
+            charBit += 4                     /*Bits used per hex character*/
+        ) { /*For empty bits in the current big number unsigned long element*/
+            if(*cStrToCnvt < 33)
                 break; /*If have finshed converting the hex string*/
 
-            else if(!(hexLookUpTblCharAry[*cStrToCnvt] & 32)) /*Was hex char*/
-            { /*Else if is a hex character*/
-                *elmOnPtrULng =
-                    *elmOnPtrULng +
-                    (hexLookUpTblCharAry[*cStrToCnvt] << charBit);
-                charBit += 4;   /*make sureo only recored conversion*/
-            } /*Else if is a hex character*/
+            if(*cStrToCnvt > 47 && *cStrToCnvt < 71) /*0-9 or A-F, (covers 0-15)*/
+                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-48) << charBit);
+
+            else if(*cStrToCnvt > 96 && *cStrToCnvt < 103) /*a-f, (covers 10-15)*/
+                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-87) << charBit);
+            else
+                charBit -= 4;   /*make sureo only recored conversion*/
 
             cStrToCnvt++; /*move to next character in id*/
-        } /*while empty bits in the current big number unsigned long element*/
+        } /*For empty bits in the current big number unsigned long element*/
 
         (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
     } /*While there are array elements to fill*/
@@ -376,3 +359,17 @@ unsigned long cmpBigNums(
 
     return 0;
 } /*cmpBigNums*/
+
+/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Fun-9 Sec-1 Sub-1 TOC:
+# Output:
+#    Returns: unsigned char with the number of unsigned longs needed to hold
+#             the hex c-string
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+unsigned char cnvtStrLenToNumHexULng(
+    const unsigned long *lenHexCStrULng /*Number of characters in hex c-string*/
+) /*Converts the number of unsinged longs needed to store the hex characters*/
+{ /*cnvtStrLenToNumHexULng*/
+    return 1 + (*lenHexCStrULng >> (sizeof(unsigned long) >> 1));
+} /*cnvtStrLenToNumHexULng*/
+

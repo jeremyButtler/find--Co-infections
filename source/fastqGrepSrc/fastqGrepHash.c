@@ -14,39 +14,6 @@ double
    /*there are 2^(3.33) per 10^1. This is so I can avoid gmp right shift,
      which seems to error out on realloc for O2*/
 
-/*Make look up table to look if character is valid hex character
-    64 is invisivle character
-    32 is non-hex character (printable)
-*/
-char hexCharAry[] =
-    {
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
-
-     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
-
-     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
-
-     10, 11, 12, 13, 14, 15,     /*A-F*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32,  /*G-` (71 to 96)*/
-
-     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
-
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32 /*g to ascii limit (103 to 256)*/
-    };
-
 /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # fastqGrepHash TOC:
 #    fun-3: Insert read into hash table
@@ -78,10 +45,11 @@ struct readInfo ** makeReadHash(
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
    # Fun-1 TOC:
    #     fun-1 Sec-1: variable declerations
-   #     fun-1 Sec-2: Read in the file
-   #     fun-1 sec-3: Find the hash table size & make hash table
-   #     fun-1 sec-4: Find the magick number
-   #     fun-1 sec-5: Build hash
+   #     fun-1 sec-2: Find the number of unsigned longs needed for big number
+   #     fun-1 Sec-3: Read in the file
+   #     fun-1 sec-4: Find the hash table size & make hash table
+   #     fun-1 sec-5: Find the magick number
+   #     fun-1 sec-6: Build hash
    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -89,12 +57,9 @@ struct readInfo ** makeReadHash(
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
    char *tmpBuffCStr = 0;
 
-   unsigned char maxHexChar = 2; /*Max hex digits to read in*/
+   unsigned char bigNumArySizeChar = 0; /*Stores num U longs for big number*/
 
-   int lenInputInt = 0; /*Number characters in buffer*/
-
-   unsigned long
-       lenIdULng = 0; /*Stores read id length*/
+   unsigned long lenIdULng = 0; /*Stores read id length*/
 
    struct readInfo
        **hashTbl = 0,                 /*hash table*/
@@ -102,27 +67,44 @@ struct readInfo ** makeReadHash(
        *tmpRead = 0;
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-2: Read in the file
+   # Fun-1 Sec-2: Find the number of unsigned longs needed for big number
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-   *hashSizeULng = 0; /*Intalize*/
-   *(buffCStr + lenBuffULng) = '\0';
-   tmpBuffCStr = buffCStr + lenBuffULng; /*Force initial read in*/
-   lenInputInt = lenBuffULng; /*Make sure read in first read*/
+    fgets(buffCStr, lenBuffULng, filtFILE); /*Find length of first read id*/
 
-   do { /*While ids to read in*/
-       tmpRead = 
-           cnvtIdToBigNum(
-               buffCStr,
-               lenBuffULng,
-               &tmpBuffCStr,
-               &lenInputInt,
-               &lenIdULng,
-               &maxHexChar,
-               filtFILE
-       ); /*Read in id and convert to big number*/
+    tmpBuffCStr = buffCStr;
 
-       if(readTree == 0)
+    while(*tmpBuffCStr > 32)
+    { /*While I am not at the end of the read id*/
+        lenIdULng++;
+        tmpBuffCStr++;
+    } /*While I am not at the end of the read id*/
+
+    bigNumArySizeChar = cnvtStrLenToNumHexULng(&lenIdULng); /*Get num ULng*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+   # Fun-1 Sec-3: Read in the file
+   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    *hashSizeULng = 0; /*Intalize*/
+
+    do { /*While there are read id's to read in*/
+
+        /*Make a node for the read id (also converts hex parts to big number)*/
+        tmpRead = makeReadInfoStruct(buffCStr, &bigNumArySizeChar);
+
+        if(tmpRead == 0)
+        { /*If could not allocate memeory*/
+            fprintf(
+                stderr,
+                "makeReadHash Fun-1 fastqGrepHash:67, Failed memory allocation)"
+            ); /*Let user know error happened*/
+
+            *failedChar = 1;
+            return 0;
+        } /*If could not allocate memeory*/
+
+        if(readTree == 0)
             readTree = tmpRead;
         else
         { /*else, adding new node to list*/
@@ -130,32 +112,11 @@ struct readInfo ** makeReadHash(
             readTree = tmpRead;
         } /*else, adding new node to list*/
 
-        while(*tmpBuffCStr != '\n')
-        { /*While not on next entry*/
-            tmpBuffCStr++;
-
-            if(*tmpBuffCStr == '\0')
-            { /*If at the end of the buffer, but not at start of read*/
-                if(lenInputInt < lenBuffULng)
-                    break; /*At end of file*/
-
-                lenInputInt = fread(
-                                   buffCStr,
-                                   sizeof(char),
-                                   lenBuffULng,
-                                   filtFILE
-                ); /*Read in more of the file*/
-
-                *(buffCStr + lenInputInt) = '\0';/*make sure a c-string*/
-                tmpBuffCStr = buffCStr;
-            } /*If at the end of the buffer, but not at start of read*/
-        } /*While not on next entry*/
-
         (*hashSizeULng)++; /*Count number of reads*/
-   } while(lenInputInt == lenBuffULng && tmpRead != 0); /*While ids to read in*/
+    } while(fgets(buffCStr, lenBuffULng, filtFILE));/*are read id's to read in*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-3: Find the hash table size & make hash tabel
+   # Fun-1 Sec-4: Find the hash table size & make hash tabel
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    *digPerKeyUChar = 0;
@@ -175,7 +136,7 @@ struct readInfo ** makeReadHash(
       /*Calloc intalizes with 0's*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-4: Find the magick number
+   # Fun-1 Sec-5: Find the magick number
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    /*Find how many digits of my golden ratio to use*/
@@ -195,7 +156,7 @@ struct readInfo ** makeReadHash(
        *majicNumULng = 10*(*majicNumULng) + GOLDEN_RATIO_CSTR[uCharGoldDig]-48;
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-5: Build hash
+   # Fun-1 Sec-6: Build hash
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    while(readTree != 0)
@@ -363,171 +324,3 @@ void freeHashTbl(
 
     return;
 } /*freeeHashTbl*/
-
-/*##############################################################################
-# Output:
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
-#    Modifies: lenIdULng to hold the length of the read id
-#    Modifies: lenInputInt to hold length of input buffer
-#    Returns: readInfo struct with bigNum struct having read id converted to hex
-#        - 0 if fails or end of file (lenIdULng < buffSizeInt)
-##############################################################################*/
-struct readInfo * cnvtIdToBigNum(
-    char *bufferCStr,        /*buffer to hold fread input (can have data)*/
-    int buffSizeInt,         /*Size of buffer to work on*/
-    char **endNameCStr,      /*Points to start of read name, will point to end*/
-    int *lenInputInt,        /*Length of input from fread*/
-    unsigned long *lenIdULng,/*Lengtho of the read id*/
-    unsigned char *lenBigNumChar, /*Holds size to make bigNumber*/
-    FILE *fastqFile          /*Fastq file to get data from*/
-) /*Reads input from file & sets pointer to start of read name*/
-{ /*parseFastqHeader*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 TOC:
-    #    fun-1 sec-1: Variable declerations
-    #    fun-1 sec-2: loop through buffer & check if need to get input from file
-    #    fun-1 sec-3: Copy header over, recored length, & incurment pointers
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    char charBit = 0;
-    struct bigNum *idBigNum = malloc(sizeof(struct bigNum));
-    struct readInfo *readNode = malloc(sizeof(struct readInfo));
-    unsigned long *elmOnPtrULng = 0;
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-2: loop through buffer & check if need to get input from file
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    if(idBigNum == 0 || readNode == 0)
-    { /*If memory allocation failed*/
-        if(idBigNum != 0)
-            free(idBigNum);
-        if(readNode != 0)
-            free(readNode);
-
-        fprintf(
-            stderr,
-            "Memory allocation failed: Fun-5 makeBigNumStruct %s",
-            "fastqGrepStructs.c Line 153\n"
-        ); /*Print error message to user*/
-
-        return 0; 
-    } /*If memory allocation failed*/
-
-    readNode->balanceChar = 0;
-    readNode->leftChild = 0;
-    readNode->rightChild = 0;
-    readNode->idBigNum = idBigNum;
-
-    *lenIdULng = 0; /*Make sure starts at 0*/
-    idBigNum->lenUsedElmChar = 0;
-    idBigNum->bigNumAryULng = malloc(sizeof(unsigned long) * (*lenBigNumChar));
-    idBigNum->lenAllElmChar = *lenBigNumChar;
-
-    if(idBigNum->bigNumAryULng == 0)
-    { /*If memory reallocation failed*/
-        fprintf(
-            stderr,
-           "Memory allocation failed: Fun-6 fastqGrepStructs.c line 225\n"
-        ); /*Print error message to user*/
-
-        free(idBigNum);
-        free(readNode);
-        return 0;
-    } /*If memory reallocation failed*/
-
-    if(**endNameCStr == '\n')
-        (*endNameCStr)++;
-
-    if(**endNameCStr == '\0')
-    { /*If at the end of the buffer, but not at start of read*/
-
-        if(*lenInputInt < buffSizeInt)
-        { /*If at end of file*/
-          free(idBigNum->bigNumAryULng);
-          free(idBigNum);
-          free(readNode);
-          return 0;                    /*Done with file*/
-        } /*If at end of file*/
-
-        *lenInputInt = fread(
-                           bufferCStr,
-                           sizeof(char),
-                           buffSizeInt,
-                           fastqFile
-        ); /*Read in more of the file*/
-
-      *endNameCStr = bufferCStr;
-    } /*If at the end of the buffer, but not at start of read*/
-
-      
-    do { /*While still on the read name part of header*/
-
-        if(idBigNum->lenUsedElmChar >= idBigNum->lenAllElmChar)
-        { /*If need to reallocate memory*/
-            (idBigNum->lenAllElmChar)++;
-            (*lenBigNumChar)++;
-            idBigNum->bigNumAryULng =
-                realloc(idBigNum->bigNumAryULng, idBigNum->lenAllElmChar);
-
-            if(idBigNum == 0 || readNode == 0)
-            { /*If memory allocation failed*/
-                free(idBigNum->bigNumAryULng);
-                free(idBigNum);
-                free(readNode);
-
-                fprintf(
-                    stderr,
-                    "Memory allocation failed: Fun-5 makeBigNumStruct %s",
-                    "fastqGrepStructs.c Line 153\n"
-                ); /*Print error message to user*/
-
-                return 0; 
-            } /*If memory allocation failed*/
-        } /*If need to reallocate memory*/
-
-        /*Graph unsigned long element working on*/
-        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
-        *elmOnPtrULng = 0;
-        charBit = 0;
-
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexCharAry[**endNameCStr] & 64)
-                break; /*If have finshed converting the hex string*/
-
-            else if(!(hexCharAry[**endNameCStr] & 32)) /*Was hex char*/
-            { /*Else if is a hex character*/
-                *elmOnPtrULng =
-                    *elmOnPtrULng +
-                    (hexCharAry[**endNameCStr] << charBit);
-                charBit += 4;   /*make sureo only recored conversion*/
-            } /*Else if is a hex character*/
-
-            (*lenIdULng)++;
-            (*endNameCStr)++;
-
-            if(**endNameCStr == '\0')
-            { /*If ran out of buffer & need to read in more of the file*/
-                if(*lenInputInt < buffSizeInt)
-                    return readNode; /*at end of file*/
-
-                *lenInputInt = fread(bufferCStr,
-                                     sizeof(char),
-                                     buffSizeInt,
-                                     fastqFile
-                ); /*Read in more of the file*/
-
-                *(bufferCStr + *lenInputInt) = '\0';/*make sure a c-string*/
-                *endNameCStr = bufferCStr;
-                continue;
-            } /*If ran out of buffer & need to read more of the file*/
-        } /*while empty bits in the current big number unsigned long element*/
-
-        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
-    } while(**endNameCStr > 32); /*While still on the read name part of header*/
-
-    return readNode; /*Copied name sucessfully*/
-} /*parseFastqHeader*/
-
