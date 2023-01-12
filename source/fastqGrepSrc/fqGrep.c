@@ -31,7 +31,7 @@
 #    fun-2: checkInput: check and process the user input (TO BE WRITTEN)
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-#include "fastqGrepSearchFastq.h" /*Holds functions to do read extraction*/
+#include "fqGrepSearchFq.h" /*Holds functions to do read extraction*/
     /*
       Includes:
           - "fastqGrepFastqFun.h"    # Functoions to read fastq file

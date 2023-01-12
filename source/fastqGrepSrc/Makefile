@@ -1,23 +1,28 @@
-# Using gmp library for big numbers
-# For debain: need libgmp-dev
-# O3 makes slightly faster (unrolls some key loops)
-CC=gcc # most likely default on a unix OS
-compileCmdStr=-g \
-              -Wall \
-              -O3 \
-              fastqGrepFastqFun.c \
-              fastqGrepStructs.c \
-              fastqGrepAVLTree.c \
-              fastqGrepHash.c \
-              fastqGrepSearchFastq.c \
-              fastqGrep.c \
-              -o fastqGrep
+CC=gcc
 
-all: #compile # check if system has gcc or egcc
-	$(CC) $(compileCmdStr)
+gccArgs=-g \
+    -Wall \
+    fqGrepFqFun.c \
+    fqGrepStructs.c \
+    fqGrepAVLTree.c \
+    fqGrepHash.c \
+    fqGrepSearchFq.c \
+    fqGrep.c \
+    -o fastqGrep
 
-egcc: # openbsd install
-	egcc $(compileCmdStr)
+# Build fastqGrep
+all:
+	$(CC) -O3 $(gccArgs) || gcc -O3 $(gccArgs) || egcc -O3 $(gccArgs) || cc -O3 $(gccArgs)
 
-cc:  # just in case, but likely not needed
-	cc $(compileCmdStr)
+debug:
+	egcc -O0 $(gccArgs)
+	bash runGdbFqGrep.sh
+
+openbsd:
+	egcc -O3 $(gccArgs)
+linux:
+	gcc -O3 $(gccArgs)
+cc:
+	cc -O3 $(gccArgs)
+
+# The || is to find the compiler that is on the users system

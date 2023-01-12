@@ -3,7 +3,7 @@
 # Use: Has functions to build a self blancing tree with read info nodes
 ##############################################################################*/
 
-#include "fastqGrepAVLTree.h"
+#include "fqGrepAVLTree.h"
 
 /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # clustGraphReadTree TOC:
@@ -27,11 +27,10 @@
 #    Returns: pointer to found or new readInfo node (with readnameCStr)
 #             0: If the read name was not in the tree
 #    Modifes: readTree to have a new node with readIdCStr in it
-#    Modifies: numElmUChar, if a larger number of longs are needed
 ##############################################################################*/
 struct readInfo * findAddNodeToReadTree(
     char * readIdCStr,                 /*c-string with read id to insert*/
-    unsigned char *numElmUChar,         /*Number of U longs needed per big num*/
+    const unsigned long *lenIdULng,    /*Length of read id*/
     struct readInfo **readTree,        /*tree to search for readIdCStr*/
     struct readNodeStack *readStackAry /*Stack, (as array) for searching*/
 ) /*Finds or creates node with input read name in a read info tree*/
@@ -63,7 +62,7 @@ struct readInfo * findAddNodeToReadTree(
     readStackAry++; /*Get off 0 at start*/
 
     /*Make readInfo node (converts id to number)*/
-    queryNode = makeReadInfoStruct(readIdCStr, numElmUChar);
+    queryNode = makeReadInfoStruct(readIdCStr, lenIdULng);
 
     if(queryNode == 0)
     { /*If malloc did not allocate memory for the new readInfo node*/
@@ -84,7 +83,7 @@ struct readInfo * findAddNodeToReadTree(
     while(refNode != 0)
     { /*Loop till at a leaf node or found node*/
 
-        matchInt = cmpBigNums(refNode->idBigNum, queryNode->idBigNum);
+        matchInt = cmpBigNums(queryNode->idBigNum, refNode->idBigNum);
 
         if(matchInt == 0)
         { /*If was a match, return match & free old node*/
@@ -160,7 +159,7 @@ char insertNodeIntoReadTree(
     { /*Loop till at a leaf node or found node*/
 
         /*Compare id numbers to see if the same*/
-        matchInt = cmpBigNums(refNode->idBigNum, idToInsert->idBigNum);
+        matchInt = cmpBigNums(idToInsert->idBigNum, refNode->idBigNum);
 
         if(matchInt == 0)
             return 0;
@@ -211,7 +210,7 @@ struct readInfo * searchTree(
     { /*Loop till at a leaf node or found node*/
 
         /*Compare id numbers to see if the same*/
-        matchInt = cmpBigNums(readTree->idBigNum, queryIdBigNum);
+        matchInt = cmpBigNums(queryIdBigNum, readTree->idBigNum);
 
         if(matchInt == 0)
             return readTree;                        /*Return match*/
@@ -237,8 +236,6 @@ void updateDepth(
    # TOC Fun-4 Sec-1 Sub-1: Update the depth on the new node
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    if(readNode == 0) /*FIND AND DELETE ERROR CAUSING THIS*/
-        return;
     if(readNode->rightChild != 0)
     { /*if there is a right child, check if there is a left child*/
         if(readNode->leftChild == 0)
@@ -274,14 +271,16 @@ long getBalance(
     if(readNode->rightChild != 0)
     { /*if there is a right child, check if there is a left child*/
         if(readNode->leftChild == 0)
-            return readNode->rightChild->balanceChar;
+            return readNode->rightChild->balanceChar + 1;
 
-        return readNode->rightChild->balanceChar -
-               readNode->leftChild->balanceChar;
+        return
+            readNode->rightChild->balanceChar -
+            readNode->leftChild->balanceChar +
+            1;
     } /*if there is a right child, check if there is a left child*/
 
     else if(readNode->leftChild != 0)
-        return -1 * readNode->leftChild->balanceChar; /*only left child*/
+        return -1 * (readNode->leftChild->balanceChar + 1); /*only left child*/
 
     return 0;
 } /*getBalance*/
@@ -311,7 +310,7 @@ void rebalanceTree(
           if(getBalance(readStackAry->readNode->rightChild) < 0)
              swapNode = readTreeRightLeftRebalance(readStackAry->readNode);
           else
-              swapNode = readTreeRightRightRebalance(readStackAry->readNode);
+             swapNode = readTreeRightRightRebalance(readStackAry->readNode);
 
           readTreeAdjustParPtrAfterSwap(
               readStackAry->readNode,
@@ -319,6 +318,35 @@ void rebalanceTree(
               &readStackAry,
               readTree
           ); /*Adjust pointers after swap*/
+
+          popReadNodeStack(&readStackAry); /*Move to next node*/
+
+          while(readStackAry->readNode != 0)
+          { /*While have nodes to update depths for*/
+              if(readStackAry->readNode->leftChild == 0)
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->rightChild->balanceChar +
+                      1;
+              else if(readStackAry->readNode->rightChild == 0)
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->leftChild->balanceChar +
+                      1;
+              else if(
+                  readStackAry->readNode->leftChild->balanceChar <
+                  readStackAry->readNode->rightChild->balanceChar
+              )
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->rightChild->balanceChar +
+                      1;
+              else
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->leftChild->balanceChar +
+                      1;
+
+              popReadNodeStack(&readStackAry); /*Move to next node*/
+          } /*While have nodes to update depths for*/
+
+          return;
       } /*If have more nodes on the right side (right rebalance)*/
 
       else if(balanceLng < -1)
@@ -334,10 +362,47 @@ void rebalanceTree(
               &readStackAry,
               readTree
           ); /*Adjust pointers after swap*/
+
+          popReadNodeStack(&readStackAry); /*Move to next node*/
+
+          while(readStackAry->readNode != 0)
+          { /*While have nodes to update depths for*/
+              if(readStackAry->readNode->rightChild == 0)
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->leftChild->balanceChar +
+                      1;
+              else if(readStackAry->readNode->leftChild == 0)
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->rightChild->balanceChar +
+                      1;
+              else if(
+                  readStackAry->readNode->leftChild->balanceChar >
+                  readStackAry->readNode->rightChild->balanceChar
+              )
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->leftChild->balanceChar +
+                      1;
+              else
+                  readStackAry->readNode->balanceChar = 
+                      readStackAry->readNode->rightChild->balanceChar +
+                      1;
+
+              popReadNodeStack(&readStackAry); /*Move to next node*/
+          } /*While have nodes to update depths for*/
+
+          return;
       } /*else if have more nodes on the left side (left rebalance)*/
 
-      else /*else not rebalance, just update the depth*/
-          updateDepth(readStackAry->readNode);
+      else if(balanceLng < 0) /*Left chlid is deeper*/
+         readStackAry->readNode->balanceChar =
+            readStackAry->readNode->leftChild->balanceChar +
+            1;
+      else if(balanceLng > 0) /*right child is deeper*/
+         readStackAry->readNode->balanceChar =
+            readStackAry->readNode->rightChild->balanceChar +
+            1;
+      else
+         readStackAry->readNode->balanceChar = 0; /*Is a leaf node*/
 
       popReadNodeStack(&readStackAry); /*Move to next node*/
    } /*while not at the root of the readInfo tree, adjust balance*/
@@ -383,9 +448,17 @@ struct readInfo * readTreeRightLeftRebalance(
     # Fun-7 Sec-3: Adjust balance
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-     updateDepth(parNode);
-     updateDepth(childNode);
-     updateDepth(swapNode);/*call last, due to parNode & childNode are children*/
+     /*
+       Update depths (can do from swap node depth, since swap node was deepest
+       node)
+     */
+     if(parNode->leftChild != 0)
+        parNode->balanceChar = parNode->leftChild->balanceChar + 1;
+     else
+        parNode->balanceChar = swapNode->balanceChar;
+
+     childNode->balanceChar = swapNode->balanceChar;
+     (swapNode->balanceChar)++;
 
      return swapNode;
 } /*readTreeRightLeftRebalance*/
@@ -424,8 +497,14 @@ struct readInfo * readTreeRightRightRebalance(
     # Fun-8 Sec-3: Adjust balance
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-     updateDepth(parNode);
-     updateDepth(childNode); /*update last, because parNode is a child node*/
+     if(parNode->rightChild != 0)
+     { /*if the paranet had a chlld, child sets balance*/
+         parNode->balanceChar = parNode->rightChild->balanceChar + 1;
+         childNode->balanceChar = parNode->balanceChar + 1;
+     } /*if the paranet had a chlld, child sets balance*/
+     else
+         parNode->balanceChar = childNode->leftChild->balanceChar + 1;
+         /*Childs balance is unchanged*/
 
      return childNode;
 } /*readTreeRightRightRebalance*/
@@ -467,9 +546,17 @@ struct readInfo * readTreeLeftRightRebalance(
     # Fun-9 Sec-3: Adjust balance
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-     updateDepth(parNode);
-     updateDepth(childNode);
-     updateDepth(swapNode);/*call last, due to parNode & childNode are children*/
+     /*
+       Update depths (can do from swap node depth, since swap node was deepest
+       node)
+     */
+     if(parNode->rightChild != 0)
+        parNode->balanceChar = parNode->rightChild->balanceChar + 1;
+     else
+        parNode->balanceChar = swapNode->balanceChar;
+
+     childNode->balanceChar = swapNode->balanceChar;
+     (swapNode->balanceChar)++;
 
      return swapNode;
 } /*readTreeLeftRightRebalance*/
@@ -509,8 +596,14 @@ struct readInfo * readTreeLeftLeftRebalance(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
 
-     updateDepth(parNode);
-     updateDepth(childNode); /*update last, because parNode is a child node*/
+     if(parNode->rightChild != 0)
+     { /*if the paranet had a chlld, child sets balance*/
+         parNode->balanceChar = parNode->rightChild->balanceChar + 1;
+         childNode->balanceChar = parNode->balanceChar + 1;
+     } /*if the paranet had a chlld, child sets balance*/
+     else
+         parNode->balanceChar = childNode->leftChild->balanceChar + 1;
+         /*Childs balance is unchanged*/
      
      return childNode;
 } /*readTreeLeftLeftRebalance*/
@@ -539,9 +632,39 @@ void readTreeAdjustParPtrAfterSwap(
         popReadNodeStack(readStackAry);
 
         if((*readStackAry)->readNode->rightChild == readOn)
+        { /*If was a right shift or right left shift*/
             (*readStackAry)->readNode->rightChild = newPar;
+
+            if((*readStackAry)->readNode->leftChild == 0)
+                (*readStackAry)->readNode->balanceChar = newPar->balanceChar+1;
+            else if(
+                newPar->balanceChar >
+                (*readStackAry)->readNode->leftChild->balanceChar
+            )/*Else if the right hild newPar is greater*/
+                (*readStackAry)->readNode->balanceChar = newPar->balanceChar+1;
+            else
+                (*readStackAry)->readNode->balanceChar = 
+                    (*readStackAry)->readNode->leftChild->balanceChar +
+                    1;
+        } /*If was a right shift or right left shift*/
+
         else
+        { /*Else was a left of left right swap*/
             (*readStackAry)->readNode->leftChild = newPar;
+
+            if((*readStackAry)->readNode->rightChild == 0)
+                (*readStackAry)->readNode->balanceChar = newPar->balanceChar+1;
+            else if(
+                newPar->balanceChar >
+                (*readStackAry)->readNode->rightChild->balanceChar
+            )/*Else if the left hild newPar is greater*/
+                (*readStackAry)->readNode->balanceChar = newPar->balanceChar+1;
+            else
+                (*readStackAry)->readNode->balanceChar = 
+                    (*readStackAry)->readNode->rightChild->balanceChar +
+                    1;
+        } /*Else was a left of left right swap*/
+
     } /*Else need to adjust the parent nodes pointer*/
 
     return;

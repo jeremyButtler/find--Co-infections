@@ -1,0 +1,4 @@
+b fastqGrepHash.c:258 if *readNode->idBigNum->bigNumAryULng == 152387503
+b fastqGrepHash.c:260 if hashULng == 63603
+
+r -f ../allReadNames.txt -fastq ../../fastqs/two-01--90-01--01.fastq &> /dev/null

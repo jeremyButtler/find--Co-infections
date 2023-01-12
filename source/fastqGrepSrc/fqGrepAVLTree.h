@@ -4,11 +4,11 @@
 #      Has functions to build a self blancing tree with read info nodes
 ##############################################################################*/
 
-#ifndef FASTQGREPAVLTREE_C
-#define FASTQGREPAVLTREE_C
+#ifndef FQGREPAVLTREE_C
+#define FQGREPAVLTREE_C
 
 #include <string.h> /*strcmp*/
-#include "fastqGrepStructs.h"
+#include "fqGrepStructs.h"
     /*
       Includes: <stdlib.h>
                 <stdio.h>
@@ -22,7 +22,7 @@
 ##############################################################################*/
 struct readInfo * findAddNodeToReadTree(
     char * readIdCStr,                 /*c-string with name of read to find*/
-    unsigned char *numElmUChar,         /*Number of U longs needed per big num*/
+    const unsigned long *lenIdULng,    /*Length of read id*/
     struct readInfo **readTree,        /*tree to search for readNameCStr*/
     struct readNodeStack *readStackAry /*Stack, (as array) for searching*/
 ); /*Finds or creates node with input read name in a read info tree*/

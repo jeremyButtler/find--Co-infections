@@ -22,7 +22,7 @@
 #       user settings once and then launch the correct function.
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-#include "fastqGrepSearchFastq.h"
+#include "fqGrepSearchFq.h"
 
 /*##############################################################################
 # Output:
@@ -56,10 +56,10 @@ char fastqExtract(
         majicNumULng = 0; /*Majic number for kunth multiplicative hashing*/
 
     char
-        lineInCStr[buffSizeULng + 1],  /*Holds the input line*/
         hashFailedBool = 1;  /*Assume hash tabel failed, makes AVL errors out
                                when fail*/
     unsigned char 
+        lineInCStr[buffSizeULng + 1],  /*Holds the input line*/
         digPerKeyUChar = 0;          /*Number digitis used per key in hash*/
 
     unsigned long
@@ -203,7 +203,7 @@ char fastqExtract(
 struct readInfo * buildAvlTree(
     FILE *filterFile,                 /*File with read ids to keep or ignore*/
     struct readNodeStack *readStack,  /*Stack to use in building AVL tree*/
-    char *lineInCStr,                 /*Buffer to hold one line from file*/
+    unsigned char *lineInCStr,        /*Buffer to hold one line from file*/
     unsigned int buffSizeULng         /*Size of buffer to read each line*/
 ) /*Builds a readInfo tree with read id's in filterFile*/
 { /*buildAvlTree function*/
@@ -211,7 +211,6 @@ struct readInfo * buildAvlTree(
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-2 TOC:
     #    fun-2 Sec-1: Variable declerations
-    #    fun-2 sec-2: Find number of unsigned longs to hold the first read id
     #    fun-2 Sec-2: Read id's in filter file and build tree
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
@@ -219,58 +218,76 @@ struct readInfo * buildAvlTree(
     # Fun-2 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    char *tmpIdCStr = 0;
-    unsigned char bigNumArySizeChar = 0; /*Size of bignumber array*/
+    char
+        maxHexChar = 1;  /*Size of bigNum array*/
 
-    unsigned long lenIdULng = 0; /*length of read id*/
+    unsigned char
+        *tmpIdCStr = 0;
+
+    unsigned long
+        lenIdULng = 0,
+        lenInputULng = buffSizeULng; /*length of read id*/
 
     struct readInfo
         *readTree = 0,
         *lastRead = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-2: Find the number of unsigned longs to hold the first read id
+    # Fun-2 Sec-2: Read id's in filter file and build tree
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    fgets(lineInCStr, buffSizeULng, filterFile);
-    tmpIdCStr = lineInCStr;
+   do { /*While ids to read in*/
+       lastRead = 
+           cnvtIdToBigNum(
+               lineInCStr,
+               buffSizeULng,
+               &tmpIdCStr,
+               &lenInputULng,
+               &lenIdULng,
+               &maxHexChar,
+               filterFile
+       ); /*Read in id and convert to big number*/
 
-    /*Find length of read id*/
-    while(*tmpIdCStr > 32)
-    { /*While not a space, newline, carriage return, or null*/
-        lenIdULng++;
-        tmpIdCStr++;
-    } /*While not a space, newline, carriage return, or null*/
+       if(lastRead == 0)
+       { /*If was a falied read*/
+           if(lenInputULng == 0)
+           { /*If was a memory allocation error (message already printed)*/
+               freeReadTree(&readTree, readStack);
+               return 0;
+           } /*If was a memory allocation error (message already printed)*/
 
-    bigNumArySizeChar = cnvtStrLenToNumHexULng(&lenIdULng); /*Get num ULng*/
+           break; /*end of file*/
+       } /*If was a falied read*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-3: Read id's in filter file and build tree
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+       if(insertNodeIntoReadTree(lastRead, &readTree, readStack) == 0)
+       { /*If id is in tree, need to free*/
+           freeReadInfoStruct(&lastRead); /*If id already in tree*/
+           lastRead = readTree;           /*Prevent loop ending early*/
+       } /*If id is in tree, need to free*/
 
-    do
-    { /*While there are read names to read in*/
+        while(*tmpIdCStr != '\n')
+        { /*While not on next entry*/
+            tmpIdCStr++;
 
-        lastRead =
-            findAddNodeToReadTree(
-                lineInCStr,         /*Read id*/
-                &bigNumArySizeChar, /*Number unsigned longs to use*/
-                &readTree,          /*read tree to search for read name*/
-                readStack           /*Stack to use in searching tree*/
-        ); /*Add a read name to my tree of read names*/
+            if(*tmpIdCStr == '\0')
+            { /*If at the end of the buffer, but not at start of read*/
+                if(lenInputULng < buffSizeULng)
+                    break; /*At end of file*/
 
-        if(lastRead == 0)
-        { /*If calloc failed to find memory*/
-            fprintf(
-                stderr,
-                "calloc failed: fastqGrepSearchFastq.c: Fun-2: line 262\n"
-            ); /*Warn user calloc failed*/
+                lenInputULng = fread(
+                                   lineInCStr,
+                                   sizeof(char),
+                                   buffSizeULng,
+                                   filterFile
+                ); /*Read in more of the file*/
 
-            return 0;
-        } /*If calloc failed to find memory*/
-    } while(fgets(lineInCStr, buffSizeULng, filterFile)); /*read id's to read*/
+                *(lineInCStr + lenInputULng) = '\0';/*make sure a c-string*/
+                tmpIdCStr = lineInCStr;
+            } /*If at the end of the buffer, but not at start of read*/
+        } /*While not on next entry*/
+   } while(lastRead != 0);/*ids to read in*/
 
-    return readTree;
+   return readTree;
 } /*buildAvlTree function*/
 
 /*##############################################################################
@@ -280,7 +297,7 @@ struct readInfo * buildAvlTree(
 ##############################################################################*/
 char extractReadsInTree(
     FILE *fastqFile,              /*fastq file to search through*/
-    char *lineInCStr,             /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng,   /*Size of lineInCStr*/
     struct readInfo *readTree     /*root of readInfo tree with id's to search*/
 ) /*Extract target reads from fastq file*/
@@ -297,16 +314,21 @@ char extractReadsInTree(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char
-        endOfFileChar = 0,         /*Tells if reached end of file*/
-        *readPosCStr = 0;          /*Position in lineInCStr*/
+       endOfFileChar = 0;       /*Marks if at the end of the file*/
 
-    unsigned char numElmUChar = 3; /*Number unsigned longs per bigNum*/
+    unsigned char
+       *readPosCStr = 0,        /*Position in lineInCStr*/
+       *startReadCStr = 0;      /*Start of read id for a fastq entry*/
 
-    int lenInputInt = 0;           /*Holds number char fread grabbed from file*/
+    unsigned long
+        lenIdULng = 0, /*length of read id*/
+        lenInputULng = 0;        /*Holds number char fread grabbed from file*/
 
-    struct bigNum *idBigNum = 0;
+    struct bigNum
+        *idBigNum = 0;
 
-    struct readInfo *lastRead = 0; /*read id found in tree search*/
+    struct readInfo
+        *lastRead = 0;          /*Holds node of read id found in tree search*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-3 Sec-2: Extract target reads from fastq file
@@ -318,10 +340,11 @@ char extractReadsInTree(
 
     lineInCStr[buffSizeULng] = '\0';          /*Make c-string for fread*/
     readPosCStr = lineInCStr + buffSizeULng; /*So will read in buffer*/
-    lenInputInt = buffSizeULng;               /*So does not exit early*/
+    lenInputULng = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abc", &numElmUChar);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -338,29 +361,29 @@ char extractReadsInTree(
 
         endOfFileChar =
             parseFastqHeader(
-                lineInCStr,     /*Buffer to hold file input*/
-                &readPosCStr,   /*Start of read id or end last q-score entry*/
-                &lenInputInt,   /*Number of characters read in*/
-                buffSizeULng,   /*Size of lineInCStr*/
-                idBigNum,       /*Holds hex numeric read id*/
-                &numElmUChar,   /*Max number of longs needed per read id*/
-                fastqFile
+               lineInCStr,     /*Buffer to hold file input*/
+               &startReadCStr, /*Will hold start of read name*/
+               &readPosCStr,   /*Start of read name, wil hold end*/
+               &lenInputULng,
+               buffSizeULng,
+               &lenIdULng,     /*Will hold the lenght of read id*/
+               idBigNum,
+               fastqFile
         ); /*Get read name from file*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
 
-         else if(endOfFileChar & 4)
+         else if(endOfFileChar == 4)
              continue;            /*At end of file, return*/
 
         /***********************************************************************
         # Fun-3 Sec-3 Sub-2: Determine if read is in tree
         ***********************************************************************/
 
-        /*Convert read id to number*/
         lastRead = searchTree(idBigNum, readTree); /*Check if id is in tree*/
 
         /***********************************************************************
@@ -375,14 +398,14 @@ char extractReadsInTree(
                     lineInCStr,
                     &readPosCStr, /*wil hold end of read name*/
                     buffSizeULng,
-                    &lenInputInt, /*Holds how many char fread got*/
+                    &lenInputULng, /*Holds how many char fread got*/
                     fastqFile
              ); /*Move to next fastq entry*/
 
-             if(endOfFileChar & 0 || endOfFileChar & 8)
+             if(endOfFileChar == 0)
              { /*If at the end of the file*/
                  freeBigNumStruct(&idBigNum);
-                 return 0; /*If fastq file ends on a header or memory error*/
+                 return 0; /*If there ws */
              } /*If at the end of the file*/
 
             continue;
@@ -396,15 +419,16 @@ char extractReadsInTree(
              printFastqEntry(
                  lineInCStr,
                  &readPosCStr,   /*Start of read name, wil hold end*/
+                 &startReadCStr, /*points to start of read name*/
                  buffSizeULng,
-                 &lenInputInt,
+                 &lenInputULng,
                  fastqFile
          ); /*Print read & move to next read*/
 
-        if(endOfFileChar & 0 || endOfFileChar & 8)
+        if(endOfFileChar == 0)
         { /*If at the end of the file*/
             freeBigNumStruct(&idBigNum);
-            return 0; /*If fastq file ends on a header or memory error*/
+            return 0; /*If there ws */
         } /*If at the end of the file*/
     } /*While there are lines in the file*/
 
@@ -419,7 +443,7 @@ char extractReadsInTree(
 ##############################################################################*/
 char extractReadsNotInTree(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     struct readInfo *readTree  /*root of readInfo tree of read id's to search*/
 ) /*Extract reads not given as targets from a fastq file*/
@@ -436,16 +460,21 @@ char extractReadsNotInTree(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char
-        endOfFileChar = 0,         /*Tells if reached end of file*/
-        *readPosCStr = 0;          /*Position in lineInCStr*/
+       endOfFileChar = 0;       /*Marks if at the end of the file*/
 
-    unsigned char numElmUChar = 3; /*Number unsigned longs per bigNum*/
+    unsigned char
+       *readPosCStr = 0,        /*Position in lineInCStr*/
+       *startReadCStr = 0;      /*Start of read id for a fastq entry*/
 
-    int lenInputInt = 0;           /*Holds number char fread grabbed from file*/
+    unsigned long
+        lenIdULng = 0,          /*Holds length of read id*/
+        lenInputULng = 0;        /*Holds number char fread grabbed from file*/
 
-    struct bigNum *idBigNum = 0;
+    struct bigNum
+        *idBigNum = 0;
 
-    struct readInfo *lastRead = 0; /*read id found in tree search*/
+    struct readInfo
+        *lastRead = 0;          /*Holds node of read id found in tree search*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-4 Sec-2: Extract target reads from fastq file
@@ -457,10 +486,11 @@ char extractReadsNotInTree(
 
     lineInCStr[buffSizeULng] = '\0';          /*Make c-string for fread*/
     readPosCStr = lineInCStr + buffSizeULng; /*So will read in buffer*/
-    lenInputInt = buffSizeULng;               /*So does not exit early*/
+    lenInputULng = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abc", &numElmUChar);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -477,22 +507,23 @@ char extractReadsNotInTree(
 
         endOfFileChar =
             parseFastqHeader(
-                lineInCStr,     /*Buffer to hold file input*/
-                &readPosCStr,   /*Start of read id or end last q-score entry*/
-                &lenInputInt,   /*Number of characters read in*/
-                buffSizeULng,   /*Size of lineInCStr*/
-                idBigNum,       /*Holds hex numeric read id*/
-                &numElmUChar,   /*Max number of longs needed per read id*/
-                fastqFile
+               lineInCStr,     /*Buffer to hold file input*/
+               &startReadCStr, /*Will hold start of read name*/
+               &readPosCStr,   /*Start of read name, wil hold end*/
+               &lenInputULng,
+               buffSizeULng,
+               &lenIdULng,     /*Will hold the lenght of read id*/
+               idBigNum,
+               fastqFile
         ); /*Get read name from file*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
 
-         else if(endOfFileChar & 4)
+         else if(endOfFileChar == 4)
              continue;            /*At end of file, return*/
 
         /***********************************************************************
@@ -514,14 +545,14 @@ char extractReadsNotInTree(
                      lineInCStr,
                      &readPosCStr,   /*Start of read name, wil hold end*/
                      buffSizeULng,
-                     &lenInputInt,   /*Holds how many characters fread got*/
+                     &lenInputULng,   /*Holds how many characters fread got*/
                      fastqFile
              ); /*Move to next fastq entry*/
 
-             if(endOfFileChar & 0 || endOfFileChar & 8)
+             if(endOfFileChar == 0)
              { /*If ended to early*/
                  freeBigNumStruct(&idBigNum);
-                 return 0; /*If fastq file ends on a header or memory error*/
+                 return 0; /*If fastq file ends on a header*/
              } /*If ended to early*/
 
             continue;
@@ -535,15 +566,16 @@ char extractReadsNotInTree(
              printFastqEntry(
                  lineInCStr,
                  &readPosCStr,   /*Start of read name, wil hold end*/
+                 &startReadCStr, /*points to start of read name*/
                  buffSizeULng,
-                 &lenInputInt,
+                 &lenInputULng,
                  fastqFile
          ); /*Print read & move to next read*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
     } /*While there are lines in the file*/
 
@@ -557,7 +589,7 @@ char extractReadsNotInTree(
 ##############################################################################*/
 char extractReadsInHash(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     unsigned long majicNumULng,   /*Holds majick number for kunths hash*/
     unsigned char digPerKeyUChar, /*Digits needed to get a key*/
@@ -576,16 +608,22 @@ char extractReadsInHash(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char
-        endOfFileChar = 0,         /*Tells if reached end of file*/
-        *readPosCStr = 0;          /*Position in lineInCStr*/
+       endOfFileChar = 0;       /*Marks if at the end of the file*/
 
-    unsigned char numElmUChar = 3; /*Number unsigned longs per bigNum*/
+    unsigned char
+       *readPosCStr = 0,        /*Position in lineInCStr*/
+       *startReadCStr = 0;      /*Start of read id for a fastq entry*/
 
-    int lenInputInt = 0;           /*Holds number char fread grabbed from file*/
+    unsigned long
+        lenIdULng = 0,          /*Holds length of read id*/
+        lenInputULng = 0;        /*Holds number char fread grabbed from file*/
 
-    struct bigNum *idBigNum = 0;
+    unsigned long debugULng = 0; /*DELETE*/
+    struct bigNum
+        *idBigNum = 0;
 
-    struct readInfo *lastRead = 0;  /*read id found in tree search*/
+    struct readInfo
+        *lastRead = 0;          /*Holds node of read id found in tree search*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-5 Sec-2: Extract target reads from fastq file
@@ -597,10 +635,11 @@ char extractReadsInHash(
 
     lineInCStr[buffSizeULng] = '\0';          /*Make c-string for fread*/
     readPosCStr = lineInCStr + buffSizeULng; /*So will read in buffer*/
-    lenInputInt = buffSizeULng;               /*So does not exit early*/
+    lenInputULng = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abc", &numElmUChar);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -610,28 +649,30 @@ char extractReadsInHash(
 
     while(endOfFileChar != 4)
     { /*While there are lines in the file*/
-
+        debugULng++; /*DELETE*/
         /***********************************************************************
         # Fun-5 Sec-3 Sub-1: Get the read name of a single fastq entry
         ***********************************************************************/
+
         endOfFileChar =
             parseFastqHeader(
                 lineInCStr,     /*Buffer to hold file input*/
-                &readPosCStr,   /*Start of read id or end last q-score entry*/
-                &lenInputInt,   /*Number of characters read in*/
-                buffSizeULng,   /*Size of lineInCStr*/
-                idBigNum,       /*Holds hex numeric read id*/
-                &numElmUChar,   /*Max number of longs needed per read id*/
+                &startReadCStr, /*Will hold start of read name*/
+                &readPosCStr,   /*Start of read name, wil hold end*/
+                &lenInputULng,
+                buffSizeULng,
+                &lenIdULng,     /*Will hold the lenght of read id*/
+                idBigNum,
                 fastqFile
         ); /*Get read name from file*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
 
-         else if(endOfFileChar & 4)
+         else if(endOfFileChar == 4)
              continue;            /*At end of file, return*/
 
         /***********************************************************************
@@ -659,14 +700,14 @@ char extractReadsInHash(
                      lineInCStr,
                      &readPosCStr,   /*Start of read name, wil hold end*/
                      buffSizeULng,
-                     &lenInputInt,   /*Holds how many characters fread got*/
+                     &lenInputULng,   /*Holds how many characters fread got*/
                      fastqFile
              ); /*Move to next fastq entry*/
 
-             if(endOfFileChar & 0 || endOfFileChar & 8)
+             if(endOfFileChar == 0)
              { /*If ended to early*/
                  freeBigNumStruct(&idBigNum);
-                 return 0; /*If fastq file ends on a header or memory error*/
+                 return 0; /*If fastq file ends on a header*/
              } /*If ended to early*/
 
             continue;
@@ -680,15 +721,16 @@ char extractReadsInHash(
              printFastqEntry(
                  lineInCStr,
                  &readPosCStr,   /*Start of read name, wil hold end*/
+                 &startReadCStr, /*points to start of read name*/
                  buffSizeULng,
-                 &lenInputInt,
+                 &lenInputULng,
                  fastqFile
          ); /*Print read & move to next read*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
     } /*While there are lines in the file*/
 
@@ -703,7 +745,7 @@ char extractReadsInHash(
 ##############################################################################*/
 char extractReadsNotInHash(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     unsigned long majicNumULng,   /*Holds majick number for kunths hash*/
     unsigned char digPerKeyUChar, /*Digits needed to get a key*/
@@ -722,16 +764,22 @@ char extractReadsNotInHash(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char
-        endOfFileChar = 0,         /*Tells if reached end of file*/
-        *readPosCStr = 0;          /*Position in lineInCStr*/
+       endOfFileChar = 0;       /*Marks if at the end of the file*/
 
-    unsigned char numElmUChar = 3; /*Number unsigned longs per bigNum*/
+    unsigned char
+       *readPosCStr = 0,        /*Position in lineInCStr*/
+       *startReadCStr = 0;      /*Start of read id for a fastq entry*/
 
-    int lenInputInt = 0;           /*Holds number char fread grabbed from file*/
 
-    struct bigNum *idBigNum = 0;   /*Holds big number for read id*/
+    unsigned long
+        lenIdULng = 0,          /*Holds length of read id*/
+        lenInputULng = 0;        /*Holds number char fread grabbed from file*/
 
-    struct readInfo *lastRead = 0; /*Holds read id found in search*/
+    struct bigNum
+        *idBigNum = 0;
+
+    struct readInfo
+        *lastRead = 0;          /*Holds node of read id found in tree search*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-2: Extract target reads from fastq file
@@ -741,12 +789,14 @@ char extractReadsNotInHash(
     #    fun-6 sec-3 sub-4: Keeping read, print out read
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    freeBigNumStruct(&idBigNum);
     lineInCStr[buffSizeULng] = '\0';          /*Make c-string for fread*/
-    readPosCStr = lineInCStr + buffSizeULng;  /*So will read in buffer*/
-    lenInputInt = buffSizeULng;               /*So does not exit early*/
+    readPosCStr = lineInCStr + buffSizeULng; /*So will read in buffer*/
+    lenInputULng = buffSizeULng;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
-    idBigNum=makeBigNumStruct("0123456789abcdef0123456789abc", &numElmUChar);
+    lenIdULng = 256;
+    idBigNum = makeBigNumStruct("0", &lenIdULng);
 
     if(idBigNum == 0)
     { /*If could not allocatem memory*/
@@ -761,24 +811,24 @@ char extractReadsNotInHash(
         # Fun-6 Sec-3 Sub-1: Get the read name of a single fastq entry
         ***********************************************************************/
 
-        endOfFileChar =
-            parseFastqHeader(
-                lineInCStr,     /*Buffer to hold file input*/
-                &readPosCStr,   /*Start of read id or end last q-score entry*/
-                &lenInputInt,   /*Number of characters read in*/
-                buffSizeULng,   /*Size of lineInCStr*/
-                idBigNum,       /*Holds hex numeric read id*/
-                &numElmUChar,   /*Max number of longs needed per read id*/
-                fastqFile
+        endOfFileChar = parseFastqHeader(
+                           lineInCStr,     /*Buffer to hold file input*/
+                           &startReadCStr, /*Will hold start of read name*/
+                           &readPosCStr,   /*Start of read name, wil hold end*/
+                           &lenInputULng,
+                           buffSizeULng,
+                           &lenIdULng,     /*Will hold the lenght of read id*/
+                           idBigNum,
+                           fastqFile
         ); /*Get read name from file*/
 
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
 
-         else if(endOfFileChar & 4)
+         else if(endOfFileChar == 4)
              continue;            /*At end of file, return*/
 
         /***********************************************************************
@@ -806,14 +856,14 @@ char extractReadsNotInHash(
                      lineInCStr,
                      &readPosCStr,   /*Start of read name, wil hold end*/
                      buffSizeULng,
-                     &lenInputInt,   /*Holds how many characters fread got*/
+                     &lenInputULng,   /*Holds how many characters fread got*/
                      fastqFile
              ); /*Move to next fastq entry*/
 
-             if(endOfFileChar & 0 || endOfFileChar & 8)
+             if(endOfFileChar == 0)
              { /*If ended to early*/
                  freeBigNumStruct(&idBigNum);
-                 return 0; /*If fastq file ends on a header or memory error*/
+                 return 0; /*If fastq file ends on a header*/
              } /*If ended to early*/
 
             continue;
@@ -827,15 +877,16 @@ char extractReadsNotInHash(
              printFastqEntry(
                  lineInCStr,
                  &readPosCStr,   /*Start of read name, wil hold end*/
+                 &startReadCStr, /*points to start of read name*/
                  buffSizeULng,
-                 &lenInputInt,
+                 &lenInputULng,
                  fastqFile
          ); /*Print read & move to next read*/
  
-         if(endOfFileChar & 0 || endOfFileChar & 8)
+         if(endOfFileChar == 0)
          { /*If ended to early*/
              freeBigNumStruct(&idBigNum);
-             return 0; /*If fastq file ends on a header or memory error*/
+             return 0; /*If fastq file ends on a header*/
          } /*If ended to early*/
     } /*While there are lines in the file*/
 

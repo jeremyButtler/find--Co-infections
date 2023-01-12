@@ -7,12 +7,12 @@
 #    fastqGrepStructs (called by fastqGrepAVLTree)
 ##############################################################################*/
 
-#ifndef FASTQGREPSEARCHFASTQ_H
-#define FASTQGREPSEARCHFASTQ_H
+#ifndef FQGREPSEARCHFQ_H
+#define FQGREPSEARCHFQ_H
 
-#include "fastqGrepFastqFun.h"
+#include "fqGrepFqFun.h"
     /*Includes: <stdio.h>*/
-#include "fastqGrepHash.h"
+#include "fqGrepHash.h"
     /*Includes:
           - fastqGrepAVLTree.h:
               - <string.h>
@@ -44,7 +44,7 @@ char fastqExtract(
 struct readInfo * buildAvlTree(
     FILE *filterFile,                 /*File with read ids to keep or ignore*/
     struct readNodeStack *readStack,  /*Stack to use in building AVL tree*/
-    char *lineInCStr,                 /*Buffer to hold one line from file*/
+    unsigned char *lineInCStr,        /*Buffer to hold one line from file*/
     unsigned int buffSizeULng         /*Size of buffer to read each line*/
 ); /*Builds a readInfo tree with read id's in filterFile*/
 
@@ -55,7 +55,7 @@ struct readInfo * buildAvlTree(
 ##############################################################################*/
 char extractReadsInTree(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     struct readInfo *readTree  /*root of readInfo tree of read id's to search*/
 ); /*Extract target reads from fastq file*/
@@ -67,7 +67,7 @@ char extractReadsInTree(
 ##############################################################################*/
 char extractReadsNotInTree(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     struct readInfo *readTree  /*root of readInfo tree of read id's to search*/
 ); /*Extract reads not given as targets from a fastq file*/
@@ -79,7 +79,7 @@ char extractReadsNotInTree(
 ##############################################################################*/
 char extractReadsInHash(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     unsigned long majicNumULng,   /*Holds majick number for kunths hash*/
     unsigned char digPerKeyUChar, /*Digits needed to get a key*/
@@ -93,7 +93,7 @@ char extractReadsInHash(
 ##############################################################################*/
 char extractReadsNotInHash(
     FILE *fastqFile,    /*FILE object pointing to fastq file to search through*/
-    char *lineInCStr,   /*Buffer to hold input from fastq file*/
+    unsigned char *lineInCStr,   /*Buffer to hold input from fastq file*/
     unsigned long buffSizeULng, /*Size of lineInCStr*/
     unsigned long majicNumULng,   /*Holds majick number for kunths hash*/
     unsigned char digPerKeyUChar, /*Digits needed to get a key*/

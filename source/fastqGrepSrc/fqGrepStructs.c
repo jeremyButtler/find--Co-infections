@@ -15,14 +15,47 @@
 #    Fun-8: cmpBigNums: compare two big numbers
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-#include "fastqGrepStructs.h"
+#include "fqGrepStructs.h"
+
+/*Make look up table to look if character is valid hex character
+    64 is invisivle character
+    32 is non-hex character (printable)
+*/
+char hexTblCharAry[] =
+    {
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
+
+     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
+
+     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
+
+     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
+
+     10, 11, 12, 13, 14, 15,     /*A-F (65-70)*/
+
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,/*G-Z(71-96)*/
+     32,32,32,32,32,32,/*specialcharacters91to96*/
+
+     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
+
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32, /*g-z 98-122*/
+     32, 32, 32, 32, 32, /*Final special characters (123 to 127)*/
+     /*unsigned extended range (just in case)*/
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
+    };
 
 /*##############################################################################
 # Output: Modifies: readInfoStruct to have default values (all 0's)
 ##############################################################################*/
 struct readInfo * makeReadInfoStruct(
-    char *readIdCStr,          /*c-string with read name to copy*/
-    unsigned char *numElmUChar /*Number of unsinged longs needed*/
+    unsigned char *readIdCStr,         /*c-string with read name to copy*/
+    const unsigned long *lenCStrULng /*Length of cString to convert*/
 ) /*Allocates memomory and makes a readInfo structer (variables set to 0)*/
 { /*makeReadInfoStruct*/
 
@@ -55,7 +88,7 @@ struct readInfo * makeReadInfoStruct(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*Convert hex elements in read id to big number*/
-    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr, numElmUChar);
+    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr, lenCStrULng);
 
     if(readInfoStruct->idBigNum == 0)
     { /*If mallac failed to allocate memory*/
@@ -138,12 +171,11 @@ void popReadNodeStack(
 /*##############################################################################
 # Output:
 #    returns: bigNum structer with the converted big number
-#    Modifies: numElmUChar if a larger number of unsigned longs are needed
 #    returns: 0 if memory alloaction failed
 ##############################################################################*/
 struct bigNum * makeBigNumStruct(
-    char *cStrToCnvt,          /*C-string to convert hex elements to big number*/
-    unsigned char *numElmUChar /*Number of unsinged longs needed*/
+    unsigned char *cStrToCnvt,/*C-string to convert hex elements to big number*/
+    const unsigned long *lenCStrULng /*Length of cString to convert*/
 ) /*Converts hex characters in c-string to a bitNum struct with a big number*/
 { /*makeBigNumStruct*/
 
@@ -168,7 +200,7 @@ struct bigNum * makeBigNumStruct(
     idBigNum->bigNumAryULng = 0;  /*Just in case realloc needs*/
 
     /*Convert the c-string to a big number*/
-    strToBackwardsBigNum(idBigNum, cStrToCnvt, numElmUChar); 
+    strToBackwardsBigNum(idBigNum, cStrToCnvt, lenCStrULng); 
 
     if(idBigNum->lenUsedElmChar == 0)
     { /*If memory allocation failed*/
@@ -190,12 +222,11 @@ struct bigNum * makeBigNumStruct(
 # Output:
 #    Modifies: idBigNum to hold the converted big number.
 #        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
-#    Modifies: numElmUChar if a larger number of unsigned longs are needed
 ##############################################################################*/
 void strToBackwardsBigNum(
-    struct bigNum *idBigNum,   /*Holds the output big number*/
-    char *cStrToCnvt,          /*C-string to convert to large number*/
-    unsigned char *numElmUChar /*Number of unsinged longs needed*/
+    struct bigNum *idBigNum,         /*Holds the output big number*/
+    unsigned char *cStrToCnvt,       /*C-string to convert to large number*/
+    const unsigned long *lenCStrULng
 ) /*Flips c-string & converts to big number*/
 { /*strToBackwardsBigNum*/
 
@@ -210,26 +241,34 @@ void strToBackwardsBigNum(
     # Fun-6 Sec-1: Variable declerations
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
+    char charBit = 0; /*Number bits to shift*/
+
     unsigned long *elmOnPtrULng = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-2: Resize big number array if needed
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    idBigNum->lenUsedElmChar = 0; /*Make sure starts at 0 (re-finding)*/
+    idBigNum->lenUsedElmChar =
+        1 + (*lenCStrULng >> (sizeof(unsigned long) >> 1));
+        /* Each hex number takes up 4 bits
+           sizeof returns number of bytes so multipy by 8 (<< 3)
+           (sizeof(unsigned long) << 3) >> 1 = sizeof(unsigned long) >> 1)
+        */
 
     /*Make sure have an array large enough to store number*/
-    if(idBigNum->lenAllElmChar < *numElmUChar)
+    if(idBigNum->lenAllElmChar < idBigNum->lenUsedElmChar)
     { /*If I need to make the array biger*/
         if(idBigNum->bigNumAryULng == 0)
             idBigNum->bigNumAryULng =
-                malloc(sizeof(unsigned long) * (*numElmUChar));
+                malloc(sizeof(unsigned long) * idBigNum->lenUsedElmChar);
         else
             idBigNum->bigNumAryULng =
                 realloc(
                     idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * (*numElmUChar)
+                    sizeof(unsigned long) * idBigNum->lenUsedElmChar
             ); /*Need to reallocate memory*/
+
  
         if(idBigNum->bigNumAryULng == 0)
         { /*If memory reallocation failed*/
@@ -242,63 +281,36 @@ void strToBackwardsBigNum(
             return;
         } /*If memory reallocation failed*/
 
-        idBigNum->lenAllElmChar = (*numElmUChar);
+        idBigNum->lenAllElmChar = idBigNum->lenUsedElmChar;
     } /*If I need to make the array biger*/
-
-    else
-        *numElmUChar = idBigNum->lenAllElmChar;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-6 Sec-3: Convert string to big number (work backwards)
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    if(*cStrToCnvt == '@')
-        cStrToCnvt++; /*Move off header for fastq entry*/
+    idBigNum->lenUsedElmChar = 0;
 
     while(*cStrToCnvt > 32)
     { /*While there are array elements to fill*/
 
-        /*This allows me to work on strings that have no lengths provided.
-          The idea is that fastq id's are generally the same length, so I can
-          just keep providing the same numElmUChar again. If they are not I
-          will eventaully hit the max length, and have it set
-        */
-        if(idBigNum->lenUsedElmChar >= idBigNum->lenAllElmChar)
-        { /*If need to resize the unsigned long array*/
-            (*numElmUChar)++; /*Number of elements needed are bigger*/
-
-            idBigNum->bigNumAryULng =
-                realloc(
-                    idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * (*numElmUChar)
-            ); /*Need to make the unsigned long array biger*/
-
-            idBigNum->lenAllElmChar++; /*More elements added to structer*/
-            (*numElmUChar)++;
-        } /*If need to resize the unsigned long array*/
-
         /*Graph unsigned long element working on*/
         elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
         *elmOnPtrULng = 0;
+        charBit = 0;
 
-        for(
-            unsigned char charBit = 0;       /*Using ULng to make easiy*/
-            charBit < (sizeof(unsigned long) << 3); /*While bits to fill in*/
-            charBit += 4                     /*Bits used per hex character*/
-        ) { /*For empty bits in the current big number unsigned long element*/
-            if(*cStrToCnvt < 33)
+        while(charBit < (sizeof(unsigned long) << 3))
+        { /*while empty bits in the current big number unsigned long element*/
+            if(hexTblCharAry[*cStrToCnvt] & 64)
                 break; /*If have finshed converting the hex string*/
 
-            if(*cStrToCnvt > 47 && *cStrToCnvt < 71) /*0-9 or A-F, (covers 0-15)*/
-                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-48) << charBit);
-
-            else if(*cStrToCnvt > 96 && *cStrToCnvt < 103) /*a-f, (covers 10-15)*/
-                *elmOnPtrULng = *elmOnPtrULng + (((*cStrToCnvt)-87) << charBit);
-            else
-                charBit -= 4;   /*make sureo only recored conversion*/
+            if(!(hexTblCharAry[*cStrToCnvt] & 32))
+            { /*If is a hex character*/
+                (*elmOnPtrULng) += (hexTblCharAry[*cStrToCnvt] << charBit);
+                charBit += 4;
+            } /*If is a hex character*/
 
             cStrToCnvt++; /*move to next character in id*/
-        } /*For empty bits in the current big number unsigned long element*/
+        } /*while empty bits in the current big number unsigned long element*/
 
         (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
     } /*While there are array elements to fill*/
@@ -345,31 +357,64 @@ unsigned long cmpBigNums(
     if(bigNumOne->lenUsedElmChar != bigNumTwo->lenUsedElmChar)
         return bigNumOne->lenUsedElmChar - bigNumTwo->lenUsedElmChar;
 
-    for(char charElm = bigNumOne->lenUsedElmChar - 1; charElm > -1; charElm--)
+    for(short shtElm = bigNumOne->lenUsedElmChar - 1; shtElm > -1; shtElm--)
     { /*For all unsinged longs in the big number*/
         if(
-             *(bigNumOne->bigNumAryULng + charElm) !=
-             *(bigNumTwo->bigNumAryULng + charElm)
+             *(bigNumOne->bigNumAryULng + shtElm) !=
+             *(bigNumTwo->bigNumAryULng + shtElm)
         ) { /*If one number is bigger*/
-             return
-                 *(bigNumOne->bigNumAryULng + charElm) -
-                 *(bigNumTwo->bigNumAryULng + charElm);
+
+            if(
+                *(bigNumOne->bigNumAryULng + shtElm) >
+                *(bigNumTwo->bigNumAryULng + shtElm)
+            )
+                return 1;
+            else
+                return -1;
+             /*ISSUE WITH ULNG NOT GOING NEGATIVE*/
+             /*return
+                 *(bigNumOne->bigNumAryULng + shtElm) -
+                 *(bigNumTwo->bigNumAryULng + shtElm);*/
         } /*If one number is bigger*/
     } /*For all unsinged longs in the big number*/
 
     return 0;
 } /*cmpBigNums*/
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Fun-9 Sec-1 Sub-1 TOC:
-# Output:
-#    Returns: unsigned char with the number of unsigned longs needed to hold
-#             the hex c-string
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-unsigned char cnvtStrLenToNumHexULng(
-    const unsigned long *lenHexCStrULng /*Number of characters in hex c-string*/
-) /*Converts the number of unsinged longs needed to store the hex characters*/
-{ /*cnvtStrLenToNumHexULng*/
-    return 1 + (*lenHexCStrULng >> (sizeof(unsigned long) >> 1));
-} /*cnvtStrLenToNumHexULng*/
+/* Ascii table
+Dec  Char                           Dec  Char     Dec  Char     Dec  Char
+---------                           ---------     ---------     ----------
+  0  NUL (null)                      32  SPACE     64  @         96  `
+  1  SOH (start of heading)          33  !         65  A         97  a
+  2  STX (start of text)             34  "         66  B         98  b
+  3  ETX (end of text)               35  #         67  C         99  c
+  4  EOT (end of transmission)       36  $         68  D        100  d
+  5  ENQ (enquiry)                   37  %         69  E        101  e
+  6  ACK (acknowledge)               38  &         70  F        102  f
+  7  BEL (bell)                      39  '         71  G        103  g
+  8  BS  (backspace)                 40  (         72  H        104  h
+  9  TAB (horizontal tab)            41  )         73  I        105  i
+ 10  LF  (NL line feed, new line)    42  *         74  J        106  j
+ 11  VT  (vertical tab)              43  +         75  K        107  k
+ 12  FF  (NP form feed, new page)    44  ,         76  L        108  l
+ 13  CR  (carriage return)           45  -         77  M        109  m
+ 14  SO  (shift out)                 46  .         78  N        110  n
+ 15  SI  (shift in)                  47  /         79  O        111  o
+ 16  DLE (data link escape)          48  0         80  P        112  p
+ 17  DC1 (device control 1)          49  1         81  Q        113  q
+ 18  DC2 (device control 2)          50  2         82  R        114  r
+ 19  DC3 (device control 3)          51  3         83  S        115  s
+ 20  DC4 (device control 4)          52  4         84  T        116  t
+ 21  NAK (negative acknowledge)      53  5         85  U        117  u
+ 22  SYN (synchronous idle)          54  6         86  V        118  v
+ 23  ETB (end of trans. block)       55  7         87  W        119  w
+ 24  CAN (cancel)                    56  8         88  X        120  x
+ 25  EM  (end of medium)             57  9         89  Y        121  y
+ 26  SUB (substitute)                58  :         90  Z        122  z
+ 27  ESC (escape)                    59  ;         91  [        123  {
+ 28  FS  (file separator)            60  <         92  \        124  |
+ 29  GS  (group separator)           61  =         93  ]        125  }
+ 30  RS  (record separator)          62  >         94  ^        126  ~
+ 31  US  (unit separator)            63  ?         95  _        127  DEL
+*/
 

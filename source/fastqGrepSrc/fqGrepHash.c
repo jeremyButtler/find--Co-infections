@@ -4,22 +4,33 @@
 #     Uses an hash + AVL tree to find if reads is in user suplied list
 ##############################################################################*/
 
-#include "fastqGrepHash.h"
+#include "fqGrepHash.h"
 
 char /*First 392 digitits (defing as array so can modify)*/
-   GOLDEN_RATIO_CSTR[] = "618033988749894848204586834365638117720309179805762862135448622705260462818902449707207204189391137484754088075386891752126633862223536931793180060766726354433389086595939582905638322661319928290267880675208766892501711696207032221043216269548626296313614438149758701220340805887954454749246185695364864449241044320771344947049565846788509874339442212544877066478091588460749988712400765";
+   GOLDEN_RATIO[] = "618033988749894848204586834365638117720309179805762862135448622705260462818902449707207204189391137484754088075386891752126633862223536931793180060766726354433389086595939582905638322661319928290267880675208766892501711696207032221043216269548626296313614438149758701220340805887954454749246185695364864449241044320771344947049565846788509874339442212544877066478091588460749988712400765";
 
 double
    powTwoPerTen = 3.3333333333333333333333333333333333333333333;
    /*there are 2^(3.33) per 10^1. This is so I can avoid gmp right shift,
      which seems to error out on realloc for O2*/
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# fastqGrepHash TOC:
-#    fun-3: Insert read into hash table
-#    fun-4: findReadInHashTbl: Search hash table for a particler read id
-#    fun-5: freeHashTbl: free a hash table
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+\ fastqGrepHash TOC:                                                   \
+/    fun-1 makeReadHash:                                               /
+\        - Make a hash table of read id's from a file of read ids      \
+/    fun-2 calcHash:                                                   /
+\        - Find the hash from the read id bignumber                    \
+/    fun-3 Insert read into hash table                                 /
+\        - Insert a read id (is big number) into a hash table          \
+/    fun-4 findReadInHashTbl:                                          /
+\        -  Search hash table for a particler read id                  \
+/    fun-5 freeHashTbl:                                                /
+\        - Free a hash table                                           \
+/    fun-6 readListToHash:                                             /
+\        - Convert a lined readList to a hash table                    \
+/        - Only use readList->rightChild pointer in the linked list    /
+\                                                                      \
+/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*##############################################################################
 # Output:
@@ -32,7 +43,7 @@ double
 ##############################################################################*/
 struct readInfo ** makeReadHash(
     FILE * filtFILE,                  /*file with read id's to filter by*/
-    char * buffCStr,                  /*Buffer to hold input from file*/
+    unsigned char * buffCStr,         /*Buffer to hold input from file*/
     unsigned long lenBuffULng,        /*Length of buffer (buffCStr)*/
     struct readNodeStack *readStackAry,  /*Stack, (as array) for searching*/
     unsigned long *hashSizeULng,      /*Will hold Size of hash table*/
@@ -45,21 +56,24 @@ struct readInfo ** makeReadHash(
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
    # Fun-1 TOC:
    #     fun-1 Sec-1: variable declerations
-   #     fun-1 sec-2: Find the number of unsigned longs needed for big number
-   #     fun-1 Sec-3: Read in the file
-   #     fun-1 sec-4: Find the hash table size & make hash table
-   #     fun-1 sec-5: Find the magick number
-   #     fun-1 sec-6: Build hash
+   #     fun-1 Sec-2: Read in the file
+   #     fun-1 sec-3: Find the hash table size & make hash table
+   #     fun-1 sec-4: Find the magick number
+   #     fun-1 sec-5: Build hash
    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
    # Fun-1 Sec-1: variable declerations
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-   char *tmpBuffCStr = 0;
 
-   unsigned char bigNumArySizeChar = 0; /*Stores num U longs for big number*/
+   unsigned char
+       *tmpBuffCStr = 0,
+       maxHexChar = 1; /*Max hex digits to read in*/
 
-   unsigned long lenIdULng = 0; /*Stores read id length*/
+   unsigned long lenInputULng = 0; /*Number characters in buffer*/
+
+   unsigned long
+       lenIdULng = 0; /*Stores read id length*/
 
    struct readInfo
        **hashTbl = 0,                 /*hash table*/
@@ -67,44 +81,38 @@ struct readInfo ** makeReadHash(
        *tmpRead = 0;
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-2: Find the number of unsigned longs needed for big number
+   # Fun-1 Sec-2: Read in the file
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    fgets(buffCStr, lenBuffULng, filtFILE); /*Find length of first read id*/
+   *hashSizeULng = 0; /*Intalize*/
+   *(buffCStr + lenBuffULng) = '\0';
+   tmpBuffCStr = buffCStr + lenBuffULng; /*Force initial read in*/
+   lenInputULng = lenBuffULng; /*Make sure read in first read*/
 
-    tmpBuffCStr = buffCStr;
+   do { /*While ids to read in*/
+       tmpRead = 
+           cnvtIdToBigNum(
+               buffCStr,
+               lenBuffULng,
+               &tmpBuffCStr,
+               &lenInputULng,
+               &lenIdULng,
+               &maxHexChar,
+               filtFILE
+       ); /*Read in id and convert to big number*/
 
-    while(*tmpBuffCStr > 32)
-    { /*While I am not at the end of the read id*/
-        lenIdULng++;
-        tmpBuffCStr++;
-    } /*While I am not at the end of the read id*/
+       if(tmpRead == 0)
+       { /*If was a falied read*/
+           if(lenInputULng == 0)
+           { /*If was a memory allocation error (message already printed)*/
+               freeReadTree(&readTree, readStackAry);
+               return 0;
+           } /*If was a memory allocation error (message already printed)*/
 
-    bigNumArySizeChar = cnvtStrLenToNumHexULng(&lenIdULng); /*Get num ULng*/
+           break; /*end of file*/
+       } /*If was a falied read*/
 
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-3: Read in the file
-   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    *hashSizeULng = 0; /*Intalize*/
-
-    do { /*While there are read id's to read in*/
-
-        /*Make a node for the read id (also converts hex parts to big number)*/
-        tmpRead = makeReadInfoStruct(buffCStr, &bigNumArySizeChar);
-
-        if(tmpRead == 0)
-        { /*If could not allocate memeory*/
-            fprintf(
-                stderr,
-                "makeReadHash Fun-1 fastqGrepHash:67, Failed memory allocation)"
-            ); /*Let user know error happened*/
-
-            *failedChar = 1;
-            return 0;
-        } /*If could not allocate memeory*/
-
-        if(readTree == 0)
+       if(readTree == 0)
             readTree = tmpRead;
         else
         { /*else, adding new node to list*/
@@ -112,11 +120,32 @@ struct readInfo ** makeReadHash(
             readTree = tmpRead;
         } /*else, adding new node to list*/
 
+        while(*tmpBuffCStr != '\n')
+        { /*While not on next entry*/
+            tmpBuffCStr++;
+
+            if(*tmpBuffCStr == '\0')
+            { /*If at the end of the buffer, but not at start of read*/
+                if(lenInputULng < lenBuffULng)
+                    break; /*At end of file*/
+
+                lenInputULng = fread(
+                                   buffCStr,
+                                   sizeof(char),
+                                   lenBuffULng,
+                                   filtFILE
+                ); /*Read in more of the file*/
+
+                *(buffCStr + lenInputULng) = '\0';/*make sure a c-string*/
+                tmpBuffCStr = buffCStr;
+            } /*If at the end of the buffer, but not at start of read*/
+        } /*While not on next entry*/
+
         (*hashSizeULng)++; /*Count number of reads*/
-    } while(fgets(buffCStr, lenBuffULng, filtFILE));/*are read id's to read in*/
+   } while(tmpRead != 0);/*ids to read*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-4: Find the hash table size & make hash tabel
+   # Fun-1 Sec-3: Find the hash table size & make hash tabel
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    *digPerKeyUChar = 0;
@@ -136,7 +165,7 @@ struct readInfo ** makeReadHash(
       /*Calloc intalizes with 0's*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-5: Find the magick number
+   # Fun-1 Sec-4: Find the magick number
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    /*Find how many digits of my golden ratio to use*/
@@ -153,10 +182,11 @@ struct readInfo ** makeReadHash(
        uCharGoldDig < ((sizeof(unsigned long) << 3) / powTwoPerTen);
        uCharGoldDig++
    ) /*For each digit in the godlen number I need to convert to a long*/
-       *majicNumULng = 10*(*majicNumULng) + GOLDEN_RATIO_CSTR[uCharGoldDig]-48;
+       *majicNumULng =
+           10 * (*majicNumULng) + GOLDEN_RATIO[uCharGoldDig] - 48;
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-   # Fun-1 Sec-6: Build hash
+   # Fun-1 Sec-5: Build hash
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    while(readTree != 0)
@@ -324,3 +354,112 @@ void freeHashTbl(
 
     return;
 } /*freeeHashTbl*/
+
+/*---------------------------------------------------------------------\
+| Output:                                                              |
+|    Returns:                                                          |
+|        - readInfo: hash table (as heap array)                        |
+|        - 0: if failed                                                |
+|    Modifies:                                                         |
+|        - hashSizeUlng to hold length of the returned array           |
+|        - numCharChar: to hold the number of characters used in hash  |
+|        - digPerKeyUChar: to hold the hash size (as multiple of two)  |
+|        - magickNumULng: to hold magick number for this hash table    |
+\---------------------------------------------------------------------*/
+struct readInfo ** readListToHash(
+    struct readInfo * readList,   /*List of id's to build hash from.
+                                  only use the rightChild ptr in list*/
+    const unsigned long *lenListULng,   /*Number of id's in readList*/
+    struct readNodeStack *readStackAry, /*Stack (array) for searching*/
+    unsigned long *hashSizeULng,       /*Will hold Size of hash table*/
+    unsigned char *digPerKeyUChar,    /*Power of two hash size is at*/
+    unsigned long *majicNumULng  /*Holds majick number for kunths hash*/
+) /*Makes a read hash array using input read ids*/
+{ /*makeReadHash function*/
+
+   /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   \ Fun-6 TOC:                                                        /
+   /     fun-6 sec-1: Find the hash table size & make hash table       \
+   \     fun-6 sec-2: Find the magick number                           /
+   /     fun-6 sec-3: Build hash                                       \
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-6 Sec-1: variable declerations                                v
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   struct readInfo
+       *tmpRead = 0,
+       **hashTbl = 0;
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-6 Sec-2: Find hash table size & make hash tabel               v
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   *hashSizeULng = *lenListULng;
+   *digPerKeyUChar = 0;
+
+   /*Find power of two to use (will go 1 bit over to make sure 0)*/
+   while(*hashSizeULng > 0)
+   { /*While need to find the next power of two*/
+       *hashSizeULng = (*hashSizeULng) >> 1;
+       (*digPerKeyUChar)++;
+   } /*While need to find the next power of two*/
+
+   (*digPerKeyUChar)++; /*Make double size, so is a bit sparse*/
+
+   (*hashSizeULng) = 1 << (*digPerKeyUChar); /*Nearest power of two*/
+
+   hashTbl = calloc((*hashSizeULng + 1), sizeof(struct readInfo *));
+      /*Calloc intalizes with 0's*/
+
+   if(hashTbl == 0)
+       return 0;
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-6 Sec-3: Find the magick number                               v
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   /*Find how many digits of my golden ratio to use*/
+      /*
+        The idea here is 2^(x * 3.333...) ~ 10^x, which gives me the
+        number of base 10 digits per limb. This only covers the
+        positions were having 10^x = 2^(x * 3.333...), so will not
+        always cover the last postion.  For example an 64 bit number has
+        at most 20 digits, but 64 / 3.333...  is 19. This is due to
+        10^20 > 2^20 = 18,446,744,073,709,551,615.
+      */
+
+   for(
+       unsigned char uCharDig = 0;
+       uCharDig < ((sizeof(unsigned long) << 3) / powTwoPerTen);
+       uCharDig++
+   ) /*For each digit in the godlen number I need to convert to a long*/
+       *majicNumULng =
+           10 *
+           (*majicNumULng)
+           + (GOLDEN_RATIO[uCharDig] & !48); /*Clear non numeric bits*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-6 Sec-2: Build hash                                           v
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   while(readList != 0)
+   { /*While their are reads to put in hash table*/
+       tmpRead = readList->rightChild;
+       readList->rightChild = 0;
+
+       insertHashEntry(
+           hashTbl,           /*Hash table to insert read into*/
+           readList,          /*readNode to insert into hash table*/
+           *majicNumULng,  /*Will hold final majick number*/
+           *digPerKeyUChar,
+           readStackAry       /*Stack, (as array) for searching*/
+        ); /*Insert the read into the hash table*/
+
+        readList = tmpRead;  /*move to the next read*/
+   } /*While their are reads to put in hash table*/
+
+   return hashTbl;  /*Return head of hash table*/
+} /*makeReadHash function*/
+

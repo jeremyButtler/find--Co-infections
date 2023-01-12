@@ -4,10 +4,11 @@
 #     Uses an hash + AVL tree to find if reads is in user suplied list
 ##############################################################################*/
 
-#ifndef FASTQGREPHASH_H
-#define FASTQGREPHASH_H
+#ifndef FQGREPHASH_H
+#define FQGREPHASH_H
 
-#include "fastqGrepAVLTree.h" /*Structs & funs to build an read name AVL tree*/
+#include "fqGrepFqFun.h" /*Big number conversion*/
+#include "fqGrepAVLTree.h" /*Structs & funs to build an read name AVL tree*/
     /*
       Includes: 
           - <string.h>
@@ -26,7 +27,7 @@
 ##############################################################################*/
 struct readInfo ** makeReadHash(
     FILE * filtFILE,                  /*file with read id's to filter by*/
-    char * buffCStr,                  /*Buffer to hold input from file*/
+    unsigned char * buffCStr,         /*Buffer to hold input from file*/
     unsigned long lenBuffULng,        /*Length of buffer (buffCStr)*/
     struct readNodeStack *readStackAry,  /*Stack, (as array) for searching*/
     unsigned long *hashSizeULng,      /*Will hold Size of hash table*/
