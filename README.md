@@ -99,7 +99,7 @@ After the clustering step, consensuses between bins are compared with
 
 ### The consensus building steps
 
-Find co-infections can build consensus using an inbuilt consensus
+Find co-infections can build consensuses using an inbuilt consensus
   builder, with Racon, or Medaka. It can also use the consensus from one
   method to another method. For passing consensuses, the inbuilt
   consensus step is always run first and its output consensus is used to 
