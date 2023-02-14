@@ -2590,7 +2590,7 @@ int main(
 
     if(!(dupBool & 1))
     { /*If need to print out the stats for the last read*/
-        if(checkRead(&readToRefMinStats, oldSam) == 0)
+        if(checkRead(&readToRefMinStats, newSam) == 0)
         { /*If keeping the read*/
 
             if(fqBinFILE != 0)
@@ -2609,12 +2609,12 @@ int main(
             strcpy(cpTmpCStr, "--stats.tsv"); /*Add in fastq ending*/
 
             fqBinFILE = fopen(binFileCStr, "a");
-            samToFq(oldSam, fqBinFILE);
+            samToFq(newSam, fqBinFILE);
             fclose(fqBinFILE);
             fqBinFILE = 0;
 
             statFILE = fopen(statFileCStr, "a");
-            printSamStats(oldSam, &printStatsHeadUChar, statFILE);
+            printSamStats(newSam, &printStatsHeadUChar, statFILE);
             fclose(statFILE);
             statFILE = 0;
         } /*If keeping the read*/
