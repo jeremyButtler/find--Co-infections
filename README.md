@@ -100,14 +100,15 @@ After the clustering step, consensuses between bins are compared with
 ### The consensus building steps
 
 Find co-infections can build consensuses using an inbuilt consensus
-  builder, with Racon, or Medaka. It can also use the consensus from one
-  method to another method. For passing consensuses, the inbuilt
-  consensus step is always run first and its output consensus is used to 
-  with Racon or Medaka_consensus, if Racon is not used. The consensus
-  from Racon is then used by Medaka_consensus if Medaka is being used. I
-  do not think Medaka can not use a fastq file as a reference, so you
-  should plan on at least using Racon or the inbuilt consensus with
-  Medaka.
+  builder, with Racon, or Medaka. It can also polish the consensus from
+  one consensus building method with another method. The first
+  consensus, is always built using the inbuilt consensus builder. This
+  consensus is can be polished with four rounds of Racon or
+  Medaka_consensus, when Racon is not used. The consensus built or
+  polished by Racon is then polished by Medaka_consensus if Medaka is
+  being used. I do not think Medaka can use a fastq file as a reference,
+  so you should plan on at least using Racon or the inbuilt consensus
+  builder with Medaka.
 
 The default and inbuilt consensus building step builds a majority
   consensus using the top read or consensus and the top three hundred
