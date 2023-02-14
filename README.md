@@ -54,10 +54,15 @@ Find co-infections allows you to change most of the parameters at every
   step. This means that their are a lot of parameters that can be
   changed. My advice is to get several good data set that you know the
   answer to and pick a couple key parameters to fiddle around with. Just
-  keep in mind that changing some parameters can drastic effects on the
-  find co-infections ability to ignore noise. One example is lowering
-  the mapping quality for the binning step, which can increase the false
-  positive rate.
+  keep in mind that changing some parameters can change how well
+  find co-infections can ignore noise or detect co-infections. One
+  example is lowering the mapping quality for the binning step, which
+  when lowered can increase the false positive rate, but when increased
+  can result in less detected co-infections.
+
+Another tip of advice, make sure that some of your tests do not have
+  references that match the sequences in the sample. That way you can
+  test a realistic case.
 
 ## Testing:
 
