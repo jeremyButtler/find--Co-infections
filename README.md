@@ -30,9 +30,10 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
     - Show the main help message.
     - Their are enough parameters in find co-infections to 
       make a single help message daunting. To get around this
-      I split the parameters into help messages by catagorie.
-      The main help message shows what I think are the most
-      useful parameters and all the other help messages.
+      I split the parameters into multiple help messages by
+      catagory. The main help message shows what I think are
+      the most useful parameters and all the other help
+      messages.
   - -prefix:                                                     [Out]
     - Prefix to add to file names.
   - -threads:                                                    [3]
