@@ -32,8 +32,8 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
       make a single help message daunting. To get around this
       I split the parameters into multiple help messages by
       catagory. The main help message shows what I think are
-      the most useful parameters and all the other help
-      messages.
+      the most useful parameters and all commands to show
+      the other help messages.
   - -prefix:                                                     [Out]
     - Prefix to add to file names.
   - -threads:                                                    [3]
