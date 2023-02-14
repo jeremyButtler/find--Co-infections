@@ -2222,6 +2222,7 @@ int main(
     ^    main sec-6 sub-6: Set up bin file names
     ^    main sec-6 sub-7: Check if can open the bin & stats file
     ^    main sec-6 sub-8: Append reads to file & add to tree
+    ^    main sec-6 sub-9: Checking if keeping the last read
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /******************************************************************\
@@ -2441,7 +2442,7 @@ int main(
         } /*If the read is under the min quality, discard*/
 
         /**************************************************************\
-        * Main Sec-6 Sub-5: Set up bin file names
+        * Main Sec-6 Sub-6: Set up bin file names
         \**************************************************************/
 
         /*Build the bin file name*/
@@ -2474,7 +2475,7 @@ int main(
         strcpy(tmpCStr, "--stats.tsv"); /*Add in stats file ending*/
 
         /**************************************************************\
-        * Main Sec-6 Sub-6: Check if can open the bin & stats file
+        * Main Sec-6 Sub-7: Check if can open the bin & stats file
         \**************************************************************/
 
         statFILE = fopen(statFileCStr, "a");
@@ -2523,7 +2524,7 @@ int main(
         } /*If can not open the stats file*/
 
         /**************************************************************\
-        * Main Sec-6 Sub-7: Append reads to file & add to tree
+        * Main Sec-6 Sub-8: Append reads to file & add to tree
         \**************************************************************/
 
         *cpTmpCStr = '\0'; /*Make ref id into a c-string*/
@@ -2588,9 +2589,13 @@ int main(
         errUChar = readSamLine(newSam, stdinFILE);
     } /*While their is a samfile entry to read in*/
 
+    /******************************************************************\
+    * Main Sec-6 Sub-9: Checking if keeping the last read
+    \******************************************************************/
+
     if(!(dupBool & 1))
     { /*If need to print out the stats for the last read*/
-        if(checkRead(&readToRefMinStats, oldSam) == 0)
+        if(checkRead(&readToRefMinStats, newSam) == 0)
         { /*If keeping the read*/
 
             if(fqBinFILE != 0)
@@ -2602,19 +2607,19 @@ int main(
             tmpCStr = binFileCStr + lenPrefUChar;
             strcpy(tmpCStr, "--");
             tmpCStr += 2;
-            tmpCStr = cStrCpInvsDelm(tmpCStr, oldSam->refCStr);
+            tmpCStr = cStrCpInvsDelm(tmpCStr, newSam->refCStr);
             cpTmpCStr = cStrCpInvsDelm(statFileCStr, binFileCStr);
 
             strcpy(tmpCStr, ".fastq");        /*Add in fastq ending*/
             strcpy(cpTmpCStr, "--stats.tsv"); /*Add in fastq ending*/
 
             fqBinFILE = fopen(binFileCStr, "a");
-            samToFq(oldSam, fqBinFILE);
+            samToFq(newSam, fqBinFILE);
             fclose(fqBinFILE);
             fqBinFILE = 0;
 
             statFILE = fopen(statFileCStr, "a");
-            printSamStats(oldSam, &printStatsHeadUChar, statFILE);
+            printSamStats(newSam, &printStatsHeadUChar, statFILE);
             fclose(statFILE);
             statFILE = 0;
         } /*If keeping the read*/
@@ -2694,6 +2699,7 @@ int main(
                 tmpBin = malloc(sizeof(struct readBin));
 
             /*Make sure all bin values set to defaults/blanked*/
+            tmpBin->numReadsULng = 0;
             tmpBin->refIdCStr[0] = '\0';
             tmpBin->fqPathCStr[0] = '\0';
             tmpBin->statPathCStr[0] = '\0';
@@ -2873,6 +2879,9 @@ int main(
                     break; /*This is not a cluster*/
                 } /*If could not map enough reads to build consensus*/
             } /*Loop till have done all the users requested polishing*/
+
+            if(errUChar & 16)
+                continue;
 
             remove(clustOn->bestReadCStr);/*Remove best read consensus*/
             /*Copy the consensus name to the clusters bin*/
