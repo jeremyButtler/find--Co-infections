@@ -899,7 +899,7 @@ int main(
             \n        - Min number of reads needed to keep   [100]\
             \n          a bin or a cluster\
             \n    -max-reads-per-con:\
-            \n        - Max number of reads to use in        [300]\
+            \n        - Max numver of reads to use in        [300]\
             \n          a consensus.\
             \n    -extra-consensus-steps:                    [2]\
             \n        - Number of times to rebuild the\
@@ -2590,7 +2590,7 @@ int main(
 
     if(!(dupBool & 1))
     { /*If need to print out the stats for the last read*/
-        if(checkRead(&readToRefMinStats, newSam) == 0)
+        if(checkRead(&readToRefMinStats, oldSam) == 0)
         { /*If keeping the read*/
 
             if(fqBinFILE != 0)
@@ -2609,12 +2609,12 @@ int main(
             strcpy(cpTmpCStr, "--stats.tsv"); /*Add in fastq ending*/
 
             fqBinFILE = fopen(binFileCStr, "a");
-            samToFq(newSam, fqBinFILE);
+            samToFq(oldSam, fqBinFILE);
             fclose(fqBinFILE);
             fqBinFILE = 0;
 
             statFILE = fopen(statFileCStr, "a");
-            printSamStats(newSam, &printStatsHeadUChar, statFILE);
+            printSamStats(oldSam, &printStatsHeadUChar, statFILE);
             fclose(statFILE);
             statFILE = 0;
         } /*If keeping the read*/
@@ -2694,7 +2694,6 @@ int main(
                 tmpBin = malloc(sizeof(struct readBin));
 
             /*Make sure all bin values set to defaults/blanked*/
-            tmpBin->numReadsULng = 0;
             tmpBin->refIdCStr[0] = '\0';
             tmpBin->fqPathCStr[0] = '\0';
             tmpBin->statPathCStr[0] = '\0';
@@ -2874,9 +2873,6 @@ int main(
                     break; /*This is not a cluster*/
                 } /*If could not map enough reads to build consensus*/
             } /*Loop till have done all the users requested polishing*/
-
-            if(errUChar & 16)
-                continue;
 
             remove(clustOn->bestReadCStr);/*Remove best read consensus*/
             /*Copy the consensus name to the clusters bin*/
