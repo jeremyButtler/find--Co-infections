@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<svg 
+    xmlns='http://www.w3.org/2000/svg'
+    width='630'
+    height='826'
+    shape-rendering='geometricPrecision'
+    version='1.0'>
+  <defs>
+    <filter id='f2' x='0' y='0' width='200%' height='200%'>
+      <feOffset result='offOut' in='SourceGraphic' dx='5' dy='5' />
+      <feGaussianBlur result='blurOut' in='offOut' stdDeviation='3' />
+      <feBlend in='SourceGraphic' in2='blurOut' mode='normal' />
+    </filter>
+  </defs>
+  <g stroke-width='1' stroke-linecap='square' stroke-linejoin='round'>
+    <rect x='0' y='0' width='630' height='826' style='fill: #ffffff'/>
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#440055' d='M72.0 735.0 L572.0 735.0 L558.0 791.0 L58.0 791.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#44cc88' d='M25.0 301.0 L25.0 343.0 L605.0 343.0 L605.0 301.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#ffff33' d='M565.0 175.0 L565.0 217.0 L25.0 217.0 L25.0 175.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#440055' d='M605.0 483.0 L605.0 525.0 L65.0 525.0 L65.0 483.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#440055' d='M75.0 609.0 L75.0 651.0 L565.0 651.0 L565.0 609.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#337799' d='M545.0 371.0 L545.0 413.0 L65.0 413.0 L65.0 371.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-dasharray='5.0,5.0' stroke-miterlimit='0' stroke-linecap='butt' stroke-linejoin='round' fill='none' d='M195.0 553.0 L195.0 581.0 L425.0 581.0 L425.0 553.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-dasharray='5.0,5.0' stroke-miterlimit='0' stroke-linecap='butt' stroke-linejoin='round' fill='none' d='M395.0 119.0 L395.0 147.0 L205.0 147.0 L205.0 119.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='white' d='M298.5 35.0 L468.5 35.0 L461.5 63.0 L291.5 63.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-dasharray='5.0,5.0' stroke-miterlimit='0' stroke-linecap='butt' stroke-linejoin='round' fill='none' d='M225.0 273.0 L365.0 273.0 L365.0 245.0 L225.0 245.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-dasharray='5.0,5.0' stroke-miterlimit='0' stroke-linecap='butt' stroke-linejoin='round' fill='none' d='M375.0 679.0 L375.0 707.0 L245.0 707.0 L245.0 679.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 455.0 L65.0 455.0 L65.0 427.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='white' d='M148.5 35.0 L268.5 35.0 L261.5 63.0 L141.5 63.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 91.0 L205.0 91.0 L205.0 63.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M385.0 63.0 L385.0 91.0 L295.0 91.0 ' />
+    <path stroke='none' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='#000000' d='M65.0 420.0 L60.0 434.0 L70.0 434.0 z' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 343.0 L295.0 371.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 581.0 L315.0 609.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 525.0 L315.0 553.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 273.0 L295.0 301.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 217.0 L295.0 245.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 147.0 L295.0 175.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 707.0 L315.0 735.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 651.0 L315.0 679.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 455.0 L315.0 483.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M315.0 413.0 L315.0 455.0 ' />
+    <path stroke='#000000' stroke-width='1.0' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M295.0 91.0 L295.0 119.0 ' />
+    <text x='154' y='320' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Map reads in bin]]></text>
+    <text x='154' y='334' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[to selected read]]></text>
+    <text x='47' y='194' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Map reads to]]></text>
+    <text x='56' y='208' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[references]]></text>
+    <text x='260' y='390' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[Select top]]></text>
+    <text x='260' y='404' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[300 reads]]></text>
+    <text x='90' y='502' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Map reads in bin to consensus]]></text>
+    <text x='90' y='516' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Move mapped reads from bin fastq to cluster fastq]]></text>
+    <text x='222' y='572' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Detect false positives]]></text>
+    <text x='100' y='628' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Compare consensuses in each cluster]]></text>
+    <text x='100' y='642' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Merge clusters that have similar consensuses]]></text>
+    <text x='90' y='754' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Consensuses in .fasta]]></text>
+    <text x='90' y='768' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Reads clustered to consensus in .fastq]]></text>
+    <text x='90' y='782' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[?Number of reads per cluster in readcounts.tsv]]></text>
+    <text x='241' y='264' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Cluster reads]]></text>
+    <text x='80' y='390' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[Map reads in bin]]></text>
+    <text x='86' y='404' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[to consensus]]></text>
+    <text x='97' y='446' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Repeat twice]]></text>
+    <text x='230' y='138' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Bin & Filter reads]]></text>
+    <text x='160' y='54' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Reads]]></text>
+    <text x='311' y='194' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Remove low]]></text>
+    <text x='312' y='208' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[quality reads]]></text>
+    <text x='37' y='320' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Pick read]]></text>
+    <text x='262' y='698' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Final output]]></text>
+    <text x='186' y='194' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Trim reads]]></text>
+    <text x='314' y='54' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[References]]></text>
+    <text x='446' y='194' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Score reads]]></text>
+    <text x='450' y='320' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Build consensus]]></text>
+    <text x='390' y='390' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[build Consensus]]></text>
+    <text x='403' y='404' font-family='Courier' font-size='15' stroke='none' fill='#ffffff' ><![CDATA[for cluster]]></text>
+    <text x='320' y='320' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[Select top]]></text>
+    <text x='320' y='334' font-family='Courier' font-size='15' stroke='none' fill='#000000' ><![CDATA[300 reads]]></text>
+  </g>
+</svg>

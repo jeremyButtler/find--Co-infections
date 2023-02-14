@@ -1,0 +1,55 @@
+            +-----------+  +----------------+
+            | Reads{io} +  | References{io} |
+            +-----+-----+  +--------+-------+
+                  |                 |
+                  +--------+--------+
+                           |
+                  +-=-=-=-=+=-=-=-=-=+
+                  |Bin & Filter reads|
+                  +-=-=-=-=+=-=-=-=-=+
+                           |
++--------------------------+--------------------------+
+| Map reads to  Trim reads   Remove low   Score reads +
+|  references               quality reads     cFF3    |
++--------------------------+--------------------------+
+                           |
+                    +-=-=-=+=-=-=-+                   
+                    |Cluster reads|
+                    +-=-=-=+=-=-=-+
+                           |
++--------------------------+------------------------------+
++Pick read  Map reads in bin  Select top  Build consensus +
+|           to selected read  300 reads      c4C8         |
++--------------------------+------------------------------+
+                           |
+    +----------------------+------------------------+
+    | Map reads in bin  Select top  build Consensus |
+    | to consensus c379 300 reads    for cluster    |
+    +------------------------+----------------------+
+    ^                        |
+    |  Repeat twice          |
+    +------------------------+
+                             |
+    +------------------------+----------------------------+
+    | o Map reads in bin to consensus           c405      |
+    | o Move mapped reads from bin fastq to cluster fastq |
+    +------------------------+----------------------------+
+                             |
+                 +-=-=-=-=-=-+-=-=-=-=-=+
+                 |Detect false positives|
+                 +-=-=-=-=-=-+-=-=-=-=-=+
+                             |
+     +-----------------------+------------------------+
+     | o Compare consensuses in each cluster     c405 |
+     | o Merge clusters that have similar consensuses |
+     +---------+-------------+------------------------+
+                             |
+                      +-=-=-=+=-=-=+
+                      |Final output|
+                      +-=-=-=+=-=-=+
+                             |
+    +------------------------+------------------------+
+    | o Consensuses in .fasta        {io}       c405  |
+    | o Reads clustered to consensus in .fastq        |
+    | o Number of reads per cluster in readcounts.tsv |
+    +-------------------------------------------------+
