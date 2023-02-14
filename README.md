@@ -92,7 +92,7 @@ After the clustering step, consensuses between bins are compared with
   method.
 
 ![Diagram of how version three works, for asci flow chart see 
-  diagrams/v3FlowDiagram.ditaa](diagrams/v3FlowDiagram.svg)
+  diagrams/v3FlowDiagram.ditaa](diagrams/v3FlowDiagram.png)
 
 The default consensus building step builds a majority consensus using
   the top read or consensus and the top three hundred reads. In the
