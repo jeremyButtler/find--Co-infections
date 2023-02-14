@@ -2595,7 +2595,7 @@ int main(
 
     if(!(dupBool & 1))
     { /*If need to print out the stats for the last read*/
-        if(checkRead(&readToRefMinStats, newSam) == 0)
+        if(checkRead(&readToRefMinStats, oldSam) == 0)
         { /*If keeping the read*/
 
             if(fqBinFILE != 0)
@@ -2607,19 +2607,19 @@ int main(
             tmpCStr = binFileCStr + lenPrefUChar;
             strcpy(tmpCStr, "--");
             tmpCStr += 2;
-            tmpCStr = cStrCpInvsDelm(tmpCStr, newSam->refCStr);
+            tmpCStr = cStrCpInvsDelm(tmpCStr, oldSam->refCStr);
             cpTmpCStr = cStrCpInvsDelm(statFileCStr, binFileCStr);
 
             strcpy(tmpCStr, ".fastq");        /*Add in fastq ending*/
             strcpy(cpTmpCStr, "--stats.tsv"); /*Add in fastq ending*/
 
             fqBinFILE = fopen(binFileCStr, "a");
-            samToFq(newSam, fqBinFILE);
+            samToFq(oldSam, fqBinFILE);
             fclose(fqBinFILE);
             fqBinFILE = 0;
 
             statFILE = fopen(statFileCStr, "a");
-            printSamStats(newSam, &printStatsHeadUChar, statFILE);
+            printSamStats(oldSam, &printStatsHeadUChar, statFILE);
             fclose(statFILE);
             statFILE = 0;
         } /*If keeping the read*/
@@ -2695,6 +2695,8 @@ int main(
  
         while(clustOn->numReadsULng >= minReadsPerBinULng)
         { /*While have reads to bin*/
+            errUChar = 0; /*reset*/
+
             if(tmpBin == 0)
                 tmpBin = malloc(sizeof(struct readBin));
 
@@ -2881,7 +2883,10 @@ int main(
             } /*Loop till have done all the users requested polishing*/
 
             if(errUChar & 16)
+            { /*If errored out*/
+                errUChar = 0; /*reset*/
                 continue;
+            } /*If errored out*/
 
             remove(clustOn->bestReadCStr);/*Remove best read consensus*/
             /*Copy the consensus name to the clusters bin*/
@@ -2901,9 +2906,6 @@ int main(
             /**********************************************************\
             * Main Sec-7 Sub-6: Compare new consensus to old consensuses
             \**********************************************************/
-
-            if(errUChar & 16)
-                continue; /*Consensus was not built*/
 
             *clustOn->consensusCStr = '\0';
 
