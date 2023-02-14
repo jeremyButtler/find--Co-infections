@@ -27,7 +27,12 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
 
 ## Some quick options:
   - -h:
-    - Show the main help message (their are multiple)
+    - Show the main help message.
+    - Their are enough parameters in find co-infections to 
+      make a single help message daunting. To get around this
+      I split the parameters into help messages by catagorie.
+      The main help message shows what I think are the most
+      useful parameters and all the other help messages.
   - -prefix:                                                     [Out]
     - Prefix to add to file names.
   - -threads:                                                    [3]
@@ -42,6 +47,17 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
     - Use Medaka in building consensuses.
   - -model:                                         [r941_min_high_g351]
     - Model to use with Medaka_consensus
+
+## Advice on fine tuning this find co-infections:
+
+Find co-infections allows you to change most of the parameters at every
+  step. This means that their are a lot of parameters that can be
+  changed. My advice is to get several good data set that you know the
+  answer to and pick a couple key parameters to fiddle around with. Just
+  keep in mind that changing some parameters can drastic effects on the
+  find co-infections ability to ignore noise. One example is lowering
+  the mapping quality for the binning step, which can increase the false
+  positive rate.
 
 ## Testing:
 
