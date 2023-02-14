@@ -51,6 +51,8 @@ Currently benchmarking findCoInfections version three, and will update
 
 ## How find co-infections version three works:
 
+### An overview of the general steps
+
 The first step in find co-infections involves binning the reads with the
   supplied references. Reads that have mapping qualities under 20 for
   the best reference, have multiple mappings (probably chimeras), did
@@ -94,20 +96,41 @@ After the clustering step, consensuses between bins are compared with
 ![Diagram of how version three works, for asci flow chart see 
   diagrams/v3FlowDiagram.ditaa](diagrams/v3FlowDiagram.png)
 
-The default consensus building step builds a majority consensus using
-  the top read or consensus and the top three hundred reads. In the
-  first part a linked list (sequence) with the references bases is made,
-  with bases from reads having quality scores under ten being set to
-  nothing. The top read or consensus is then mapped to the top three
-  hundred reads. 
 
-Each mapped read is used to get a count of the number of matches, SNPs,
-  and insertions for each position. Each match or SNP needs a Q-score of
-  at lest ten to be counted, while insertions need a Q-score of five.
-  Any new SNPs are inserted into the linked list as an alternative base,
-  while new insertions are inserted as a new base. However, an
-  alternative base is used if their is an insertion already at the
-  position.
+### The consensus building steps
+
+Find co-infections can build consensus using an inbuilt consensus
+  builder, with Racon, or Medaka. It can also use the consensus from one
+  method to another method. For passing consensuses, the inbuilt
+  consensus step is always run first and its output consensus is used to 
+  with Racon or Medaka_consensus, if Racon is not used. The consensus
+  from Racon is then used by Medaka_consensus if Medaka is being used. I
+  do not think Medaka can not use a fastq file as a reference, so you
+  should plan on at least using Racon or the inbuilt consensus with
+  Medaka.
+
+The default and inbuilt consensus building step builds a majority
+  consensus using the top read or consensus and the top three hundred
+  reads. It using the Q-scores assigned to each base to determine if a
+  match, SNP, or insertion should be kept. Deletions are not recorded,
+  but can be found at the end based on the percentage of read support
+  each position has.
+
+The first step is to convert the reference sequence into a linked list
+  (sequence) that can support alternative bases (SNPs) and insertions.
+  Each position is recorded, but only bases that have quality scores
+  over ten are counted for the read support. For consensuses, all bases
+  are considered to have a quality score of at least ten.
+
+After building the linked list the reads are mapped to the reference
+  read or consensus for scoring. Each SNP or match that has a quality 
+  score of ten or more are counted, while each insertion that has a 
+  quality score of five or more is counted. For new SNPs at a position,
+  an new alternative base is made, while for new insertions a new base
+  is added to the sequences linked list. Alternative bases are add to
+  insertions when the position supporting position already has an
+  insertion. Multiple insertions are added to the list when their is
+  more than one insertion in a read at a single position.
 
 ```
                  |a 10 reads|   <- Alternative bases
@@ -126,12 +149,13 @@ Total: 3 reads    13 reads         10 reads         4 reads
    step for insertions.
 ```
 
-Insertion errors in the sequences are found by finding the total number
-  of reads supporting a position (including alternative bases).
-  Non-insertion positions that have less than 40% support are removed 
-  and insertion positions that have less than 30% are removed. The base
-  with the most supporting reads is kept, while the other alternative
-  bases are removed. Leaving the final consensus.
+Insertion errors in the sequences are found in the linked sequence list
+  by finding the total number of reads supporting a position. This
+  includes alternative bases. Non-insertion positions that occurred in
+  less than 40% of reads are removed and insertion positions that
+  occurred in less than 30% of reads are removed. The base with the most
+  supporting reads is kept, while the other alternative bases are
+  removed. Once completed, we are left with the final consensus.
 
 ## OS's/platforms tested on
 
