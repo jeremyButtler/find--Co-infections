@@ -17,8 +17,11 @@ Finds co-infections in nanopore sequenced reads.
 ## Install:
 
 cd V3;
+
 make;
+
 mv findCoInft /path/to/install;
+
 chmod a+x /path/to/install/findCoInft;
 
 ## Run:
