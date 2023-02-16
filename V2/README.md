@@ -73,7 +73,7 @@ We compared findCoInfections to Longshot and Clair3 using simulated
   Number of false positive SNPs in the consensus genomes built using Clair3.
   Major, minor, consensus, and distant indicates the reference used for variant
   calling.
-](../figures/Genotype--ClairRefTest.png)
+](figures/Genotype--ClairRefTest.png)
 
 We found that the accuracy of Clair3 was reliant on the input reference genome.
   With more distant reference genomes resulting in consensuses with more 
@@ -95,7 +95,7 @@ We found similar results for Longshot (see figures/Genotype--LongshotRefTest.png
   were used to build a consensus.  While cluster indicates the new pipeline was
   used with clustering. The horizontal line indicates the actual number of
   consensuses.
-](../figures/Similarity--20000--correctConsensusCount.png)
+](figures/Similarity--20000--correctConsensusCount.png)
 
 We compared how well Longshot, Clair3, and findCoInfections could detect
   co-infections. We found that findCoInfections often outperformed Longshot and
@@ -109,7 +109,7 @@ We compared how well Longshot, Clair3, and findCoInfections could detect
   new or older pipeline was used. New-1.4-50 indicates the percent
   difference between variants (1.4) and the percent of reads from the major
   variant (50%).
-](../figures/Similarity--20000--wrongConsensusCount.png)
+](figures/Similarity--20000--wrongConsensusCount.png)
 
 We also looked at the number of false positive consensuses findCoInfections
   built. We found that The newer version of findCoInfections built fewer
@@ -127,7 +127,7 @@ We also looked at the number of false positive consensuses findCoInfections
   were used to build a consensus.  While cluster indicates the new pipeline was
   used with clustering. The horizontal line indicates the actual number of
   consensuses.
-](../figures/Sparse--Similarity--20000--correctConsensusCount.png)
+](figures/Sparse--Similarity--20000--correctConsensusCount.png)
 
 We tested the effect of the database by running findCoInfections with a database
   containing only four references. We found that the number of detected
@@ -145,7 +145,7 @@ We tested the effect of the database by running findCoInfections with a database
   indicates if clustering was used with version 2 of findCoInfections.
   New-1.4-50 indicates the percent difference between variants (1.4) and the
   percent of reads from the major variant (50%).
-](../figures/Sparse--Similarity--20000--wrongConsensusCount.png)
+](figures/Sparse--Similarity--20000--wrongConsensusCount.png)
 
 Finally, we looked at how well the new and old version of findCoInfections
   could avoid false positive consensuses when a sparse database was used. We
