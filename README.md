@@ -71,8 +71,8 @@ Currently benchmarking findCoInfections version three, and will update
   that I caught 18 cases of the same pair of references being run twice
   in all reads, version one, version two, and version two with
   clustering.  I think these came in because my computer shut down
-  during testing at one point and though I caught most of the files I
-  missed the 18 files I got duplicates from.
+  during testing at one point and though I caught most of the files at
+  the time, but missed the 18 files that got duplicates from.
 
 ### Brief Methods:
 
