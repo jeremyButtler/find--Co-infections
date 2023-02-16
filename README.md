@@ -136,8 +136,12 @@ For indels we found that find co-infections V3 had more indel free
 
 We have shown that find co-infections V3 is better than find
   co-infections V2 at detecting co-infections in simulated datasets.
-  It is hard to say if this improvement is due to a better ability to
-  handle reads simulated by Badread or is an actual improvement.
+  Unlike V2 we did not test how well find co-infections V3 would run
+  when Medaka is used, which shows that find co-infectoins V3 can be
+  run with just Minimap2. However, with these tests their is no way to
+  tell if this improvent in accuracy and less need for Medaka is from
+  an improved ablility to detect and find high quality reads or from
+  simluated reads haveing a less consistent error rate then real reads.
 
 ## Weaknesses:
 
