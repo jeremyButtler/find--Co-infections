@@ -833,6 +833,7 @@ int main(
         clustUChar = 0,       /*cluster on*/
         zeroUChar = 0,        /*Handy 0 to pass around*/
         errUChar = 0,         /*Holds error messages*/
+        dupBool = 0,          /*Tells if was a duplicate*/
         printStatsHeadUChar = 0; /*Tells if to print header for stats*/
 
     char
@@ -851,6 +852,9 @@ int main(
 
     /*My structures*/
     struct samEntry
+        *tmpSam = 0, /*For swapping newSam and oldSam pointers*/
+        *newSam = 0, /*For duplicate detection*/
+        *oldSam = 0, /*For duplicate detection*/
         samStruct, /*Holds sam file entry from minimap2*/
         refStruct, /*Holds the reference sequence*/
         *samZeroStruct = 0; /*Handy zero to pass around*/
@@ -2212,11 +2216,13 @@ int main(
     ^ Main Sec-6: Find initial bins with references
     ^    main sec-6 sub-1: Run minimap2 & read in first line of output
     ^    main sec-6 sub-2: Check if first line is valid
+    ^    main sec-6 sub-3: Check if is a header 
     ^    main sec-6 sub-4: Check if query has multiple sequence entries
     ^    main sec-6 sub-5: Trim and score sam file alignments
     ^    main sec-6 sub-6: Set up bin file names
     ^    main sec-6 sub-7: Check if can open the bin & stats file
     ^    main sec-6 sub-8: Append reads to file & add to tree
+    ^    main sec-6 sub-9: Checking if keeping the last read
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /******************************************************************\
@@ -2227,7 +2233,7 @@ int main(
       entries. Otherwise minimap2 will have no order for ouput
       mappings*/
     tmpCStr = cStrCpInvsDelm(tmpCmdCStr, minimap2CMD);
-    tmpCStr = cpParmAndArg(tmpCStr, "-t", threadsCStr);
+    tmpCStr = cpParmAndArg(tmpCStr, "-t", "1");
     tmpCStr = cpParmAndArg(tmpCStr, refsPathCStr, fqPathCStr);
 
     stdinFILE = popen(tmpCmdCStr, "r"); /*run minimap2*/
@@ -2300,6 +2306,57 @@ int main(
         exit(1);
     } /*If minimap2 did not produce a header, it likely error out*/
 
+    /******************************************************************\
+    * Main Sec-6 Sub-3: Get past the header
+    \******************************************************************/
+
+    newSam = &samStruct;
+    oldSam = 0;         /*Set up for first round*/
+
+    while(errUChar & 1)
+    { /*While not past the first header*/
+        if(*newSam->samEntryCStr == '@')
+        { /*If was a header*/
+            blankSamEntry(&samStruct); /*Remove old stats in sam file*/
+            errUChar = readSamLine(newSam, stdinFILE); /*read new line*/
+            continue; /*Is a header line, move to next line in file*/
+        } /*If was a header*/
+
+        /*Convert & print out sam file entry*/
+        errUChar = trimSamEntry(newSam);
+
+        if(errUChar >> 2)
+        { /*If entry did not have a sequence, discard*/
+            /*make the new alignment (not dupicate) the old alignment*/
+            tmpSam = newSam;
+            newSam = oldSam;
+            oldSam = tmpSam;
+
+            /*Read the next sam entry*/
+            errUChar = readSamLine(newSam, stdinFILE);
+
+            continue;
+        } /*If entry did not have a sequence, discard*/
+
+        findQScores(newSam); /*Find the Q-scores*/
+
+        scoreAln(
+            &readToRefMinStats, /*thesholds for read to reference map*/
+            newSam,
+            samZeroStruct, /*Not using reference for scoring*/ 
+            &zeroUChar,    /*Not using reference, so no Q-score*/
+            &zeroUChar     /*Not using reference, so no deletions*/
+        );
+
+        oldSam = newSam;    /*Swap pointers around*/
+        newSam = &refStruct;
+
+        blankSamEntry(newSam); /*Remove old stats in sam file*/
+        /*Read in the next line*/
+        errUChar = readSamLine(newSam, stdinFILE);
+        break; /*Found the second entry*/
+    } /*While not past the first header*/
+
     /**************************************************************\
     * Main Sec-6 Sub-4: Check if for mulitple entries for same query
     *    - Sometimes minimap2 will split a read into two different
@@ -2309,50 +2366,78 @@ int main(
 
     while(errUChar & 1)
     { /*While their is a samfile entry to read in*/
-        if(*samStruct.samEntryCStr == '@')
-        { /*If was a header*/
-            blankSamEntry(&samStruct); /*Remove old stats in sam file*/
-            errUChar = readSamLine(&samStruct, stdinFILE); /*read new line*/
-            continue; /*Is a header line, move to next line in file*/
-        } /*If was a header*/
 
-        if(samStruct.flagUSht & (2048 | 256 | 4))
-        { /*If is supplemental (2048), secondary (256), or no map (4)*/
-            blankSamEntry(&samStruct); /*Remove old stats in sam file*/
-            errUChar = readSamLine(&samStruct, stdinFILE);
-            continue; /*Is a header line, move to next line in file*/
-        } /*If is supplemental (2048), secondary (256), or no map (4)*/
+        /*Putting this here so I can detect & remove chimeras*/
+        dupBool = 0; /*start off assuming not duplicate*/
+
+        while(isSamAlnDup(newSam, oldSam) & 1)
+        { /*While the entries are duplicates*/
+            if(*newSam->seqCStr != '*')
+                dupBool = 1;
+
+            blankSamEntry(newSam); /*Remove previous reads stats*/
+            errUChar = readSamLine(newSam, stdinFILE); /*get next line*/
+
+            if(!(errUChar & 1))
+                break;      /*end of file or other error*/
+        } /*While the entries are duplicates*/
+
+        if(!(errUChar & 1))
+            break;         /*end of file or other error*/
+
+        if(dupBool & 1)
+        { /*If was a duplicate*/
+            /*make the new alignment (not dupicate) the old alignment*/
+            tmpSam = newSam;
+            newSam = oldSam;
+            oldSam = tmpSam;
+    
+            errUChar = readSamLine(newSam, stdinFILE); /*get next line*/
+            continue; /*Restart with next line with new old seq*/
+        } /*If was a duplicate*/
 
         /**************************************************************\
         * Main Sec-6 Sub-5: Trim and score sam file alignment
         \**************************************************************/
 
         /*Convert & print out sam file entry*/
-        errUChar = trimSamEntry(&samStruct);
+        errUChar = trimSamEntry(newSam);
 
         if(errUChar >> 2)
         { /*If entry did not have a sequence, discard*/
+            /*make the new alignment (not dupicate) the old alignment*/
+            tmpSam = newSam;
+            newSam = oldSam;
+            oldSam = tmpSam;
+
             /*Read the next sam entry*/
-            errUChar = readSamLine(&samStruct, stdinFILE);
+            errUChar = readSamLine(newSam, stdinFILE);
             continue;
         } /*If entry did not have a sequence, discard*/
 
-        findQScores(&samStruct); /*Find the Q-scores*/
+        findQScores(newSam); /*Find the Q-scores*/
 
         scoreAln(
             &readToRefMinStats, /*thesholds for read to reference map*/
-            &samStruct,
+            newSam,
             samZeroStruct, /*Not using reference for scoring*/ 
             &zeroUChar,    /*Not using reference, so no Q-score*/
             &zeroUChar     /*Not using reference, so no deletions*/
         );
 
         if(
-          checkRead(&readToRefMinStats, &samStruct) == 0 ||
-          !(checkIfKeepRead(&minReadRefDiff, &samStruct) & 1)
+          checkRead(&readToRefMinStats, oldSam) == 0 ||
+          !(checkIfKeepRead(&minReadRefDiff, oldSam) & 1)
         ) { /*If the read is under the min quality, discard*/
-            blankSamEntry(&samStruct); /*Remove old stats in sam file*/
-            errUChar = readSamLine(&samStruct, stdinFILE);
+            /*make the new alignment (not dupicate) the old alignment*/
+            tmpSam = newSam;
+            newSam = oldSam;
+            oldSam = tmpSam;
+
+            blankSamEntry(newSam); /*Remove old stats in sam file*/
+            /*Read in the next line*/
+            errUChar = readSamLine(newSam, stdinFILE);
+
             continue;
         } /*If the read is under the min quality, discard*/
 
@@ -2364,7 +2449,7 @@ int main(
         tmpCStr = binFileCStr + lenPrefUChar;
         strcpy(tmpCStr, "--");
         tmpCStr += 2;
-        cpTmpCStr = samStruct.refCStr;
+        cpTmpCStr = oldSam->refCStr;
 
         while(*cpTmpCStr > 16)
         { /*Copy over reference id*/
@@ -2378,7 +2463,7 @@ int main(
         tmpCStr = statFileCStr + lenPrefUChar;
         strcpy(tmpCStr, "--");
         tmpCStr += 2;
-        cpTmpCStr = samStruct.refCStr;
+        cpTmpCStr = oldSam->refCStr;
 
         while(*cpTmpCStr > 16)
         { /*Copy over reference id*/
@@ -2446,7 +2531,7 @@ int main(
 
         tmpBin =
             insBinIntoTree(
-                samStruct.refCStr,
+                oldSam->refCStr,
                 binFileCStr,       /*Fastq file for the bin*/
                 statFileCStr,      /*Stats file for the bin*/
                 &binTree, /*Root of bin tree*/
@@ -2482,10 +2567,10 @@ int main(
 
         /*Print out the old sam entry (is not a duplicate)*/
         /*Add sequence and stats to their files*/
-        samToFq(&samStruct, fqBinFILE); /*Print sequence to fastq file*/
+        samToFq(oldSam, fqBinFILE); /*Print sequence to fastq file*/
 
         /*Print the stats to its bin file*/
-        printSamStats(&samStruct, &printStatsHeadUChar, statFILE);
+        printSamStats(oldSam, &printStatsHeadUChar, statFILE);
 
         fclose(fqBinFILE);
         fclose(statFILE);
@@ -2493,11 +2578,52 @@ int main(
         fqBinFILE = 0;  /*So program knows that no file is open*/
         statFILE = 0;   /*So program knows that no file is open*/
             
-        blankSamEntry(&samStruct); /*Remove old stats in sam file*/
+        blankSamEntry(oldSam); /*Remove old stats in sam file*/
+
+        /*Swap pointers around (the new alignent becomes the old)*/
+        tmpSam = newSam;
+        newSam = oldSam;
+        oldSam = tmpSam;
 
         /*Read in the next line*/
-        errUChar = readSamLine(&samStruct, stdinFILE);
+        errUChar = readSamLine(newSam, stdinFILE);
     } /*While their is a samfile entry to read in*/
+
+    /******************************************************************\
+    * Main Sec-6 Sub-9: Checking if keeping the last read
+    \******************************************************************/
+
+    if(!(dupBool & 1))
+    { /*If need to print out the stats for the last read*/
+        if(checkRead(&readToRefMinStats, oldSam) == 0)
+        { /*If keeping the read*/
+
+            if(fqBinFILE != 0)
+                fclose(fqBinFILE);
+            if(statFILE != 0)
+                fclose(statFILE);
+
+            /*Build the bin file name*/
+            tmpCStr = binFileCStr + lenPrefUChar;
+            strcpy(tmpCStr, "--");
+            tmpCStr += 2;
+            tmpCStr = cStrCpInvsDelm(tmpCStr, oldSam->refCStr);
+            cpTmpCStr = cStrCpInvsDelm(statFileCStr, binFileCStr);
+
+            strcpy(tmpCStr, ".fastq");        /*Add in fastq ending*/
+            strcpy(cpTmpCStr, "--stats.tsv"); /*Add in fastq ending*/
+
+            fqBinFILE = fopen(binFileCStr, "a");
+            samToFq(oldSam, fqBinFILE);
+            fclose(fqBinFILE);
+            fqBinFILE = 0;
+
+            statFILE = fopen(statFileCStr, "a");
+            printSamStats(oldSam, &printStatsHeadUChar, statFILE);
+            fclose(statFILE);
+            statFILE = 0;
+        } /*If keeping the read*/
+    } /*If need to print out the stats for the last read*/
 
     pclose(stdinFILE);
 
@@ -4515,7 +4641,12 @@ uint8_t findBestXReads(
     { /*While their is a samfile entry to read in*/
         if(*samStruct->samEntryCStr == '@')
         { /*If was a header*/
-            errUChar = readSamLine( samStruct, stdinFILE);
+            errUChar =
+                readSamLine(
+                    samStruct,
+                    stdinFILE
+            ); /*If header read new line*/
+
             continue; /*Is a header line, move to next line in file*/
         } /*If was a header*/
 
@@ -4530,7 +4661,12 @@ uint8_t findBestXReads(
 
         if(errUChar >> 2)
         { /*If entry did not have a sequence, discard*/
-            errUChar = readSamLine(samStruct, stdinFILE);
+            errUChar =
+                readSamLine(
+                    samStruct,
+                    stdinFILE
+            ); /*Read the next sam entry*/
+
             continue;
         } /*If entry did not have a sequence, discard*/
 
@@ -4553,8 +4689,10 @@ uint8_t findBestXReads(
         \**************************************************************/
 
            
-        if(samStruct->mapqUChar < minStats->minMapqUInt ||
-           !(checkIfKeepRead(maxDifference, samStruct) & 1)
+        if(
+            samStruct->flagUSht & 4 || /*Is an unmapped read*/
+            samStruct->mapqUChar < minStats->minMapqUInt ||
+            !(checkIfKeepRead(maxDifference, samStruct) & 1)
         ) { /*If the read Is to different from the reference*/
             /*Move to the next entry*/
             blankSamEntry(samStruct); /*Make sure start with blank*/

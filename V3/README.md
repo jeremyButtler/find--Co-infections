@@ -80,11 +80,12 @@ Currently benchmarking findCoInfections version three, and will update
 
 The first step in find co-infections involves binning the reads with the
   supplied references. Reads that have mapping qualities under 20 for
-  the best reference, have multiple mappings (probably chimeras), did
-  not map to any reference, have low mean or median Q-score (under 13),
-  or are larger or smaller than the specified read length (600 to 1000)
-  are removed. Any Read that passes the filtering step are then assigned
-  to the bin representing the best reference they mapped to.
+  the best reference,  did not map to a reference, have low mean or
+  median Q-score (under 13), or are larger or smaller than the specified
+  read length (600 to 1000) are removed. Also supplementary and
+  secondary alignments for any read are ignored. Any Read that passes
+  the filtering step are then assigned to the bin representing the best
+  reference they mapped to.
 
 After binning comes the clustering step, were the best read for a bin
   is selected by mapping quality, integer median Q-score, and length.
@@ -120,7 +121,6 @@ After the clustering step, consensuses between bins are compared with
 
 ![Diagram of how version three works, for asci flow chart see 
   diagrams/v3FlowDiagram.ditaa](diagrams/v3FlowDiagram.png)
-
 
 ### The consensus building steps
 
@@ -201,3 +201,49 @@ Insertion errors in the sequences are found in the linked sequence list
    separate C program.
 3. Maybe multi-thread fqGetIds (in V2 was fastqGrep). Likely will not
    happen.
+
+## Thanks:
+
+Their are many people who made this project possible.
+
+  - To my family for their support as a debugged. In particular my dad,
+    Jeff Buttler, who sometimes made suggestions for how to improve my
+    code. He introduced me to using look up tables in my code.
+  - Danielle Wrenn: Who suggested using sam flags to remove
+    supplementary alignments, which allowed multi threading of minimap2
+    for the binning step.
+  - Devin Drown: Who was one of my mentors through graduate school and
+    is still a mentor. He helped in the development my graphs, helped in
+    the benchmarking for my pipeline, and gave me advice.
+  - Matthew Redlinger: Who is a skilled bioinformation and was always
+    willing to give advise.
+  - Eric Bortz: Who was one of my mentors in graduate school and still
+    is one of my mentors. He and Matt gave me the encouragement to start
+    making find co-infections.
+  - The entire Drown lab at the University of Alaska Fairbanks, who
+    viewed and gave feedback on early reports of find co-infections.
+  - The entire Bortz lab at the University of Alaska Anchorage, who also
+    viewed and gave feedback on my presentations.
+  - The EMME group at the University of Alaska Fairbanks and the
+    University of Alaska Anchorage. For being a group I could present
+    my results to.
+  - To Molly Murphy: Who was one my graduate committee and provided
+    valuable feedback on my work during my defense and thesis writing 
+    stages.
+  - To Naoki Takebayasi: Who was one my graduate committee and provided
+    valuable feedback on my work during my defense and thesis writing
+    stages.
+  - To Nataliia Rudova and everyone else who set up the experimental 
+    design and did the sequencing for the first chapter of my thesis
+    (See doi.org/10.3390/v14050924 for a full list). In this project I
+    was introduced to co-infections and the problem of detecting
+    co-infections between different vial strains in noisy reads. This
+    was the reason I made version one of find co-infections.
+  - To Leigh et al., who I never have met or interacted with, but
+    published a paper (http://dx.doi.org/10.3390/v12080801) that set up
+    the ground work and gave me the idea of how to make my first version
+    of find co-infections.
+  - Finally the Universities of Fairbanks and Anchorage Alaska, who 
+    provided me with TA ships while I was in graduate school. During
+    this time I wrote and tested version one and two of find
+    co-infections.

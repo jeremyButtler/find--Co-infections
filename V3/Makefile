@@ -14,6 +14,22 @@ gccArgs=-g \
     findCoInftBinTree.c \
     findCoInft.c \
     -o findCoInft
+
+gccChimeraArgs=-g \
+    -Wall \
+    cStrToNumberFun.c \
+    printErrors.c \
+    samEntryStruct.c \
+    trimSam.c \
+    scoreReadsFun.c \
+    fqGetIdsFqFun.c \
+    fqGetIdsStructs.c \
+    fqGetIdsAVLTree.c \
+    fqGetIdsHash.c \
+    fqGetIdsSearchFq.c \
+    findCoInftBinTree.c \
+    chimeraRmFindCo.c \
+    -o chimeraFindCoInft
     
 trimGccArgs=-g \
     -Wall \
@@ -48,6 +64,12 @@ fqGetIdsArgs=-g \
 all:
 	$(CC) -O2 $(gccArgs) || gcc -O2 $(gccArgs) || egcc -O2 $(gccArgs) || cc -O2 $(gccArgs)
 
+# for version that removes chimeric reads (Uses 1 thread in binning)
+# Really was a dead end, but did update with supplemental removal, so
+# it works out.
+withChimera:
+	$(CC) -O2 $(gccChimeraArgs) || gcc -O2 $(gccChimeraArgs) || egcc -O2 $(gccChimeraArgs) || cc -O2 $(gccChimeraArgs)
+
 # Here if user just wants scoreReads
 scoreReads:
 	$(CC) -O2 $(scoreGccArgs) || gcc -O2 $(scoreGccArgs) || egcc -O2 $(scoreGccArgs) || cc -O2 $(scoreGccArgs)
@@ -58,5 +80,3 @@ trimSam:
 
 fqGetIds:
 	$(CC) -O3 $(fqGetIdsArgs) || gcc -O3 $(fqGetIdsArgs) || egcc -O3 $(fqGetIdsArgs) || cc -O3 $(fqGetIdsArgs)
-
-# The || is to find the compiler that is on the users system
