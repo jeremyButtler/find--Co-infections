@@ -141,13 +141,10 @@ One thing I should add is that I am currently doing the Hepatitis C
 
 We have shown that find co-infections V3 is better than find
   co-infections V2 at detecting co-infections in simulated datasets.
-  Unlike V2 we did not test how well find co-infections V3 would run
-  when Medaka is used, which shows that find co-infectoins V3 can be
-  run with just Minimap2. However, with these tests their is no way to
-  tell if this improvent in accuracy and less need for Medaka is from
-  an improved ablility to detect and find high quality reads or from
-  simluated reads haveing a less consistent error rate then real reads.
-
+  However, we are unsure how well find co-infections will work when real
+  reads are used. It is possible that improvements in version three may 
+  only apply to simulated reads.
+ 
 ## Weaknesses:
 
 Find co-infections has only been tested using data simulated from
@@ -317,6 +314,13 @@ Insertion errors in the sequences are found in the linked sequence list
    happen.
 4. Probably should document how to interface with the small programs I
    made (trimSamFile, scoreReads, and fqGetIds). May never be done.
+5. Breaking up code in findCoInft.c into smaller components, like I did
+   for scoreReads and trimSamFile. This is higher on my priority list.
+6. Deal with seg fault happening when all reads are removed during the
+   clustering or binning step. For now not worried about this, since 
+   the program would have finished any ways. So is is more of a
+   graceful exit. You can catch this problem by looking at the
+   prefix--read-counts.tsv file.
 
 ## Thanks:
 
