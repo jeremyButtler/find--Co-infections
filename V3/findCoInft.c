@@ -901,6 +901,14 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
+            \n    -read-ref-min-read-length:                 [600]\
+            \n       - Discard reads with read lengths under\
+            \n         this when binning.\
+            \n       - Applied after the trimming step.\
+            \n    -read-ref-max-read-length:                 [1000]\
+            \n       - Discard reads with read lengths over\
+            \n         this when binning.\
+            \n       - Applied after the trimming step.\
             \n Additional Help messages:\
             \n    -h-build-consensus:\
             \n        - Print paramaters for building the consensus\
@@ -1022,13 +1030,13 @@ int main(
             \n    - Minimum mapping quality needed to\
             \n      keep a read when binning.\
             \n -read-ref-min-read-length:                 [600]\
-            \n    - Minimum read length to keep a read\
-            \n      when binning (applies only to trimmed\
-            \n      reads).\
+            \n    - Discard reads with read lengths under\
+            \n      this when binning.\
+            \n    - Applied after the trimming step.\
             \n -read-ref-max-read-length:                 [1000]\
-            \n    - Maximum read length to keep a read\
-            \n      when binning (applies only to\
-            \n      trimmed reads).\
+            \n    - Discard reads with read lengths over\
+            \n      this when binning.\
+            \n    - Applied after the trimming step.\
             \n\
             \n -read-ref-min-median-q:                    [13]\
             \n    - Minimum read median quality score\

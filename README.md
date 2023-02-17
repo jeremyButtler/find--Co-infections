@@ -45,6 +45,19 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
     - Minimum number of reads to keep a cluster or bin.
   - -max-reads-per-con:                                          [300]
     - Max number of of reads to use in building a consensus.
+    - -extra-consensus-steps:                                    [2]\
+       - Number of times to rebuild the
+         consensus using a new set of best
+         reads.
+  - -read-ref-min-read-length:                                 [600]\
+    - Discard reads with read lengths under this setting
+      during the binning step.
+    - Minimum read length to keep a read when binning.
+    - Length is compared after the trimming step.
+  - -read-ref-max-read-length:                                 [1000]\
+    - Discard reads with read lengths over this setting
+      during the binning step.
+    - Length is compared after the trimming step.
   - -enable-racon:                                               [No]
     - Use Racon in building consensuses.
   - -enable-medaka:                                              [No]
@@ -76,35 +89,21 @@ Currently benchmarking findCoInfections version three, and will update
 
 ### Brief Methods:
 
-To benchmark find co-infections we simulated reads for pairs of
-  references using badread on default settings (for a list of reads
-  see tbl:interGenotype in tables.md). The similarities between the two
-  references in each reference pair ranged between, 97% similar
-  (97.6% to 96.9%), 98% similar (97.7% to 98.2%), and 95%
-  (98.6% to 98.9%). The percent similarity between consensuses was found
-  by mapping the references to each other with minimap2 -a
-  (output sam file) and then dividing the total error (NM:i tag) by the
-  length of the sequence. 
+For more detail on my methods (still brief) see dataAnaylsis/README.md.
+  For the similarity test I simulated reads with Badread using --seed 
+  1026 and --quantity 20000x for references. The reference pairs used
+  to simulate reads can be found in the
+  dataAnalysis/PCV2--similarity--reference-pairs/ directory.
 
-Some of the reads in our reference pairs existed in our database, while
-  others did not. To reduce the impact of exact matches in our database
-  influencing our result, we ensure that only ten of thirty reference
-  pairs had both references in the database for reference pairs that
-  were at or under 98% similar (98.5% always has one reference out)
-  (see tbl:interGenotype in tables.md). We also had ten reference
-  pairs that were at least 1% different than any references in the
-  database (see tbl:interGenotype in tables.md). For the final ten
-  reference pairs we ensured that one reference was in the database,
-  while one reference was at least 1% different from any reference in
-  the database (see tbl:interGenotype in tables.md).
-
-For all reference pairs we simulated 50% reads for reference pairs or
-  80% of reads for the major strain and 20% of reads for the minor
-  strain. We also simulated an additional set of reads that reversed the
-  major and minor strain for each reference pair that had only one
-  reference in the database. This resulted in 30 sets of simulated reads
-  when the reference pairs were 98.5% similar and 40 sets of simulated
-  reads when the reference pairs were 98% or 97% similar.
+The number of false positive SNPs (SNP errors) and false positive indels
+  (indel errors) between the built consensuses and their reference was
+  found by mapping the consensus to the reference pair use to simulate
+  the reads used to build them with minimap2 --eqx -a (output sam file).
+  The number of SNP errors and indel errors was then found with an awk
+  script (dataAnalysis/benchmarking-scirpts/getMisIndelCnt.awk). This
+  awk script counted the number of mismatches in the cigar entry and
+  found the number of indel errors by subtracted the total errors
+  (NM:i tag) from the number of SNP errors.
 
 ### Results:
 
@@ -132,6 +131,12 @@ For indels we found that find co-infections V3 had more indel free
   will have worse indel accuracy then other programs
   (figures/Similarity--20000--v3--80-20--indels.svg).
 
+One thing I should add is that I am currently doing the Hepatitis C 
+  testing and noticing that their are less indel free consensuses. So,
+  this may be something unique to the porcine cirovirus type 2 dataset.
+  I am also testing a deeper read depth, so it may be an issue with read
+  depth as well. I will posts figures once the testing is complete.
+
 ### Take away:
 
 We have shown that find co-infections V3 is better than find
@@ -154,7 +159,8 @@ Find co-infections has only been tested using data simulated from
   This could pose a problem for find co-infections, since find
   co-infections relies on accurate SNP calls in consensuses to identify
   co-infections and to hone in on a good set of reads for building the
-  consensuses used in the consensus comparison steps.
+  consensuses used in the consensus comparison steps. At the very least
+  is means our accuracy results are optimistic.
 
 Find co-infections has only been tested on data sets that contain two
   references per test. This means that I am unsure how find
@@ -166,10 +172,15 @@ Find co-infections has only been tested on data sets that contain two
   sample.
 
 Find co-infections is designed to run on data sets that have very deep
-  read depths, such as the read depths produced by PCR.
+  read depths, such as the read depths produced by PCR. So it will 
+  probably not work on datasets not amplified by methods like PCR.
 
 I need to test a somatic variant caller to round out the variant caller
   selection. Not likely to be done, but is something I missed.
+
+The outy flow cells, with their rereading of reads will likely make
+  find co-infections obsolete when they come out for public use
+  (hopefully these will be released soon).
 
 ```
 Wick RR. Badread: simulation of error-prone long reads.
