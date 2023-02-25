@@ -169,10 +169,11 @@ We also found that find co-infections did have similar results to
   version one was used on (doi.org/10.3390/v14050924), however, we
   also found that version three does produce more consensuses with
   indels and may have a problem with false positives at deep read
-  depths. However, this is not a ground truth dataset and thus, we have
-  no idea on the real answer. Also, version three was tested on default
-  settings, which does not use Medaka. So, it is possible running
-  version three with Medaka might improve the indel accuracy.
+  depths. One problem is that this is not a ground truth dataset and
+  thus, we have no idea what the real answer is for any of these samples.
+  Also, version three was tested on default settings, which does not use
+  Medaka. So, it is possible running version three with Medaka might
+  improve the indel accuracy.
  
 ## Weaknesses:
 

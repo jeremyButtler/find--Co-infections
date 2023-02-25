@@ -135,7 +135,7 @@ TrimSamFile removes the softmasking at the start and end of every
 
 The help message is called with -h.
 
-#### How to build and run binReads
+#### How to build and run trimSamFile
 
 ```
 cd V3
