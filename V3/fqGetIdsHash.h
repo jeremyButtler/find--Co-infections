@@ -102,4 +102,12 @@ struct readInfo ** readListToHash(
     unsigned long *majicNumULng  /*Holds majick number for kunths hash*/
 ); /*Makes a read hash array using input read ids*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|   - Returns:
+|     o Unsigned long with the first 64 bits of the golden number
+\---------------------------------------------------------------------*/
+unsigned long findMajicNumber();
+/*Gets first 64 bits of the goldent ratio*/
+
 #endif

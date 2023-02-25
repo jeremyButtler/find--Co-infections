@@ -83,7 +83,7 @@ char checkInput(
     char *argsCStr[],         /*Array with user arguments & parameters*/
     char **samPathCStr,          /*file path to sam file to score*/
     char **refPathCStr,          /*file path to mapping reference*/
-    char *refForDelChar,         /*Set to 1 if: use ref for dels only*/
+    uint8_t *refForDelUC,      /*Set to 1 if: use ref for dels only*/
     struct minAlnStats *minStats, /*min thresholds user provides*/
     char *stdinChar                /*Set 1: if input comes from stdin
                                      Set 0: If input comes from file*/
@@ -109,16 +109,14 @@ int main(int lenArgsInt, char *argsPtrCStr[])
     # Main Sec-1 Sub-1: normal variable declerations
     *******************************************************************/
 
-    char
-        *samPathCStr = 0,   /*Path to sam file to work on*/
-        *refPathCStr = 0,   /*Fastq file with mapping reference*/
-        refForDelChar = 0,  /*1: only checking deltions with reference*/
-        stdinChar = 0;      /*Char makring if input is from stdin*/
+    char *samPathCStr = 0;   /*Path to sam file to work on*/
+    char *refPathCStr = 0;   /*Fastq file with mapping reference*/
+    char stdinChar = 0;      /*Char makring if input is from stdin*/
+    uint8_t refForDelUC = 0;  /*1: checking deltions with reference*/
 
-    FILE
-        *samFILE = 0,       /*Points to file to get data from*/
-        *refFILE = 0,       /*reference file to use in comparison*/
-        *outFILE = stdout;   /*File to put output in*/
+    FILE *samFILE = 0;       /*Points to file to get data from*/
+    FILE *refFILE = 0;       /*reference file to use in comparison*/
+    FILE *outFILE = stdout;  /*File to put output in*/
 
     struct minAlnStats minStats;    /*Holds user input*/
 
@@ -195,7 +193,7 @@ int main(int lenArgsInt, char *argsPtrCStr[])
             argsPtrCStr,
             &samPathCStr,
             &refPathCStr,
-            &refForDelChar,
+            &refForDelUC,
             &minStats,
             &stdinChar
         ) == 0 /*Check if input is valid (also get input)*/
@@ -257,7 +255,7 @@ int main(int lenArgsInt, char *argsPtrCStr[])
     # Main Sec-5: Call stdin read scoring functions
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    scoreReads(&minStats, &refForDelChar, samFILE, refFILE, outFILE);
+    scoreReads(&minStats, &refForDelUC, samFILE, refFILE, outFILE);
 
     fclose(samFILE);
 
@@ -278,7 +276,7 @@ char checkInput(
     char *argsCStr[],         /*Array with user arguments & parameters*/
     char **samPathCStr,          /*file path to sam file to score*/
     char **refPathCStr,          /*file path to mapping reference*/
-    char *refForDelChar,         /*Set to 1 if: use ref for dels only*/
+    uint8_t *refForDelUC,        /*Set to 1 if: use ref for dels only*/
     struct minAlnStats *minStats, /*min thresholds user provides*/
     char *stdinChar                /*Set 1: if input comes from stdin
                                      Set 0: If input comes from file*/
@@ -309,7 +307,7 @@ char checkInput(
         else if(strcmp(tmpCStr, "-ref-del") == 0)
         { /*Else if have refence, but only want to check for deletions*/
             *refPathCStr = singleArgCStr;
-            *refForDelChar = 1;
+            *refForDelUC = 1;
         } /*Else if have refence, but only want to check for deletions*/
 
         else if(strcmp(tmpCStr, "-min-q") == 0)

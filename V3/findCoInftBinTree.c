@@ -11,7 +11,7 @@
 #include "findCoInftBinTree.h"
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-' clustGraphBinTree TOC:
+' clustGraphBinTree SOF:
 '    fun-1 makeReadBin: Makes a readBin struct for a tree
 '    fun-2 freeReadBin: Frees a readBin structure
 '    fun-3 pushReadBinStack: Push a readBin struct not a stack
@@ -29,9 +29,14 @@
 '    fun-15 getTreeDepth: gets max depth of readBin tree (for testing)
 '    fun-16 cnvtBinTreeToList: converts readBin tree to linked list
 '        - rightChild pointer is left open (set to 0)
-'    fun-17 getNumBins: Get number of bins in a tree of readBin nodes
-'    fun-18 rmBinFromList: Remove bin from a list of bins
-'    fun-19 binDeleteFiles: Delete all files in a readBin
+'    fun-17 getNumBins:
+'      o Get number of bins in a tree of readBin nodes
+'    fun-18 rmBinFromList:
+'      o Remove bin from a list of bins
+'    fun-19 binDeleteFiles:
+'      o Delete all files in a readBin
+'    fun-20 mergeBin
+'      o Merge two readBins together into on bin:
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*######################################################################
@@ -1028,3 +1033,76 @@ void binDeleteFiles(
     return;
 } /*binDeleteFiles*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies:
+|        - binToKeep->fqPathCStr to hold binToMerge reads
+|    Deletes:
+|        - File named after binToMerge->fqPathCStr
+\---------------------------------------------------------------------*/
+void mergeBins(
+    struct readBin *binToKeep,  /*Bin to merge into*/
+    struct readBin *binToMerge /*Bin to merge into binToKeep*/
+) /*Merge two readBins together into on bin*/
+{ /*mergeBins*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/
+    ' Fun-20 TOC: mergeBins
+    '    fun-20 sec-1: Variable declerations
+    '    fun-20 sec-2: Open and check files
+    '    fun-20 sec-3: Copy mergeFILE contents to end of keepFILE
+    '    fun-20 sec-4: Close files and clean up binToMerge
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    uint32_t
+        lenBuffUInt = 1 << 2^15; /*2^16, which is about 64kb*/
+
+    char
+        buffCStr[lenBuffUInt];
+
+    FILE
+        *readsKeepFILE = 0,
+        *readsMergeFILE = 0;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-2: Open and check files
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    readsKeepFILE = fopen(binToKeep->fqPathCStr, "a");
+
+    if(readsKeepFILE == 0)
+        return;
+
+    readsMergeFILE = fopen(binToMerge->fqPathCStr, "r");
+
+    if(readsMergeFILE == 0)
+    { /*If the merge file does not exist*/
+        fclose(readsKeepFILE);
+        return;
+    } /*If the merge file does not exist*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-3: Copy mergeFILE contents to end of keepFILE
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Copy reads from one bin to the other*/
+    while(fread(buffCStr, sizeof(uint8_t), lenBuffUInt, readsMergeFILE))
+        fwrite(buffCStr, sizeof(uint8_t), lenBuffUInt, readsKeepFILE);
+            
+    binToKeep->numReadsULng += binToMerge->numReadsULng;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-4: Close files and clean up binToMerge
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    fclose(readsKeepFILE);
+    fclose(readsMergeFILE);
+
+    binDeleteFiles(binToMerge); /*Remove all files in the bin*/
+
+    return;
+} /*mergeBins*/

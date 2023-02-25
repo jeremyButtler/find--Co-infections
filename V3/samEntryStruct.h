@@ -4,6 +4,7 @@
 #    - Holds structer to hold a sam file entry. This also includes
 #      the functions needed to support this structer.
 # Includes:
+#    - <string.h>
 #    - <stdlib.h>
 #    - "cStrToNumberFun.h"
 #        - <sdtint.h>
@@ -16,12 +17,16 @@
 #define SAMENTRYSTRUCT_H
 
 #include <stdlib.h>          /*memory allocation*/
+#include <string.h>
 #include "cStrToNumberFun.h"
 #include "printErrors.h"
 
 #define Q_ADJUST 33 /*offest to get q-score of 0*/
 #define MAX_Q_SCORE 94 /*highest possible Q-score*/
 
+/*---------------------------------------------------------------------\
+| Struct-1: samEntry
+\---------------------------------------------------------------------*/
 typedef struct samEntry
 { /*samEntry*/
     char *samEntryCStr;/*Holds the c-string for the sam entry*/
@@ -65,8 +70,42 @@ typedef struct samEntry
         totalQScoreULng, /*Q-score of all bases added together*/
         totalAlnQScoreULng; /*Q-score of kept bases added together*/
 
-    uint64_t lenBuffULng;  /*Number bytes allocated to samEntryCStr*/
+    unsigned long lenBuffULng; /*# bytes allocated to samEntryCStr*/
 }samEntry; /*samFileEntry*/
+
+/*---------------------------------------------------------------------\
+| Struct-2: readStat
+| Use:
+|    - Holds query id, reference id, & stats for a single read
+\---------------------------------------------------------------------*/
+typedef struct readStat
+{ /*readStat*/
+    char
+        queryIdCStr[100],
+        refIdCStr[100];
+
+    unsigned char
+        mapqUChar;
+
+    float
+       medianQFlt,     /*holds the median read Q-score*/
+       medianAligQFlt, /*holds the aligned read median Q-score*/
+       meanQFlt,       /*holds the mean read Q-score*/
+       meanAligQFlt;   /*holds mean aligned read Q-score (no low Q)*/
+
+    uint32_t
+        readLenUInt,       /*Holds the read length of sam entry*/
+        readAligLenUInt,   /*Aligned read length of sam entry*/
+        numMatchUInt,      /*Holds number of matches*/
+        numKeptMatchUInt,  /*Holds number matches with Q-score > min Q*/
+        numKeptSNPUInt,    /*number of kept mismatches in sam entry*/
+        numSNPUInt,        /*total number of mismatches in sam entry*/
+        numKeptDelUInt,    /*number of kept deletions in sam entry*/
+        numDelUInt,        /*total number of deletions in sam entry*/
+        numKeptInsUInt,    /*number of kept insertions in sam entry*/
+        numInsUInt;        /*total number of insertions in sam entry*/
+}readStat;
+
 
 /*######################################################################
 # Output: Modifies: Sets every variable but samEntryCStr to 0
@@ -205,6 +244,14 @@ void printSamEntry(
     FILE *outFILE               /*File to print sam entry to*/
 ); /*Prints the sam entry in samStruct to a file (outFILE)*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|   o Prints stat file header to the input file
+\---------------------------------------------------------------------*/
+void printStatHeader(
+    FILE *statFILE /*File to print the hader to*/
+); /*Prints the stat file header made using a sam entry struct*/
+
 /*######################################################################
 # Output:
 #    File: fastq with the read id, sequence, & q-score entry of the sam
@@ -223,6 +270,72 @@ void printSamLine(
     struct samEntry *samStruct, /*Has sam entry to print out*/
     FILE *outFILE               /*File to print sam entry to*/
 ); /*Prints out the sam entry in the samStruct, does not print stats*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies:
+|        - readToBlank to have all stats set to 0 & c-strins to start 
+|          with '\0'
+\---------------------------------------------------------------------*/
+void blankReadStat(
+    struct readStat *readToBlank
+);
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: newReadList to have the same values as oldReadList
+\---------------------------------------------------------------------*/
+void cpReadStat(
+    struct readStat *newReadStat, /*Read to copy stats to*/
+    struct readStat *oldReadStat /*Read to copy stats from*/
+); /*Copies stats from one read list to another*/
+
+/*---------------------------------------------------------------------\
+| Output:                                                              |
+|    - Modifies:                                                       |
+|        - readStruct to have stats from the next line in statsFILE    |
+\---------------------------------------------------------------------*/
+uint8_t readStatsFileLine(
+    FILE *statsFILE,            /*File with line to grab*/
+    uint8_t *onHeaderBool,      /*1: skip one line, 0: grab first line*/
+    struct readStat *readStruct /*Holds the stats from the stats file*/
+); /*Reads single line from printSamStats function in samEntryStruct.c*/
+
+/*---------------------------------------------------------------------\
+| Output:                                                              |
+|   Prints: Prints out variables in readToPrint structer               |
+\---------------------------------------------------------------------*/
+void printReadStat(
+    struct readStat *readToPrint, /*Read to print stats out for*/
+    FILE *outFILE                  /*File to print read to*/
+); /*Prints out the stats in a readStat structure to a file*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    - Modifies:
+|        - newBin to have stats in samStruct
+\---------------------------------------------------------------------*/
+void samEntryToReadStat(
+    struct readStat *newBin,   /*Read bin to hold stats from samStruct*/
+    struct samEntry *samStruct /*copy stats from this struct*/
+); /*Copies stats from a samEntry struct to a readStat struct*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|  - Modifies
+|    - refStruct: To hold the sequence (no header)
+|  - Returns
+|    - 1 if succeeded
+|    - 2 if file does not exist
+|    - 4 invalid file
+|    - 64 memory allocation error
+| Note:
+|  - Fasta file should only have one sequence
+\---------------------------------------------------------------------*/
+unsigned char readInConFa(
+    char *conFaToReadCStr, /*Name of fasta file with the consensus*/
+    struct samEntry *refStruct /*Sam struct to hold consensus*/
+); /*Reads in reference sequence in fasta file*/
 
 #endif
 

@@ -4,18 +4,20 @@
 #    - Holds unique functions needed for scoreReads.
 #    - Use scoreAln to score a single alignment
 # Includes:
-#    - "samEntryStruct.h"
-#        - <stdlib.h>
-#        - "cStrToNumberFun.h"
-#            - <sdtint.h>
-#        - "printError.h"
-#            - <stdio.h>
+#   - "fqAndFqFun.h"
+#     o "samEntryStruct.h"
+#       - <stdlib.h>
+#       - "cStrToNumberFun.h"
+#         o <sdtint.h>
+#       - "printError.h"
+#         o <stdio.h>
 ######################################################################*/
 
 #ifndef SCOREREADSFUN_H
 #define SCOREREADSFUN_H
 
-#include "samEntryStruct.h"
+#include "fqAndFaFun.h"
+#include "defaultSettings.h" /*Has devault settings for minAlnStats*/
 
 /*######################################################################
 # Name: minAlnStats
@@ -24,13 +26,12 @@
 typedef struct minAlnStats
 { /*minAlnStats structer*/
     uint8_t minQChar; /*Min Q-score to keep a mismatch or indel*/
-
     uint32_t minMapqUInt;     /*default min mapping quality*/
     
-    float minMedianQFlt,         /*default median Q-score*/
-           minMeanQFlt,           /*default mean Q-score*/
-           minAlignedMedianQFlt,  /*default median aligend Q*/
-           minAlignedMeanQFlt;    /*default mean aligend Q-score*/
+    float minMedianQFlt;         /*default median Q-score*/
+    float minMeanQFlt;           /*default mean Q-score*/
+    float minAlignedMedianQFlt;  /*default median aligend Q*/
+    float minAlignedMeanQFlt;    /*default mean aligend Q-score*/
 
     uint32_t
         maxReadLenULng,    /*default max read length (entire read)*/
@@ -39,6 +40,13 @@ typedef struct minAlnStats
         maxHomoDelAry[16]; /*Array of limits for deletions*/
         /*A->0, C->1, G->3, T/U->10;
           find with: (baseChar & ~(1+32+64+138)) >> 1*/
+
+     /*These are not used in scoreReads, but are used in findCoInft*/
+     float minSNPsFlt;
+     float minDelsFlt;
+     float minInssFlt;
+     float minIndelsFlt;
+     float minDiffFlt;
 }minAlnStats; /*minAlnStats structer*/
 
 /*######################################################################
@@ -191,21 +199,6 @@ uint8_t readAndCheckRef(
 ); /*Reads reference from fastq & check that it meets min requirments*/
 
 /*######################################################################
-# Output:
-#    Modifies: refStruct to hold the read in fastq entry & sets its
-#              pointers
-#    Returns:
-#        - 0: if no reference file provided
-#        - 1: if succeded
-#        - 2: If file was not a fastq file
-#        - 64: If malloc failed to find memory
-######################################################################*/
-uint8_t readRefFqSeq(
-    FILE *refFILE,       /*Pointer to fastq file to grab reference from*/
-    struct samEntry *refStruct /*Sam entry struct to hold reference*/
-); /*Gets the frist reads sequence & q-score line from a fastq file*/
-
-/*######################################################################
 # output:
 #    returns: The read length (unsigned long)
 # Note: 
@@ -258,6 +251,35 @@ void readReverseCigEntry(
 #    modifes minStats to have default entries
 ######################################################################*/
 void blankMinStats(
+    struct minAlnStats *minStats
+); /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+
+/*THESE FUNCTIONS ARE HERE FOR findCoInft AND ARE NOT NEEDED FOR 
+  scoreReads*/
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# Uses default read to read mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsReadRead(
+    struct minAlnStats *minStats
+); /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# Uses default read to consensus mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsReadCon(
+    struct minAlnStats *minStats
+); /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# default consensus to consensus mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsConCon(
     struct minAlnStats *minStats
 ); /*Sets minStats minimum requirements for sam alingemtns to defaults*/
 

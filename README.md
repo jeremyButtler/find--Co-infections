@@ -8,7 +8,7 @@ Finds co-infections in nanopore sequenced reads.
     1. GCC (to compile findCoInft).
     2. minimap2 (https://github.com/lh3/minimap2)
   - Optional:
-    1. racon (https://github.com/isovic/racon)
+    1. racon (https://github.com/lbcb-sci/racon)
     2. medaka (https://github.com/nanoporetech/medaka)
       - Can be installed by conda or python virtual enviroments
       - For python virtual env install; the folder with medaka needs to
@@ -124,19 +124,38 @@ Figure 1 and 2 are showing the number of correct identified consensuses
   also has less false positive SNPs than any other tested pipeline.
 
 For indels we found that find co-infections V3 had more indel free
-  consensuses than any other tested pipeline
-  (figures/Similarity--20000--v3--80-20--indels.svg). However, V3 also
-  has a few consensuses with higher indel counts than Clair 3, Longshot,
-  and the previous versions of find co-infections, so their are times V3
-  will have worse indel accuracy then other programs
-  (figures/Similarity--20000--v3--80-20--indels.svg).
+  consensuses for simulated reads than any other tested pipeline
+  (figures/Similarity--20000--v3--80-20--indels.svg). However, when I
+  run find co-infections V3 on real porcine circovirus type 2 reads
+  (From doi.org/10.3390/v14050924), I noticed that most consensuses had
+  at least one to three indels to their manually curated sequences.
+  This is much higher than the number of V1 sequences with indels. This
+  shows that simulated data does not completely capture the error rates.
 
-One thing I should add is that I am currently doing the Hepatitis C 
-  testing and noticing that their are less indel free consensuses. So,
-  this may be something unique to the porcine cirovirus type 2 dataset.
-  I am also testing a deeper read depth, so it may be an issue with read
-  depth as well. I will posts figures once the testing is complete.
+  | UP9 Num. sequences | Num. insertions | Num. deletions | Num. indels |
+  |:------------------:|:---------------:|:--------------:|:-----------:|
+  |         7          |      0          |       0        |      0      |
+  |        10          |      0          |       1        |      1      |
+  |         2          |      1          |       0        |      1      |
+  |         3          |      0          |       2        |      2      |
+  |         1          |      1          |       1        |      2      |
+  |         3          |      0          |       3        |             |
 
+  Table showing the number insertions and deletions consensuses built
+    using UP9 PCV2 sequences from Ukraine. Consensus were built using V3
+    and were comapred to their manually curated V1 counterparts. Most of
+    the un-manually curated V1 sequences had no indels to their manually
+    curated sequences. (Sequences were in doi.org/10.3390/v14050924).
+
+Also in the UP9 dataset, I found that find co-infections V3 detected 
+  the same number of samples without having co-infections as V1.
+  However, for samples with co-infections, V3 would often detect
+  additional co-infections that had support from less than 1% of reads.
+  This is worrying, because these could be false positives only seen
+  at deeper read depths. I would advise removing any co-infections that
+  have less than 1% of read support
+  (See dataAnalaysis/all-kept-read-counts.tsv for my counts).
+  
 ### Take away:
 
 We have shown that find co-infections V3 is better than find
@@ -144,6 +163,16 @@ We have shown that find co-infections V3 is better than find
   However, we are unsure how well find co-infections will work when real
   reads are used. It is possible that improvements in version three may 
   only apply to simulated reads.
+
+We also found that find co-infections did have similar results to 
+  find co-infections version one for the porcine circovirus reads 
+  version one was used on (doi.org/10.3390/v14050924), however, we
+  also found that version three does produce more consensuses with
+  indels and may have a problem with false positives at deep read
+  depths. However, this is not a ground truth dataset and thus, we have
+  no idea on the real answer. Also, version three was tested on default
+  settings, which does not use Medaka. So, it is possible running
+  version three with Medaka might improve the indel accuracy.
  
 ## Weaknesses:
 

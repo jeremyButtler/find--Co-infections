@@ -14,29 +14,31 @@
 
 #include "scoreReadsFun.h" /*Holds structers to hold samfile stats*/
 
-/*######################################################################
-# TOC:
-#    fun-1 scoreReads: Scores all alignments in a sam file
-#        - Reads alignment and calls setUpScoreAln
-#    fun-2 setUpScoreAln: Checks to see if should keep sam alignment and
-#        - calls scoreAln
-#    fun-3 scoreAln: Scores a single alignment in a sam file
-#    fun-4 checkSNPs: Check if want to keep or ignore a mismatch
-#    fun-5 checkMatches: Check if matches should be kept
-#    fun-6 checkInss:
-#        - Checks if insertion should be kept or if specified checks
-#          if deletion is valid
-#    fun-7 checkDels: Checks if deletions should be kept
-#    fun-8 checkSoftMasks: Increments pointer when soft mask is present
-#    fun-9 readAndCheckRef: Read in reference (calls readRefFqSeq)and
-#                            check if reference meets requirements
-#    fun-10 readRefFqSeq: Read in refence from fastq file
-#    fun-11 findQScores: find Q-score of read using q-score entry
-#    fun-12 qHistToMed: Find median Q-score from a q-score histogram
-#    fun-13 readCigEntry: Get number of bases in a single cigar entry
-#    fun-14 readReverseCigEntry: readCigEntry, but works backwards
-#    fun-15 blankMinStats: set a minAlnStats structer to defaults
-######################################################################*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+' SOF: scoreReadsFun
+'    fun-1 scoreReads: Scores all alignments in a sam file
+'        - Reads alignment and calls setUpScoreAln
+'    fun-2 setUpScoreAln: Checks to see if should keep sam alignment and
+'        - calls scoreAln
+'    fun-3 scoreAln: Scores a single alignment in a sam file
+'    fun-4 checkSNPs: Check if want to keep or ignore a mismatch
+'    fun-5 checkMatches: Check if matches should be kept
+'    fun-6 checkInss:
+'        - Checks if insertion should be kept or if specified checks
+'          if deletion is valid
+'    fun-7 checkDels: Checks if deletions should be kept
+'    fun-8 checkSoftMasks: Increments pointer when soft mask is present
+'    fun-9 readAndCheckRef: Read in reference (calls readRefFqSeq)and
+'                            check if reference meets requirements
+'    fun-11 findQScores: find Q-score of read using q-score entry
+'    fun-12 qHistToMed: Find median Q-score from a q-score histogram
+'    fun-13 readCigEntry: Get number of bases in a single cigar entry
+'    fun-14 readReverseCigEntry: readCigEntry, but works backwards
+'    fun-15 blankMinStats: set a minAlnStats structer to defaults
+'    fun-16 blankMinStatsReadRead: For read/read settings
+'    fun-17 blankMinStatsReadCon: For read/consensus settings
+'    fun-18 blankMinStatsConCon: For consensus/consensus settings
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static uint32_t MAX_UINT = 0xFFFFFFFF; /*max value of 32 bit number*/
 
@@ -500,7 +502,7 @@ void scoreAln(
 
     if(refStruct != 0)
     { /*If have a reference sequence, need to reset to start position*/
-        /*recored starting sequence positions so can reset at end*/
+        /*Reseting starting positions to recorded positions*/
         refStruct->seqCStr = refStartCStr;
         refStruct->qCStr = refQCStr;
 
@@ -1048,7 +1050,7 @@ void checkSoftMasks(
 #    Returns:
 #        -0: if no reference file provided
 #        -1 if the reference is good
-#        -2 if refFILE was not a fastq
+#        -2 if refFILE was not a fastq or other error
 #        -4 if the reference was beneath the min requirements for an 
 #           alignment
 # Note:
@@ -1065,15 +1067,13 @@ uint8_t readAndCheckRef(
     # Fun-9 Sec-1 Sub-1 TOC: readAndCheckRef
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    uint8_t errUChar = readRefFqSeq(refFILE, refStruct);
+    uint8_t errUChar = readRefFqSeq(refFILE, refStruct, 0);
+        /*0 is to remove any extra new lines*/
     
-    switch(errUChar)
-    { /*switch, check if valid file provided*/
-        case 0:
-            return 0;
-        case 2:
-            return 2;
-    } /*switch, check if valid file provided*/
+    if(refFILE == 0)
+        return 0;            /*No reference file provided*/
+    if(errUChar > 1)
+        return errUChar;     /*If did not read in an entry*/
 
     findQScores(refStruct);
 
@@ -1086,208 +1086,6 @@ uint8_t readAndCheckRef(
 
     return 1;
 } /*readAndCheckRef*/
-
-/*######################################################################
-# Output:
-#    Modifies: refStruct to hold the read in fastq entry & sets its
-#              pointers
-#    Returns:
-#        - 0: if no reference file provided
-#        - 1: if succeded
-#        - 2: If file was not a fastq file
-#        - 64: If malloc failed to find memory
-######################################################################*/
-uint8_t readRefFqSeq(
-    FILE *refFILE,       /*Pointer to fastq file to grab reference from*/
-    struct samEntry *refStruct /*Sam entry struct to hold reference*/
-) /*Gets the frist reads sequence & q-score line from a fastq file*/
-{ /*readRefFqSeq*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-10 TOC: readRefFqSeq
-    #    fun-10 sec-1: Variable declarations
-    #    fun-10 sec-2: Check if need to allocate memory for buffer
-    #    fun-10 sec-3: Read in the first data
-    #    fun-10 sec-4: If not at file end, see if have the full entry
-    #    fun-10 sec-5: Read till end of file, check if valid fastq entry
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # Fun-10 Sec-1: Variable declarations
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    uint8_t
-        numNewLineUChar = 0;      /*Tells me which fastq entry I am on*/
-    char
-        *fqIterUCStr = 0,         /*Marks spot working on in fastq*/
-        *oldBuffUCStr = 0;        /*For reallocs*/
-    uint32_t numCharInLineUInt = 0;
-    uint64_t bytesReadInULng = 0;
-
-    /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # Fun-10 Sec-2: Check if need to allocate memory for buffer
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    if(refFILE == 0)
-        return 0;    /*No file provided*/
-
-    if(refStruct->samEntryCStr == 0)
-    { /*If have no buffer*/
-        refStruct->lenBuffULng = 1400;
-        refStruct->samEntryCStr = malloc(sizeof(char) * 1401);
-
-        if(refStruct->samEntryCStr == 0)
-        { /*If memory allocation errory*/
-            printMemAlocErr(
-                "scoreReadsScoringWrappers.c",
-                "readRefFqSeq",
-                5,
-                559
-            ); /*Let user know of memory allocation failure*/
-    
-            return 64;
-        } /*If memory allocation errory*/
-    } /*If have no buffer*/
-
-    /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # Fun-10 Sec-3: Read in the first data
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    bytesReadInULng =
-        fread(
-            refStruct->samEntryCStr,
-            sizeof(uint8_t),
-            refStruct->lenBuffULng,
-            refFILE
-    ); /*Do my first read*/
-
-    if(refStruct->samEntryCStr == 0)
-        return 2;                          /*Nothing in the file*/
-
-    /*Set up the query id pointer (+ 1 to get off the @)*/
-    refStruct->queryCStr = refStruct->samEntryCStr + 1;
-    fqIterUCStr = refStruct->samEntryCStr;
-
-    /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # Fun-10 Sec-4: If not at file end, see if have the full entry
-    #    fun-10 sec-4 sub-1: Check if have read in the entire entry
-    #    fun-10 sec-4 sub-2: Check if need to read in more buffer
-    #    fun-10 sec-4 sub-3: Read in more buffer
-    #    fun-10 sec-4 sub-4: Reset pointers for new buffer
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    while(fqIterUCStr != 0)
-    { /*While not at end of buffer*/
-
-        /***************************************************************
-        # Fun-10 Sec-4 Sub-1: Check if have read in the entire entry
-        ***************************************************************/
-
-        if(*fqIterUCStr == '\n')
-        { /*If found the end of an entry*/
-            ++numNewLineUChar;
-
-            switch(numNewLineUChar)
-            { /*Switch detect witch new line I am on*/
-                case 1:
-                    numCharInLineUInt = 0;
-                    refStruct->seqCStr = fqIterUCStr + 1;
-                    break;
-                case 3:
-                    --numCharInLineUInt; /*Will be one base off*/
-                    refStruct->readLenUInt = numCharInLineUInt;
-                    refStruct->qCStr = fqIterUCStr + 1;
-                    break;
-                case 4:
-                    return 1;
-            } /*Switch detect witch new line I am on*/
-        } /*If found the end of an entry*/
-
-        /***************************************************************
-        # Fun-10 Sec-4 Sub-2: Check if need to read in more buffer
-        ***************************************************************/
-
-        if(*fqIterUCStr == '\0')
-        { /*If at the end of my buffer*/
-            oldBuffUCStr = refStruct->samEntryCStr;
-            bytesReadInULng = refStruct->lenBuffULng;
-            refStruct->lenBuffULng = refStruct->lenBuffULng << 1;
-
-            refStruct->samEntryCStr =
-                realloc(
-                    refStruct->samEntryCStr,
-                    sizeof(uint8_t) * refStruct->lenBuffULng
-            ); /*double the buffer size*/
-
-            if(refStruct->samEntryCStr == 0)
-            { /*If have no buffer*/
-                refStruct->lenBuffULng = 1400;
-                refStruct->samEntryCStr = malloc(sizeof(char) * 1401);
-
-                if(refStruct->samEntryCStr == 0)
-                { /*If memory allocation errory*/
-                    printMemAlocErr(
-                        "scoreReadsScoringWrappers.c",
-                        "readRefFqSeq",
-                        5,
-                        559
-                    ); /*Let user know of memory allocation failure*/
-            
-                    return 64;
-                } /*If memory allocation errory*/
-            } /*If have no buffer*/
-
-            /***********************************************************
-            # Fun-10 Sec-4 Sub-3: Read in more buffer
-            ***********************************************************/
-
-            /*Reset the iterator for the new buffer*/
-            fqIterUCStr = refStruct->samEntryCStr + bytesReadInULng;
-
-            bytesReadInULng =  /*Read in the next buffer*/
-                fread(
-                    fqIterUCStr,
-                    sizeof(uint8_t),
-                    bytesReadInULng,
-                    refFILE
-            ); /*Do my first read*/
-
-            /***********************************************************
-            # Fun-10 Sec-4 Sub-4: Reset pointers for new buffer
-            ***********************************************************/
-
-            refStruct->refCStr = refStruct->samEntryCStr;
-
-            if(refStruct->seqCStr != 0)
-            { /*If need to update the sequence position*/
-                refStruct->seqCStr =
-                    refStruct->samEntryCStr +
-                    (refStruct->seqCStr - oldBuffUCStr);
-            } /*If need to update the sequence position*/
-
-            if(refStruct->qCStr != 0)
-            { /*If need to update the q-score position*/
-                refStruct->qCStr =
-                    refStruct->samEntryCStr +
-                    (refStruct->qCStr - oldBuffUCStr);
-            } /*If need to update the q-score position*/
-        } /*If at the end of my buffer*/
-
-        else
-            ++numCharInLineUInt; /*Count number of characters in entry*/
-
-        ++fqIterUCStr;
-    } /*While not at end of buffer*/
-
-    /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # Fun-10 Sec-5: Read till end of file, check if is valid fastq entry
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    if(numNewLineUChar == 3 && *refStruct->qCStr > 32)
-        return 1;                  /*No new line after q-score entry*/
-
-    return 2; /*End of file, but did not have four lines*/
-} /*readRefFqSeq*/
 
 /*######################################################################
 # output:
@@ -1461,6 +1259,7 @@ void readReverseCigEntry(
 /*######################################################################
 # Output:
 #    modifes minStats to have default entries
+# Uses default read to reference mapping settings from defaultSettings.h
 ######################################################################*/
 void blankMinStats(
     struct minAlnStats *minStats
@@ -1471,14 +1270,14 @@ void blankMinStats(
     # Fun-15 Sec-1 Sub-1 TOC: blankMinStats
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    minStats->minMapqUInt = 20;          /*min mapping quality*/
-    minStats->minQChar = 10;             /*default min Q-score*/
-    minStats->minMedianQFlt = 13;        /*default median Q-score*/
-    minStats->minMeanQFlt = 13;          /*default mean Q-score*/
-    minStats->minAlignedMedianQFlt = 13; /*median aligend Q*/
-    minStats->minAlignedMeanQFlt = 13;   /*mean alinged Q-score*/
-    minStats->maxReadLenULng = 1000;     /*default max read length*/
-    minStats->minReadLenULng = 600;      /*default max read length*/
+    minStats->minMapqUInt = readRefMapq; /*min mapping quality*/
+    minStats->minQChar = readRefMinBaseQ; /*default min Q-score*/
+    minStats->minMedianQFlt = readRefMinMedQ;/*default median Q-score*/
+    minStats->minMeanQFlt = readRefMinMeanQ; /*default mean Q-score*/
+    minStats->minAlignedMedianQFlt = readRefMinAlnMedQ;/*med aligend Q*/
+    minStats->minAlignedMeanQFlt = readRefMinAlnMeanQ;/*mean aligend Q*/
+    minStats->maxReadLenULng = readRefMaxReadLen; /*max read length*/
+    minStats->minReadLenULng = readRefMinReadLen; /*min read length*/
     
     for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
     { /*loop till have initialized the deltion and insertion arrays*/
@@ -1486,15 +1285,217 @@ void blankMinStats(
         minStats->maxHomoDelAry[uCharCnt] = 0;
     } /*loop till have initialized the deltion and insertion arrays*/
 
-    minStats->maxHomoInsAry[0] = 1; /*max A insertion homopolymer*/ 
-    minStats->maxHomoInsAry[10] = 1; /*max T insertion homopolymer*/ 
-    minStats->maxHomoInsAry[1] = 1; /*max C insertion homopolymer*/ 
-    minStats->maxHomoInsAry[3] = 1; /*max G insertion homopolymer*/ 
+    minStats->maxHomoInsAry[0] = readRefMaxInsAHomo;
+        /*Discard A insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[10] = readRefMaxInsTHomo;
+        /*Discard T insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[1] = readRefMaxInsCHomo;
+        /*Discard C insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[3] = readRefMaxInsGHomo;
+        /*Discard G insertion if homopoymer in is larger than setting*/
 
-    minStats->maxHomoDelAry[0] = 0; /*max A deletion homopolymer*/ 
-    minStats->maxHomoDelAry[10] = 0; /*max T deletion homopolymer*/ 
-    minStats->maxHomoDelAry[1] = 0; /*max C deletion homopolymer*/ 
-    minStats->maxHomoDelAry[3] = 0; /*max G deletion homopolymer*/ 
+    minStats->maxHomoDelAry[0] = readRefMaxDelAHomo;
+        /*Discard A deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[10] = readRefMaxDelTHomo;
+        /*Discard T deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[1] = readRefMaxDelCHomo;
+        /*Discard C deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[3] = readRefMaxDelGHomo;
+        /*Discard G deletion if homopoymer in is larger than setting*/
 
+    /*These settings are for findCoInft*/
+    minStats->minSNPsFlt = readRefMinPercSNPs;
+    minStats->minDelsFlt = readRefMinPercDels;
+    minStats->minInssFlt = readRefMinPercInss;
+    minStats->minIndelsFlt = readRefMinPercIndels;
+    minStats->minDiffFlt = readRefMinPercDiff;
     return;
 } /*blankMinStats*/
+
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# Uses default read to read mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsReadRead(
+    struct minAlnStats *minStats
+) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+{ /*blankMinStatsReadRead*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-16 Sec-1 Sub-1 TOC: blankMinStatsReadRead
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    minStats->minMapqUInt = readReadMapq;
+        /*Mininum mapping quality to keep a read*/
+    minStats->minQChar = readReadMinBaseQ;
+         /*Minimum Q-score to keep a base or insertion*/
+    minStats->minMedianQFlt = readReadMinMedQ;
+        /*Minimum median Q-score to keep a read*/
+    minStats->minMeanQFlt = readReadMinMeanQ;
+        /*Minimum mean Q-score to keep a read*/
+    minStats->minAlignedMedianQFlt = readReadMinAlnMedQ;
+        /*Minimum median aligend Q-score to keep a read*/
+    minStats->minAlignedMeanQFlt = readReadMinAlnMeanQ;
+        /*Minimum mean aligend Q-score to keep a read*/
+    minStats->maxReadLenULng = readReadMaxReadLen; /*max read length*/
+    minStats->minReadLenULng = readReadMinReadLen; /*min read length*/
+    
+    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
+    { /*loop till have initialized the deltion and insertion arrays*/
+        minStats->maxHomoInsAry[uCharCnt] = 0;
+        minStats->maxHomoDelAry[uCharCnt] = 0;
+    } /*loop till have initialized the deltion and insertion arrays*/
+
+    minStats->maxHomoInsAry[0] = readReadMaxInsAHomo;
+        /*Discard A insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[10] = readReadMaxInsTHomo;
+        /*Discard T insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[1] = readReadMaxInsCHomo;
+        /*Discard C insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[3] = readReadMaxInsGHomo;
+        /*Discard G insertion if homopoymer in is larger than setting*/
+
+    minStats->maxHomoDelAry[0] = readReadMaxDelAHomo;
+        /*Discard A deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[10] = readReadMaxDelTHomo;
+        /*Discard T deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[1] = readReadMaxDelCHomo;
+        /*Discard C deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[3] = readReadMaxDelGHomo;
+        /*Discard G deletion if homopoymer in is larger than setting*/
+
+    /*These settings are for findCoInft*/
+    minStats->minSNPsFlt = readReadMinPercSNPs;
+    minStats->minDelsFlt = readReadMinPercDels;
+    minStats->minInssFlt = readReadMinPercInss;
+    minStats->minIndelsFlt = readReadMinPercIndels;
+    minStats->minDiffFlt = readReadMinPercDiff;
+    return;
+} /*blankMinStatsReadRead*/
+
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# Uses default read to consensus mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsReadCon(
+    struct minAlnStats *minStats
+) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+{ /*blankMinStatsReadCon*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-17 Sec-1 Sub-1 TOC: blankMinStatsReadCon
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    minStats->minMapqUInt = readConMapq;
+        /*Mininum mapping quality to keep a read*/
+    minStats->minQChar = readConMinBaseQ;
+         /*Minimum Q-score to keep a base or insertion*/
+    minStats->minMedianQFlt = readConMinMedQ;
+        /*Minimum median Q-score to keep a read*/
+    minStats->minMeanQFlt = readConMinMeanQ;
+        /*Minimum mean Q-score to keep a read*/
+    minStats->minAlignedMedianQFlt = readConMinAlnMedQ;
+        /*Minimum median aligend Q-score to keep a read*/
+    minStats->minAlignedMeanQFlt = readConMinAlnMeanQ;
+        /*Minimum mean aligend Q-score to keep a read*/
+    minStats->maxReadLenULng = readConMaxReadLen; /*max read length*/
+    minStats->minReadLenULng = readConMinReadLen; /*min read length*/
+    
+    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
+    { /*loop till have initialized the deltion and insertion arrays*/
+        minStats->maxHomoInsAry[uCharCnt] = 0;
+        minStats->maxHomoDelAry[uCharCnt] = 0;
+    } /*loop till have initialized the deltion and insertion arrays*/
+
+    minStats->maxHomoInsAry[0] = readConMaxInsAHomo;
+        /*Discard A insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[10] = readConMaxInsTHomo;
+        /*Discard T insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[1] = readConMaxInsCHomo;
+        /*Discard C insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[3] = readConMaxInsGHomo;
+        /*Discard G insertion if homopoymer in is larger than setting*/
+
+    minStats->maxHomoDelAry[0] = readConMaxDelAHomo;
+        /*Discard A deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[10] = readConMaxDelTHomo;
+        /*Discard T deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[1] = readConMaxDelCHomo;
+        /*Discard C deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[3] = readConMaxDelGHomo;
+        /*Discard G deletion if homopoymer in is larger than setting*/
+
+    /*These settings are for findCoInft*/
+    minStats->minSNPsFlt = readConMinPercSNPs;
+    minStats->minDelsFlt = readConMinPercDels;
+    minStats->minInssFlt = readConMinPercInss;
+    minStats->minIndelsFlt = readConMinPercIndels;
+    minStats->minDiffFlt = readConMinPercDiff;
+    return;
+} /*blankMinStatsReadCon*/
+
+/*######################################################################
+# Output:
+#    modifes minStats to have default entries
+# default consensus to consensus mapping settings from defaultSettings.h
+######################################################################*/
+void blankMinStatsConCon(
+    struct minAlnStats *minStats
+) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
+{ /*blankMinStatsConCon*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-1 Sub-1 TOC: blankMinStatsConCon
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    minStats->minMapqUInt = conConMapq;
+        /*Mininum mapping quality to keep a con*/
+    minStats->minQChar = conConMinBaseQ;
+         /*Minimum Q-score to keep a base or insertion*/
+    minStats->minMedianQFlt = conConMinMedQ;
+        /*Minimum median Q-score to keep a con*/
+    minStats->minMeanQFlt = conConMinMeanQ;
+        /*Minimum mean Q-score to keep a con*/
+    minStats->minAlignedMedianQFlt = conConMinAlnMedQ;
+        /*Minimum median aligend Q-score to keep a con*/
+    minStats->minAlignedMeanQFlt = conConMinAlnMeanQ;
+        /*Minimum mean aligend Q-score to keep a con*/
+    minStats->maxReadLenULng = conConMaxReadLen; /*max con length*/
+    minStats->minReadLenULng = conConMinReadLen; /*min con length*/
+    
+    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
+    { /*loop till have initialized the deltion and insertion arrays*/
+        minStats->maxHomoInsAry[uCharCnt] = 0;
+        minStats->maxHomoDelAry[uCharCnt] = 0;
+    } /*loop till have initialized the deltion and insertion arrays*/
+
+    minStats->maxHomoInsAry[0] = conConMaxInsAHomo;
+        /*Discard A insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[10] = conConMaxInsTHomo;
+        /*Discard T insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[1] = conConMaxInsCHomo;
+        /*Discard C insertion if homopoymer in is larger than setting*/
+    minStats->maxHomoInsAry[3] = conConMaxInsGHomo;
+        /*Discard G insertion if homopoymer in is larger than setting*/
+
+    minStats->maxHomoDelAry[0] = conConMaxDelAHomo;
+        /*Discard A deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[10] = conConMaxDelTHomo;
+        /*Discard T deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[1] = conConMaxDelCHomo;
+        /*Discard C deletion if homopoymer in is larger than setting*/
+    minStats->maxHomoDelAry[3] = conConMaxDelGHomo;
+        /*Discard G deletion if homopoymer in is larger than setting*/
+
+    /*These settings are for findCoInft*/
+    minStats->minSNPsFlt = conConMinPercSNPs;
+    minStats->minDelsFlt = conConMinPercDels;
+    minStats->minInssFlt = conConMinPercInss;
+    minStats->minIndelsFlt = conConMinPercIndels;
+    minStats->minDiffFlt = conConMinPercDiff;
+    return;
+} /*blankMinStatsConCon*/
+
+

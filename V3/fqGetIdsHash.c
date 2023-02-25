@@ -29,6 +29,8 @@ double
 /    fun-6 readListToHash:                                             /
 \        - Convert a lined readList to a hash table                    \
 /        - Only use readList->rightChild pointer in the linked list    /
+\    fun-7 findMajicNumber:                                            \
+/        - Get the first 64 bits of the golden ratio                   /
 \                                                                      \
 /~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -168,21 +170,7 @@ struct readInfo ** makeReadHash(
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    /*Find how many digits of my golden ratio to use*/
-      /*
-        The idea here is 2^(x * 3.333...) ~ 10^x, which gives me the number of
-          base 10 digits per limb. This only covers the positions were having
-          10^x = 2^(x * 3.333...), so will not always cover the last postion.
-          For example an 64 bit number has at most 20 digits, but 64 / 3.333...
-          is 19. This is due to 10^20 > 2^20 = 18,446,744,073,709,551,615.
-      */
-
-   for(
-       unsigned char uCharGoldDig = 0;
-       uCharGoldDig < ((sizeof(unsigned long) << 3) / powTwoPerTen);
-       uCharGoldDig++
-   ) /*For each digit in the godlen number I need to convert to a long*/
-       *majicNumULng =
-           10 * (*majicNumULng) + (GOLDEN_RATIO[uCharGoldDig] & ~48);
+   *majicNumULng = findMajicNumber();
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
    # Fun-1 Sec-5: Build hash
@@ -426,23 +414,7 @@ struct readInfo ** readListToHash(
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    /*Find how many digits of my golden ratio to use*/
-      /*
-        The idea here is 2^(x * 3.333...) ~ 10^x, which gives me the
-        number of base 10 digits per limb. This only covers the
-        positions were having 10^x = 2^(x * 3.333...), so will not
-        always cover the last postion.  For example an 64 bit number has
-        at most 20 digits, but 64 / 3.333...  is 19. This is due to
-        10^20 > 2^20 = 18,446,744,073,709,551,615.
-      */
-
-   for(
-       unsigned char uCharDig = 0;
-       uCharDig < ((sizeof(unsigned long) << 3) / powTwoPerTen);
-       uCharDig++
-   ) /*For each digit in the godlen number I need to convert to a long*/
-       *majicNumULng =
-           10 * (*majicNumULng) + (GOLDEN_RATIO[uCharDig] & ~48);
-           /*~48 Clear non numeric bits*/
+   *majicNumULng = findMajicNumber();
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
    ^ Fun-6 Sec-2: Build hash                                           v
@@ -467,3 +439,34 @@ struct readInfo ** readListToHash(
    return hashTbl;  /*Return head of hash table*/
 } /*makeReadHash function*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|   - Returns:
+|     o Unsigned long with the first 64 bits of the golden number
+\---------------------------------------------------------------------*/
+unsigned long findMajicNumber()
+/*Gets first 64 bits of the goldent ratio*/
+{ /*findMajicNumber*/
+
+   /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-7 TOC: Sec-1 Sub-1: findMajicNumber
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   unsigned long majicNumUL = 0;
+   unsigned char numDigUC =((sizeof(unsigned long) << 3)/powTwoPerTen);
+
+      /*
+        The idea here is 2^(x * 3.333...) ~ 10^x, which gives me the
+        number of base 10 digits per limb. This only covers the
+        positions were having 10^x = 2^(x * 3.333...), so will not
+        always cover the last postion.  For example an 64 bit number has
+        at most 20 digits, but 64 / 3.333...  is 19. This is due to
+        10^20 > 2^20 = 18,446,744,073,709,551,615.
+      */
+
+   /*Grab the first 64 bits of numbers in golden number into a long*/
+   for(unsigned char uCGoldDig = 0; uCGoldDig < numDigUC; ++uCGoldDig)
+       majicNumUL = 10*majicNumUL + (GOLDEN_RATIO[uCGoldDig] & ~48);
+
+   return majicNumUL;
+} /*findMajicNumber*/

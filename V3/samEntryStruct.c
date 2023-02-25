@@ -12,26 +12,44 @@
 ######################################################################*/
 
 /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# TOC:
-#    fun-1 blankSamEntry: Sets samEntry structer variables to 0
-#        - Does not set samEntryCStr or lenBuffULng to 0
-#    fun-2 blankReadStats: Sets all non-pointers to 0 in a samEntry
-#    fun-3 deepCpSamReadStats: cpSamEntry, but also copies samEntryCStr
-#    fun-4 cpSamEntry: Copies q-score & sequence pointer addresss
-#    fun-5 initSamEntry: Initalize a new sam entry struct
-#    fun-6 freeStackSamEntry: Free heap allocated variables in samEntry
-#    fun-7 freeHeapSamEntry: Fee samEntry struct
-#    fun-8 processSamEntry: Extract data from a sam file entry
-#    fun-9: readSamLine: Read in a line form a sam file,
-#        - calls processSamEntry
-#    fun-10 findSamCig: find cigar in buffer with sam file entry. Will
-#                       resize buffer if an incomplete entry.
-#    fun-11 readNextPartOfLine: read part of a line with fgets
-#    fun-12 printSamStats: Print stats in samEntry struct to tsv filE
-#    fun-13 samToFq: Prints out sam entry as fastq file
-#        - This does not print out the stats printed with printSamStats
-#    fun-14 printSamEntry: Prints sam entry in a samEntry structer
-#        - This does not print out the stats printed with printSamStats
+' SOF:
+'    fun-1 blankSamEntry: Sets samEntry structer variables to 0
+'        - Does not set samEntryCStr or lenBuffULng to 0
+'    fun-2 blankReadStats: Sets all non-pointers to 0 in a samEntry
+'    fun-3 deepCpSamReadStats: cpSamEntry, but also copies samEntryCStr
+'    fun-4 cpSamEntry: Copies q-score & sequence pointer addresss
+'    fun-5 initSamEntry: Initalize a new sam entry struct
+'    fun-6 freeStackSamEntry: Free heap allocated variables in samEntry
+'    fun-7 freeHeapSamEntry: Fee samEntry struct
+'    fun-8 processSamEntry: Extract data from a sam file entry
+'    fun-9: readSamLine: Read in a line form a sam file,
+'        - calls processSamEntry
+'    fun-10 findSamCig: find cigar in buffer with sam file entry. Will
+'                       resize buffer if an incomplete entry.
+'    fun-11
+'      - readNextPartOfLine: read part of a line with fgets
+'    fun-12
+'      - printSamStats: Print stats in samEntry struct to tsv filE
+'    fun-13 samToFq: Prints out sam entry as fastq file
+'      - This does not print out the stats printed with printSamStats
+'    fun-14 printSamEntry: Prints sam entry in a samEntry structer
+'      - This does not print out the stats printed with printSamStats
+'    fun-15 printStatsHeader:
+'      - Prints header for a stats file made using a samEntryStruct
+'    fun-16 blankReadStat:
+'      - Banks a readStat structer
+'    fun-17 cpReadStat:
+'      - Copies stats from on readStat struct to another readStat struct
+'    fun-18
+'      - Reads single line from file printed to by printSamStats 
+'    fun-19 printReadStat:
+'      - Prints out the stats in a readStat structure to a file
+'    fun-20 samEntryToReadStat:
+'      - Copies stats from a samEntry struct to a readStat struct
+'    fun-21 readInConFa:
+'      - Reads in a single sequence from a fasta file
+'      - fasta file should have only one sequence and it should be
+'        in two lines (first line is header, second line is sequence)
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
 #include "samEntryStruct.h"
@@ -1083,25 +1101,10 @@ void printSamStats(
     >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
     if(*printHeaderChar == 1)
-    { /*If wanted to print the header*/
-        fprintf(
-            outFILE,
-            "Read\tRef\tMAPQ\treadLength\talignedLength\tmatches"
-        );
-        fprintf(
-            outFILE,
-            "\tkeptMatches\tmismatches\tinsertions\tdeletions"
-        ); 
-        fprintf(
-            outFILE,
-            "\tmedianQ\tmeanQ\talignedMedianQ\talignedMeanQ"
-        ); 
-        fprintf(
-            outFILE,
-            "\tTotalMismatches\tTotalInsertions\tTotalDeletions\n"
-        ); 
-        *printHeaderChar = 0;
-    } /*If wanted to print the header*/
+    { /*If printing out the header entry*/
+        printStatHeader(outFILE);
+        *printHeaderChar = 0;   /*prevent header printing on next call*/
+    } /*If printing out the header entry*/
 
     /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     # Fun-12 Sec-3: Convert query & reference ids to c-strings
@@ -1192,31 +1195,31 @@ void samToFq(
     # Fun-13 Sec-3: Print sam entry as fastq entry
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    fwrite("@", sizeof(uint8_t), 1, outFILE); /*Print out @ header*/
+    if(*samStruct->queryCStr != '@') /*If need to print out @ header*/
+        fwrite("@", sizeof(char), 1, outFILE);
     /*print out the query id*/
-    fwrite(samStruct->queryCStr, sizeof(uint8_t), lenQueryUSht,outFILE);
+    fwrite(samStruct->queryCStr, sizeof(char), lenQueryUSht, outFILE);
 
-    /*Write new line after query id*/
-    fwrite("\n", sizeof(uint8_t), 1, outFILE);
+    fwrite("\n", sizeof(char), 1, outFILE); /*Write spacer entry*/
 
     fwrite(
         samStruct->seqCStr,
-        sizeof(uint8_t),
+        sizeof(char),
         samStruct->readLenUInt,
         outFILE
     ); /*Write sequence entry*/
 
-    fwrite("\n+\n", sizeof(uint8_t), 3, outFILE); /*Write spacer entry*/
+    fwrite("\n+\n", sizeof(char), 3, outFILE); /*Write spacer entry*/
 
     fwrite(
         samStruct->qCStr,
-        sizeof(uint8_t),
+        sizeof(char),
         samStruct->readLenUInt,
         outFILE
     ); /*Write Q-score entry*/
 
     /*Write new line for next entry*/
-    fwrite("\n", sizeof(uint8_t), 1, outFILE);
+    fwrite("\n", sizeof(char), 1, outFILE);
 
     return;
 } /*samToFq*/
@@ -1244,3 +1247,597 @@ void printSamEntry(
     else
         fprintf(outFILE, "%s\n", samStruct->samEntryCStr); /*header*/
 } /*printSamEntry*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|   o Prints stat file header to the input file
+\---------------------------------------------------------------------*/
+void printStatHeader(
+    FILE *statFILE /*File to print the hader to*/
+) /*Prints the stat file header made using a sam entry struct*/
+{ /*printStatHeader*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-15 TOC: Sec-1 Sub-1: printStatsHeader
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    if(statFILE == 0)
+      return;
+
+    fprintf(statFILE, "Read\tRef\tMAPQ\treadLength\talignedLength");
+    fprintf(statFILE, "\tmatches\tkeptMatches\tmismatches\tinsertions"); 
+    fprintf(statFILE, "\tdeletions\tmedianQ\tmeanQ\talignedMedianQ"); 
+    fprintf(statFILE, "\talignedMeanQ\tTotalMismatches"); 
+    fprintf(statFILE, "\tTotalInsertions\tTotalDeletions\n");
+
+    return;
+} /*printStatHeader*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies:
+|        - readToBlank to have all stats set to 0 & c-strins to start 
+|          with '\0'
+\---------------------------------------------------------------------*/
+void blankReadStat(
+    struct readStat *readToBlank
+) /*Blanks a readStat struct*/
+{ /*blankReadStat*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-16 TOC: Sec-1 Sub-1: blankReadStat
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*Blank Ids and mapping quality*/
+    readToBlank->mapqUChar = 0;
+    readToBlank->queryIdCStr[0] = '\0';
+    readToBlank->refIdCStr[0] = '\0';
+
+    /*Blank the Q-score stats*/
+    readToBlank->medianQFlt = 0;
+    readToBlank->medianAligQFlt = 0;
+    readToBlank->meanQFlt = 0;
+    readToBlank->meanAligQFlt = 0;
+
+    /*Blank the read length stats*/
+    readToBlank->readLenUInt = 0;
+    readToBlank->readAligLenUInt = 0;
+
+    /*Blank the total error stats*/
+    readToBlank->numMatchUInt = 0;
+    readToBlank->numSNPUInt = 0;
+    readToBlank->numDelUInt = 0;
+    readToBlank->numInsUInt = 0;
+
+    /*Blank the kept error stats*/
+    readToBlank->numKeptMatchUInt = 0;
+    readToBlank->numKeptSNPUInt = 0;
+    readToBlank->numKeptDelUInt = 0;
+    readToBlank->numKeptInsUInt = 0;
+
+    return;
+} /*blankReadStat*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: newReadList to have the same values as oldReadList
+\---------------------------------------------------------------------*/
+void cpReadStat(
+    struct readStat *newReadStat, /*Read to copy stats to*/
+    struct readStat *oldReadStat /*Read to copy stats from*/
+) /*Copies stats from one read list to another*/
+{ /*cpReadStat*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ' Fun-17 TOC: Sec-1 Sub-1: cpReadStat
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*Blank Ids and mapping quality*/
+    newReadStat->mapqUChar = oldReadStat->mapqUChar;
+    strcpy(newReadStat->queryIdCStr, oldReadStat->queryIdCStr);
+    strcpy(newReadStat->refIdCStr, oldReadStat->refIdCStr);
+
+    /*Blank the Q-score stats*/
+    newReadStat->medianQFlt = oldReadStat->medianQFlt;
+    newReadStat->medianAligQFlt = oldReadStat->medianAligQFlt;
+    newReadStat->meanQFlt = oldReadStat->meanQFlt;
+    newReadStat->meanAligQFlt = oldReadStat->meanAligQFlt;
+
+    /*Blank the read length stats*/
+    newReadStat->readLenUInt = oldReadStat->readLenUInt;
+    newReadStat->readAligLenUInt = oldReadStat->readAligLenUInt;
+
+    /*Blank the total error stats*/
+    newReadStat->numMatchUInt = oldReadStat->numMatchUInt;
+    newReadStat->numSNPUInt = oldReadStat->numSNPUInt;
+    newReadStat->numDelUInt = oldReadStat->numDelUInt;
+    newReadStat->numInsUInt = oldReadStat->numInsUInt;
+
+    /*Blank the kept error stats*/
+    newReadStat->numKeptMatchUInt = oldReadStat->numKeptMatchUInt;
+    newReadStat->numKeptSNPUInt = oldReadStat->numKeptSNPUInt;
+    newReadStat->numKeptDelUInt = oldReadStat->numKeptDelUInt;
+    newReadStat->numKeptInsUInt = oldReadStat->numKeptInsUInt;
+
+    return;
+} /*cpReadStat*/
+
+/*---------------------------------------------------------------------\
+| Output:                                                              |
+|    - Modifies:                                                       |
+|        - readStruct to have stats from the next line in statsFILE    |
+\---------------------------------------------------------------------*/
+uint8_t readStatsFileLine(
+    FILE *statsFILE,            /*File with line to grab*/
+    uint8_t *onHeaderBool,      /*1: skip one line, 0: grab first line*/
+    struct readStat *readStruct /*Holds the stats from the stats file*/
+) /*Reads single line from printSamStats function in samEntryStruct.c*/
+{ /*readStatsFileLine*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-18 TOC: readStatsFileLine
+    '    fun-18 sec-1: variable declerations
+    '    fun-18 sec-2: Initalize and read in first line
+    '    fun-18 sec-3: If need to, read past header
+    '    fun-18 sec-4: Copy read and reference id's
+    '    fun-18 sec-5: Get mapq and read lengths
+    '    fun-18 sec-6: Get number of matches and mismatches
+    '    fun-18 sec-7: Get number of insertions and deletions
+    '    fun-18 sec-8: Get Q-scores
+    '    fun-18 sec-9: Get aligned Q-scores
+    '    fun-18 sec-10: Get total number of SNPs, insertions, & deletions
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-1: variable declerations
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    uint16_t lenBuffUSht = 1024; /*is greater than one full line*/
+
+    char
+        buffCStr[lenBuffUSht],
+        *tmpCStr = 0,   /*String to copy from*/
+        *cpTmpCStr = 0, /*String to copy to*/
+        *eofCStr = 0;   /*Tells me if at end of file*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-2: Initalize and read in first line
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    blankReadStat(readStruct); /*Make sure no leftover data*/ 
+
+    if(statsFILE == 0)
+        return 8;
+
+    eofCStr =
+        fgets(
+            buffCStr,
+            lenBuffUSht,
+            statsFILE
+    ); /*Read in the line*/
+
+    if(eofCStr == 0)
+        return 2;         /*End of file, so no line to read in*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-3: If need to, read past header
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    if(*onHeaderBool == 1)
+    { /*If on the header, move past*/
+        /*Read in the next line*/
+        eofCStr = fgets(buffCStr, lenBuffUSht, statsFILE);
+
+        if(eofCStr == 0)
+            return 2;   /*End of file, so only a header*/
+
+        *onHeaderBool = 0; /*No longer on the header*/
+    } /*If on the header, move past*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-4: Copy read and reference id's
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    tmpCStr = buffCStr;
+    cpTmpCStr = readStruct->queryIdCStr;
+
+    while(*tmpCStr > 31)
+    { /*While have a read id to copy*/
+        *cpTmpCStr = *tmpCStr;
+        ++cpTmpCStr;
+        ++tmpCStr;
+
+        if(*tmpCStr == '\0')
+            return 16; /*Early end of file or line*/
+    } /*While have a read id to copy*/
+
+    *cpTmpCStr = '\0'; /*make sure a c-string*/
+    ++tmpCStr; /*Get off the tab*/
+
+    cpTmpCStr = readStruct->refIdCStr;
+
+    while(*tmpCStr > 31)
+    { /*While have a reference id to copy*/
+        *cpTmpCStr = *tmpCStr;
+        ++cpTmpCStr;
+        ++tmpCStr;
+
+        if(*tmpCStr == '\0')
+            return 16; /*Early end of file or line*/
+    } /*While have a reference id to copy*/
+
+    *cpTmpCStr = '\0'; /*make sure a c-string*/
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-5: Copy mapq and read lengths
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    tmpCStr = cStrToUChar(tmpCStr, &readStruct->mapqUChar); /*Get mapq*/
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get read length*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->readLenUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the algined read length*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->readAligLenUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-6: Get number of matches and mismatches
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Get the number of matches*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numMatchUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the number of kept matches*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numKeptMatchUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the number of kept SNPs*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numKeptSNPUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-7: Get number of insertions and deletions
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Get the number of kept insertions*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numKeptInsUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the number of kept deletions*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numKeptDelUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-18 Sec-8: Get mean and median aligned Q-scores
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    sscanf(tmpCStr, "%f", &readStruct->meanQFlt); /*Get mean Q-score*/
+
+    /*Move to the next entry*/
+    while(*tmpCStr > 32)
+        ++tmpCStr;
+
+    ++tmpCStr; /*Get off the tab*/
+
+    sscanf(tmpCStr, "%f", &readStruct->medianQFlt); /*Get median Q*/
+
+    /*Move to the next entry*/
+    while(*tmpCStr > 32)
+        ++tmpCStr;
+
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-9: Get median and mean aligned Q-scores
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Get the mean aligned Q-score*/
+    sscanf(tmpCStr, "%f", &readStruct->meanAligQFlt);
+
+    /*Move to the next entry*/
+    while(*tmpCStr > 32)
+        ++tmpCStr;
+
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the median aligned Q-score*/
+    sscanf(tmpCStr, "%f", &readStruct->medianAligQFlt);
+
+    /*Move to the next entry*/
+    while(*tmpCStr > 32)
+        ++tmpCStr;
+
+    ++tmpCStr; /*Get off the tab*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-18 Sec-10: Get total number of SNPs, insertions, & deletions
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Get the number of SNPs*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numSNPUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the number of insertions*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numInsUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    /*Get the number of deletions*/
+    tmpCStr = cStrToUInt(tmpCStr, &readStruct->numDelUInt);
+    ++tmpCStr; /*Get off the tab*/
+
+    return 1; /*Sucess*/
+} /*readStatsFileLine*/
+
+/*---------------------------------------------------------------------\
+| Output:                                                              |
+|   Prints: Prints out variables in readToPrint structer               |
+\---------------------------------------------------------------------*/
+void printReadStat(
+    struct readStat *readToPrint, /*Read to print stats out for*/
+    FILE *outFILE                  /*File to print read to*/
+) /*Prints out the stats in a readStat structure to a file*/
+{ /*printReadStat*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-19 TOC: Sec-1 Sub-1: printReadStat                           /
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    if(readToPrint == 0)
+        return;
+
+    if(outFILE == 0)
+        return;
+
+    /*Print out the entry stats*/
+    fprintf(
+        outFILE,
+        "%s\t%s\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%f\t%f\t%f\t%f",
+        readToPrint->queryIdCStr, 
+        readToPrint->refIdCStr,
+        readToPrint->mapqUChar,
+        readToPrint->readLenUInt,
+        readToPrint->readAligLenUInt,
+        readToPrint->numMatchUInt,
+        readToPrint->numKeptMatchUInt,
+        readToPrint->numKeptSNPUInt,
+        readToPrint->numKeptInsUInt,
+        readToPrint->numKeptDelUInt,
+        readToPrint->medianQFlt,
+        readToPrint->meanQFlt,
+        readToPrint->medianAligQFlt,
+        readToPrint->meanAligQFlt
+    ); /*1st printf: print out stats*/
+
+    fprintf(
+        outFILE,
+        "\t%u\t%u\t%u\n",
+        readToPrint->numSNPUInt,
+        readToPrint->numInsUInt,
+        readToPrint->numDelUInt
+    ); /*2nd fprintf: print out stats*/
+
+    return;
+} /*printReadStat*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    - Modifies:
+|        - newBin to have stats in samStruct
+\---------------------------------------------------------------------*/
+void samEntryToReadStat(
+    struct readStat *newBin,   /*Read bin to hold stats from samStruct*/
+    struct samEntry *samStruct /*copy stats from this struct*/
+) /*Copies stats from a samEntry struct to a readStat struct*/
+{ /*samEntryToReadBin*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-20 TOC: samEntryToReadStat
+    '    fun-20 sec-2: Copy stats
+    '    fun-20 sec-1: Variable declerations
+    '    fun-20 sec-3: Copy the query id
+    '    fun-20 sec-4: Copy the reference id
+    '
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    char
+        *tmpCStr = 0,
+        *tmpCpCStr = 0;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-2: Copy stats
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    newBin->mapqUChar = samStruct->mapqUChar;
+
+    newBin->medianQFlt = samStruct->medianQFlt;
+    newBin->medianAligQFlt = samStruct->medianAligQFlt;
+    newBin->meanQFlt = samStruct->meanQFlt;
+    newBin->meanAligQFlt = samStruct->meanAligQFlt;
+
+    
+    newBin->readLenUInt = samStruct->readLenUInt;
+    newBin->readAligLenUInt = samStruct->readAligLenUInt;
+
+    newBin->numMatchUInt = samStruct->numMatchUInt;
+    newBin->numSNPUInt = samStruct->numSNPUInt;
+    newBin->numKeptSNPUInt = samStruct->numKeptSNPUInt;
+    newBin->numDelUInt = samStruct->numDelUInt;
+    newBin->numKeptDelUInt = samStruct->numKeptSNPUInt;
+    newBin->numInsUInt = samStruct->numInsUInt;
+    newBin->numKeptInsUInt = samStruct->numKeptSNPUInt;
+
+    tmpCpCStr = newBin->queryIdCStr;
+    tmpCStr = samStruct->queryCStr;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-3: Copy the query id
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    while(*tmpCStr > 16)
+    { /*While have the query id to copy over*/
+        *tmpCpCStr = *tmpCStr;
+        ++tmpCStr;
+        ++tmpCpCStr;
+    } /*While have the query id to copy over*/
+
+    tmpCpCStr = '\0'; /*Mark end of c-string*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-20 Sec-4: Copy the reference id
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    tmpCpCStr = newBin->refIdCStr;
+    tmpCStr = samStruct->refCStr;
+
+    while(*tmpCStr > 16)
+    { /*While have the reference id to copy over*/
+        *tmpCpCStr = *tmpCStr;
+        ++tmpCStr;
+        ++tmpCpCStr;
+    } /*While have the reference id to copy over*/
+
+    tmpCpCStr = '\0'; /*Mark end of c-string*/
+    return;
+} /*samStructToReadBin*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|  - Modifies
+|    - refStruct: To hold the sequence (no header)
+|  - Returns
+|    - 1 if succeeded
+|    - 2 if file does not exist
+|    - 4 invalid file
+|    - 64 memory allocation error
+| Note:
+|  - Fasta file should only have one sequence
+\---------------------------------------------------------------------*/
+unsigned char readInConFa(
+    char *conFaToReadCStr, /*Name of fasta file with the consensus*/
+    struct samEntry *refStruct /*Sam struct to hold consensus*/
+) /*Reads in reference sequence in fasta file*/
+{ /*readInConFa*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-21 TOC: readInConFa
+    '   fun-21 sec-1: variable declerations
+    '   fun-21 sec-2: Check if file exists and read in header
+    '   fun-21 sec-2: Read in the sequence
+    '   fun-21 sec-3: Set up q-score null entry, get length, and return
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-21 Sec-1: variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    char *tmpCStr = 0;
+    uint32_t incBuffUInt = 1000;
+    FILE *faFILE = 0;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-21 Sec-2: Check if file exists and move past header
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Open the reference file for reading*/
+    faFILE = fopen(conFaToReadCStr, "r");
+
+    if(faFILE == 0)
+        return 2;
+
+    blankSamEntry(refStruct);
+
+    /*Set up null endings for lines*/
+    *(refStruct->samEntryCStr + refStruct->lenBuffULng - 1) = '\0';
+    *(refStruct->samEntryCStr + refStruct->lenBuffULng - 2) = '\0';
+
+    /*Read in the header, I know it worked, because of minimap2*/
+    fgets(refStruct->samEntryCStr, refStruct->lenBuffULng, faFILE);
+
+    while(
+     !(*(refStruct->samEntryCStr + refStruct->lenBuffULng - 2) !='\0' ||
+       *(refStruct->samEntryCStr + refStruct->lenBuffULng -2)!='\n')
+    ) { /*While have a header to read in*/
+        /*Read in the next part of the header*/
+        fgets(refStruct->samEntryCStr, refStruct->lenBuffULng, faFILE);
+
+        if(*refStruct->samEntryCStr == '\0')
+            return 4; /*Failed to read in anything*/
+
+        /*Resetup markers*/
+        *(refStruct->samEntryCStr + refStruct->lenBuffULng - 1) = '\0';
+        *(refStruct->samEntryCStr + refStruct->lenBuffULng - 2) = '\0';
+    } /*While have a header to read in*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-21 Sec-2: Read in the sequence
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    tmpCStr = refStruct->samEntryCStr;
+    *(refStruct->samEntryCStr + refStruct->lenBuffULng - 2) = '\0';
+
+    /*Read in the first part of the sequence*/
+    fgets(refStruct->samEntryCStr, refStruct->lenBuffULng, faFILE);
+
+    while(*(refStruct->samEntryCStr+refStruct->lenBuffULng-2) > 16)
+    { /*While on the sequence line*/
+        refStruct->samEntryCStr =
+            realloc(
+                refStruct->samEntryCStr,
+                refStruct->lenBuffULng + incBuffUInt
+            );
+
+        if(refStruct->samEntryCStr == 0)
+        { /*memory allocation error*/
+            fclose(faFILE);
+            fclose(faFILE);
+            return 64;
+        } /*Memory allocation error*/
+
+        /*Set pointer to new buffer*/
+        tmpCStr = refStruct->samEntryCStr + refStruct->lenBuffULng;
+        refStruct->lenBuffULng += incBuffUInt; /*Update buff size*/
+
+        /*Reset new line markers*/
+        *(refStruct->samEntryCStr + refStruct->lenBuffULng-2) ='\0';
+
+        /*Read in next part of reference sequence*/
+        fgets(tmpCStr, refStruct->lenBuffULng, faFILE);
+
+
+        if(*refStruct->samEntryCStr == '\0')
+            return 4; /*Failed to read in anything*/
+    } /*While on the sequence line*/
+
+    fclose(faFILE);
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-21 Sec-3: Set up q-score null entry, get length, and return
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    refStruct->seqCStr = refStruct->samEntryCStr;
+
+    /*Find the end of the sequence*/
+    tmpCStr = refStruct->seqCStr;
+    refStruct->readLenUInt = 0;    /*So can find the length as well*/
+
+    while(*tmpCStr > 16)
+    { /*Find hte end of the sequence*/
+        ++tmpCStr;
+        ++refStruct->readLenUInt;
+    } /*Find hte end of the sequence*/
+
+    /*Set up Q-score entry, so score reads knows is empty*/
+    refStruct->qCStr = tmpCStr;
+    strcpy(refStruct->qCStr, "\t*\t");     /*marking no Q-score entry*/
+
+    return 1;
+} /*readInConFa*/

@@ -257,4 +257,16 @@ void binDeleteFiles(
     struct readBin *binToWipe /*Bin to delete files from*/
 ); /*Deletes all files in a readBin*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies:
+|        - binToKeep->fqPathCStr to hold binToMerge reads
+|    Deletes:
+|        - File named after binToMerge->fqPathCStr
+\---------------------------------------------------------------------*/
+void mergeBins(
+    struct readBin *binToKeep,  /*Bin to merge into*/
+    struct readBin *binToMerge /*Bin to merge into binToKeep*/
+); /*Merge two readBins together into on bin*/
+
 #endif
