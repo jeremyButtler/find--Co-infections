@@ -697,6 +697,7 @@ uint8_t freeReadTree(
     if(*readTree == 0)
         return 4;
 
+    pushReadNodeStack(&readStackAry, 0); /*Make sure their is a 0*/
     pushReadNodeStack(&readStackAry, *readTree);
 
     while(readStackAry->readNode != 0)

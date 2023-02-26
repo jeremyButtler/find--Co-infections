@@ -335,7 +335,6 @@ void freeBigNumStruct(
 
     free((*idBigNum)->bigNumAryULng); /*Should be 0 or on heap*/
     free(*idBigNum);
-
     *idBigNum = 0;  /*Make sure user can never use again*/
 
     return;
@@ -512,7 +511,10 @@ struct readInfo * cnvtIdToBigNum(
             (idBigNum->lenAllElmChar)++;
             (*lenBigNumChar)++;
             idBigNum->bigNumAryULng =
-                realloc(idBigNum->bigNumAryULng, idBigNum->lenAllElmChar);
+                realloc(
+                    idBigNum->bigNumAryULng,
+                    sizeof(unsigned long) * idBigNum->lenAllElmChar
+            ); /*Rellocate memory for the array*/
 
             if(idBigNum == 0 || readNode == 0)
             { /*If memory allocation failed*/
