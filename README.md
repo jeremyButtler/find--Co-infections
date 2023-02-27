@@ -34,7 +34,7 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
     - Their are enough parameters in find co-infections to 
       make a single help message daunting. To get around this
       I split the parameters into multiple help messages by
-      catagory. The main help message shows what I think are
+      ctagory. The main help message shows what I think are
       the most useful parameters and all commands to show
       the other help messages.
   - -prefix:                                                     [Out]
@@ -139,7 +139,7 @@ For indels we found that find co-infections V3 had more indel free
   |         2          |      1          |       0        |      1      |
   |         3          |      0          |       2        |      2      |
   |         1          |      1          |       1        |      2      |
-  |         3          |      0          |       3        |             |
+  |         3          |      0          |       3        |      3      |
 
   Table showing the number insertions and deletions consensuses built
     using UP9 PCV2 sequences from Ukraine. Consensus were built using V3
@@ -176,6 +176,11 @@ We also found that find co-infections did have similar results to
   improve the indel accuracy.
  
 ## Weaknesses:
+
+Find co-infections is set up for reads of at least 700 base pairs. Since
+  I am using percentages, these settings will scale up. However, these
+  settings will likely not scale down for smaller read lengths, such as
+  100 base pairs.
 
 Find co-infections has only been tested using data simulated from
   badread (Wick 2019) on default settings, which does produce low
@@ -328,29 +333,17 @@ Insertion errors in the sequences are found in the linked sequence list
 
   - OpenBSD (no Medaka)
   - Debian
-  - Raspberry pi 1B with a 32 bit Debian install (no Medaka)
-    - The independent install of fqGetIds did crash on this, but
-      findCoInft ran fine.
-    - I should fix this issue at some point.
+  - Raspberry pi 2B with a 32 bit Debian install (no Medaka)
 
 ## Possible plans:
 
 1. Add in full consensus building step to version three and maybe some
    masking for poorly supported bases. The majority consensus step will
    remove these bases, so I am not to worried about this.
-2. Put consensus building steps in separate file, so can make it into a
-   separate C program.
-3. Maybe multi-thread fqGetIds (in V2 was fastqGrep). Likely will not
+2. Maybe multi-thread fqGetIds (in V2 was fastqGrep). Likely will not
    happen.
-4. Probably should document how to interface with the small programs I
+3. Probably should document how to interface with the small programs I
    made (trimSamFile, scoreReads, and fqGetIds). May never be done.
-5. Breaking up code in findCoInft.c into smaller components, like I did
-   for scoreReads and trimSamFile. This is higher on my priority list.
-6. Deal with seg fault happening when all reads are removed during the
-   clustering or binning step. For now not worried about this, since 
-   the program would have finished any ways. So is is more of a
-   graceful exit. You can catch this problem by looking at the
-   prefix--read-counts.tsv file.
 
 ## Thanks:
 

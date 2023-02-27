@@ -1,1 +1,0 @@
-Wick RR. Badread: simulation of error-prone long reads. Journal of Open Source Software. 2019;4(36):1316. doi:10.21105/joss.01316.
