@@ -100,37 +100,7 @@ mv fqGetIds /path/to/install
 chmod a+x /path/to/install/fqGetIds
 ```
 
-#### How to build fqGetIds with multithreading
-
-fqGetIdsT requires that you have pthreads on your system. Pthreads is
-  POSIX, so is on most if not every unix OS. However, I am not sure if
-  pthreads is on windows. I think visual studios does have pthreads,
-  but not sure.
-
-Each thread has a separate pointer to the fastq file, but all threads
-  share a single file pointer to the output file. This means that
-  multithreading is less effective as you extract a higher percentage
-  of reads from the fastq file. This also means that multithreading
-  requires a fast harddrive. Also, running heavy process on the machine
-  at the same time, such as VMs can also take up extra CPU and file IO
-  bandwidth, which can result in similar behavior to a file IO limited
-  machine or harddrive. This can result in multiple threads taking more
-  time than a single thread. I guess my warning is, make sure you have
-  a fast harddrive and cables/chipset/bus that can keep up with your
-  harddrive.
-
-```
-cd V3
-make fqGetIdsT
-mv fqGetIdsT /path/to/install
-chmod a+x /path/to/install/fqGetIdsT
-```
-
-#### How to run fqGetIds
-
-Use fqGetIdsT if you want to multithread or use a single thread.
- Using fqGetIds is here only for systems that do not have pthreads
- installed.
+#### how to run fqGetIds
 
 ```
 fqGetIds -fastq reads.fastq -f ids.txt > extractedReads.fastq
