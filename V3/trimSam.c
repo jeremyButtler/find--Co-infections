@@ -50,6 +50,7 @@ void trimSamReads(
         if(*(samStruct.samEntryCStr) == '@')
         { /*If was a header*/
             printSamEntry(&samStruct, outFILE);
+            blankSamEntry(&samStruct);
             errorFlagUChar = readSamLine(&samStruct, samFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a header*/
@@ -61,6 +62,7 @@ void trimSamReads(
         if(!(errorFlagUChar >> 2)) /*If was header or had sequence*/
             printSamEntry(&samStruct, outFILE);
 
+        blankSamEntry(&samStruct);
         errorFlagUChar = readSamLine(&samStruct, samFILE);
     } /*While there are lines in the same file to convert*/
 
@@ -169,23 +171,6 @@ uint8_t trimSamEntry(
         --delUCStr;       /*Move of 'S' marker for soft masking*/
         delUCStr = backwarsCStrToUInt(delUCStr, &lenEndTrimUInt);
         ++delUCStr;       /*Move off the entry before the soft mask*/
-
-        while(*delUCStr > 32)
-        { /*While need to delete the soft mask entry*/
-
-            if(*incSamUCStr == '\t')
-            { /*If on a tab*/
-                ++uCharTabCnt;
-                if(uCharTabCnt == 4) /*is the sequence entry*/
-                    samStruct->seqCStr = incSamUCStr + 1;
-                if(uCharTabCnt == 5) /*is the q-score entry*/
-                    samStruct->qCStr = incSamUCStr + 1;
-            } /*If on a tab*/
-
-            *delUCStr = *incSamUCStr;
-            ++delUCStr;
-            ++incSamUCStr;
-        } /*While need to delete the soft mask entry*/
     } /*Else I am trimming bases off the end*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

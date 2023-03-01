@@ -104,16 +104,19 @@ unsigned char buildCon(
     if(refCStr != 0)
     { /*If have a reference to work with*/
         tmpCStr =
-            cStrCpInvsDelm(conData->bestReadCStr, conData->fqPathCStr);
+            cStrCpInvsDelm(conData->consensusCStr, conData->fqPathCStr);
         tmpCStr -= 6; /*move to "." in ".fastq\0"*/
-        tmpCStr = cStrCpInvsDelm("--bestRead.fasta", tmpCStr);
+        tmpCStr = cStrCpInvsDelm(tmpCStr, "--bestRead.fasta");
+
+        /*Set up the best read name*/
+        strcpy(conData->bestReadCStr, conData->consensusCStr);
         fqFILE = fopen(refCStr, "r");
 
         /*Need to make sure that I do not delete the orginal reference*/
         if(fqFILE == 0)
             return 2;
 
-        bestReadFILE = fopen(conData->bestReadCStr, "w");
+        bestReadFILE = fopen(conData->consensusCStr, "w");
 
         if(bestReadFILE == 0)
         { /*If have no write permision*/
@@ -121,8 +124,8 @@ unsigned char buildCon(
             return 2;
         } /*If have no write permision*/
 
-        while(fread(tmpBuffCStr, sizeof(char), 1024, fqFILE))
-            fwrite(tmpBuffCStr, sizeof(char), 1024, bestReadFILE);
+        while(fgets(tmpBuffCStr, 1024, fqFILE))
+            fprintf(bestReadFILE, "%s", tmpBuffCStr);
 
         fclose(fqFILE);
         fclose(bestReadFILE);
@@ -240,7 +243,7 @@ unsigned char buildCon(
             /*Set up the consnesus as the next best read*/
             fqFILE = fopen(conData->bestReadCStr, "r");
 
-            if(fqFILE != 0)
+            if(fqFILE != 0 && !(polishBl & 1))
             { /*If need to remove the best read file*/
                 fclose(fqFILE);
                 fqFILE = 0;
@@ -264,7 +267,11 @@ unsigned char buildCon(
             );  /*Extract top reads that mapped to selected best read*/
 
             if(conSet->numReadsForConUL < conSet->minReadsToBuildConUL)
+            { /*If need to get a new best read*/
+                polishBl = 0; /*do best read if reference fails*/
+                errUC = 16; /*Could not build a consensus*/
                 break; /*Get a new best read*/
+            } /*If need to get a new best read*/
 
             if(errUC & 64)
                 return 64; /*Memory allocation error*/
@@ -279,6 +286,9 @@ unsigned char buildCon(
                 return 64; /*Memory allocation error*/
         } /*Loop till have done all the users requested polishing*/
 
+        if(!(errUC & 1))    /*If need to do another round*/
+            polishBl = 0; /*do best read if reference fails*/
+
         remove(conData->bestReadCStr); /*Remove temporary consensus*/
         *tmpCStr = 'q'; /*change best read back to fastq*/
     } /*While have not built a consensus*/
@@ -290,11 +300,14 @@ unsigned char buildCon(
     if(errUC & 16)
         return 16;  /*Failed to build a consensus*/
 
-    bestReadFILE = fopen(conData->bestReadCStr, "r");
-    fqFILE = fopen(conData->fqPathCStr, "a");
+    if(polishBl == 0)
+    { /*If had a best read file*/
+        bestReadFILE = fopen(conData->bestReadCStr, "r");
+        fqFILE = fopen(conData->fqPathCStr, "a");
 
-    while(fgets(tmpBuffCStr, 1024, bestReadFILE))
-        fprintf(fqFILE, "%s", tmpBuffCStr);
+        while(fgets(tmpBuffCStr, 1024, bestReadFILE))
+            fprintf(fqFILE, "%s", tmpBuffCStr);
+    } /*If had a best read file*/
 
     fclose(fqFILE);
     fclose(bestReadFILE);

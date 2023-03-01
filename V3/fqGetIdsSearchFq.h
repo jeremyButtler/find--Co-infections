@@ -27,9 +27,9 @@
 #    Returns: 0 if not a valid fastq file
 ##############################################################################*/
 uint8_t fastqExtract(
-    FILE *filterFile,           /*to file with ID's to search for*/
-    FILE *fastqFile,            /*fastq file to search*/
-    FILE *outFile,              /*File to write extracted reads to*/
+    char *filtPathCStr,        /*Path to file with read ids to extract*/
+    char *fqPathCStr,          /*Path to fastq file to extract reads*/
+    char *outPathCStr,         /*Path to fastq file to to write reads*/
     uint8_t sizeReadStackUChar, /*Number of elements to use in stack*/
     uint32_t buffSizeUInt,      /*Size of buffer to read input with*/
     uint8_t hashSearchChar,     /*1: do hash search, 0: do Tree search*/

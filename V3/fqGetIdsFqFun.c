@@ -98,7 +98,8 @@ uint8_t parseFastqHeader(
             if(!(hexTblCharAry[(unsigned char) **endNameCStr] & 32))
             { /*If is a hex character*/
                 (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) **endNameCStr] << charBit);
+                    (hexTblCharAry[(unsigned char) **endNameCStr]);
+                *elmOnPtrULng = *elmOnPtrULng << 4;
                 charBit += 4;
             } /*If is a hex character*/
 
@@ -125,6 +126,7 @@ uint8_t parseFastqHeader(
                 continue;
             } /*If ran out of buffer & need to read more of the file*/
         } /*while empty bits in the current big number unsigned long element*/
+
     } while((unsigned char) **endNameCStr > 32);
     /*While still on the read name part of header*/
 

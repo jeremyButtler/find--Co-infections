@@ -86,6 +86,19 @@ fqGetIdsArgs=-g \
     fqGetIds.c \
     -o fqGetIds
 
+# fqGetIds multithreaded command
+fqGetIdsTArgs=-g \
+    -Wall \
+	-pthread \
+    cStrToNumberFun.c \
+    fqGetIdsFqFun.c \
+    fqGetIdsStructs.c \
+    fqGetIdsAVLTree.c \
+    fqGetIdsHash.c \
+    fqGetIdsSearchFq.c \
+    fqGetIdsSearchThread.c \
+    fqGetIdsThread.c \
+    -o fqGetIdsT
 
 # To find the compiler I am using || to default to different names for
 # gcc when the default gcc does not exist or failes. || is universal
@@ -120,6 +133,10 @@ trimSam:
 # Program to extract fastq entries by a set of read ids
 fqGetIds:
 	$(CC) -O3 $(fqGetIdsArgs) || gcc -O3 $(fqGetIdsArgs) || egcc -O3 $(fqGetIdsArgs) || cc -O3 $(fqGetIdsArgs)
+
+# Program to extract fastq entries by a set of read ids
+fqGetIdsT:
+	$(CC) -O3 $(fqGetIdsTArgs) || gcc -O3 $(fqGetIdsTArgs) || egcc -O3 $(fqGetIdsTArgs) || cc -O3 $(fqGetIdsTArgs)
 
 # commands for indvidual compilers
 openbsd:

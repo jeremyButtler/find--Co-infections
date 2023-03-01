@@ -128,9 +128,10 @@ For indels we found that find co-infections V3 had more indel free
   (figures/Similarity--20000--v3--80-20--indels.svg). However, when I
   run find co-infections V3 on real porcine circovirus type 2 reads
   (From doi.org/10.3390/v14050924), I noticed that most consensuses had
-  at least one to three indels to their manually curated sequences.
-  This is much higher than the number of V1 sequences with indels. This
-  shows that simulated data does not completely capture the error rates.
+  at least one to three indels to their manually curated sequences,
+  is higher than the number of V1 sequences with indels
+  (data not shown). This shows that simulated data does not completely
+  capture the error rates.
 
   | UP9 Num. sequences | Num. insertions | Num. deletions | Num. indels |
   |:------------------:|:---------------:|:--------------:|:-----------:|
@@ -170,10 +171,8 @@ We also found that find co-infections did have similar results to
   also found that version three does produce more consensuses with
   indels and may have a problem with false positives at deep read
   depths. One problem is that this is not a ground truth dataset and
-  thus, we have no idea what the real answer is for any of these samples.
-  Also, version three was tested on default settings, which does not use
-  Medaka. So, it is possible running version three with Medaka might
-  improve the indel accuracy.
+  thus, we have no idea what the real answer is for any of these
+  samples.
  
 ## Weaknesses:
 

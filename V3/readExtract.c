@@ -654,7 +654,6 @@ uint8_t findBestXReads(
         * Fun-3 Sec-4 Sub-3: Check if Score meets requirements
         \**************************************************************/
 
-           
         if(samStruct->mapqUChar < minStats->minMapqUInt ||
            !(checkIfKeepRead(minStats, samStruct) & 1)
         ) { /*If the read Is to different from the reference*/

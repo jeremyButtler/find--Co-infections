@@ -16,61 +16,101 @@
 
 #include "fqGetIdsSearchFq.h"
 
-/*##############################################################################
-# Output:
-#    Stdout: Prints out kept reads
-#    Returns: 0 if not a valid fastq file
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|   - Stdout: Prints out kept reads
+|   - Returns:
+|     o 2 if invalid filter file
+|     o 4 if invalid input fastq file
+|     o 8 if could not open the output file
+|     o 16 if both filter and fastq file coming from stdin
+\---------------------------------------------------------------------*/
 uint8_t fastqExtract(
-    FILE *filterFile,           /*to file with ID's to search for*/
-    FILE *fastqFile,            /*fastq file to search*/
-    FILE *outFile,              /*File to write extracted reads to*/
-    uint8_t sizeReadStackUChar, /*Number of elements to use in stack*/
-    uint32_t buffSizeUInt,      /*Size of buffer to read input with*/
-    uint8_t hashSearchChar,     /*1: do hash search, 0: do Tree search*/
-    uint8_t printReverseChar    /*1: Keep reads in filter file
-                                  0: ingore reads in filter file*/
+    char *filtPathCStr,        /*Path to file with read ids to extract*/
+    char *fqPathCStr,          /*Path to fastq file to extract reads*/
+    char *outPathCStr,         /*Path to fastq file to to write reads*/
+    uint8_t sizeReadStackUChar,/*Number of elements to use in stack*/
+    uint32_t lenBuffUI,     /*Size of buffer to read input with*/
+    uint8_t hashSearchChar,    /*1: do hash search, 0: do Tree search*/
+    uint8_t printReverseChar   /*1: Keep reads in filter file
+                                 0: ingore reads in filter file*/
 ) /*Searches and extracts reads from a fastq file using read id's*/
 { /*fastqExtract*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 TOC: Pull out reads of interest
-    #    fun-1 sec-1: Variable declerations
-    #    fun-1 sec-2: Build the tree for reads
-    #    fun-1 sec-3: Call the tree or hash table function to search the file
-    #    fun-1 sec-4: Handle errors, clean up, & exit
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-1 TOC: Pull out reads of interest
+    '    fun-1 sec-1: Variable declerations
+    '    fun-1 sec-2: Check if files exist
+    '    fun-1 sec-3: Build the tree for reads
+    '    fun-1 sec-4: Call tree or hash table function to search file
+    '    fun-1 sec-5: Handle errors, clean up, & exit
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-1 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    unsigned long
-        majicNumULng = 0; /*Majic number for kunth multiplicative hashing*/
+    char buffCStr[lenBuffUI + 1];  /*Holds the input line*/
 
-    char 
-        lineInCStr[buffSizeUInt + 1];  /*Holds the input line*/
+    /*Majic number for kunth multiplicative hashing*/
+    unsigned long majicNumULng = 0;
+    uint8_t digPerKeyUChar = 0;  /*Number digitis used per key in hash*/
 
-    uint8_t
-        digPerKeyUChar = 0,  /*Number digitis used per key in hash*/
-        hashFailedBool = 1;  /*Assume hash tabel failed, makes AVL
-                               error out when fail*/
+    /*Assume hash tabel failed, makes AVL error out when fail*/
+    uint8_t hashFailedBool = 1;
+    uint64_t hashSizeULng = 0;       /*Will hold Size of hash table*/
 
-    uint64_t
-        hashSizeULng = 0,       /*Will hold Size of hash table*/
-        fastqErrULng = 0;       /*Tells if error in fastq entry*/
+    uint64_t fastqErrULng = 0;       /*Tells if error in fastq entry*/
 
-    struct readNodeStack
-        readStack[sizeReadStackUChar + 2];
-         /*Stack to use for searching tree. (depth = 73 = 10^18 nodes)*/
+    /*Stack to use for searching tree. (depth = 73 = 10^18 nodes)*/
+    struct readNodeStack readStack[sizeReadStackUChar + 2];
+    struct readInfo *readTree = 0;
+    struct readInfo **hashTbl = 0;
 
-    struct readInfo
-        *readTree = 0,
-        **hashTbl = 0;
+    FILE *filtFILE = 0;          /*to file with ID's to search for*/
+    FILE *fqFILE = 0; /*fastq file to search*/
+    FILE *outFILE = 0;           /*File to write extracted reads to*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-2: Build the tree or hash table for reads
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-2: Check if files exist
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    if(filtPathCStr == 0 && fqPathCStr == 0)
+        return 16;
+
+    if(filtPathCStr == 0)
+         filtFILE = stdin;
+    else
+        filtFILE = fopen(filtPathCStr, "r");
+
+    if(filtFILE == 0)
+        return 2;      /*No input file with read ids*/
+
+    if(fqPathCStr == 0)
+        fqFILE = stdin;
+    else
+        fqFILE = fopen(fqPathCStr, "r");
+
+    if(fqFILE == 0)
+    { /*If could not open the fastq file*/
+        fclose(filtFILE);
+        return 4;      /*No input file with reads to extract*/
+    } /*If could not open the fastq file*/
+
+    if(outPathCStr == 0) 
+        outFILE = stdout;
+    else
+        outFILE = fopen(outPathCStr, "w");
+
+    if(outFILE == 0)
+    { /*if I could not open the output file*/
+        fclose(filtFILE);
+        fclose(fqFILE);
+    } /*if I could not open the output file*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-3: Build the tree or hash table for reads
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*Make sure start & end of my stacks are marked*/
     readStack[0].readNode = 0;
@@ -80,10 +120,10 @@ uint8_t fastqExtract(
     { /*If just using the avl tree for searching*/
         readTree =
             buildAvlTree(
-                filterFile,    /*File with read ids to keep or ignore*/
-                readStack,     /*Stack for searching trees in hash table*/
-                lineInCStr,    /*Buffer to hold one line from file*/
-                buffSizeUInt   /*Size of buffer to hold each line of the file*/
+                filtFILE,    /*File with target read ids*/
+                readStack,   /*Stack for searching trees*/
+                buffCStr,  /*Buffer to hold one line from file*/
+                lenBuffUI /*Size of buffer*/
         ); /*Build the tree of reads to search*/
     } /*If just using the avl tree for searching*/
 
@@ -91,9 +131,9 @@ uint8_t fastqExtract(
     { /*Else I am searching using a hash function*/
         hashTbl =
             makeReadHash(
-                filterFile,     /*Name of file with read ids to hash*/
-                lineInCStr,     /*Buffer to hold one line from file*/
-                buffSizeUInt,   /*Size of buffer to hold each line of the file*/
+                filtFILE,     /*Name of file with read ids to hash*/
+                buffCStr,     /*Buffer to hold one line from file*/
+                lenBuffUI,   /*Size of buffer to hold each line of the file*/
                 readStack,      /*Stack for searching trees in hash table*/
                 &hashSizeULng,  /*Will hold Size of hash table*/
                 &digPerKeyUChar, /*Number digitis used per key in hash*/
@@ -102,7 +142,7 @@ uint8_t fastqExtract(
         ); /*Build the hash table*/
     } /*Else I am searching using a hash function*/
 
-    fclose(filterFile); /*No longer need open*/
+    fclose(filtFILE); /*No longer need open*/
 
     if(readTree == 0 && hashFailedBool == 1)
     { /*If calloc errored out in making the tree*/
@@ -120,10 +160,10 @@ uint8_t fastqExtract(
 
     fastqErrULng =
         extractReads(
-            fastqFile,         /*to fastq file to search through*/
-            outFile,           /*File to write extracted reads to*/
-            lineInCStr,        /*Buffer to hold input from fastq file*/
-            buffSizeUInt,      /*Size of lineInCStr*/
+            fqFILE,         /*to fastq file to search through*/
+            outFILE,           /*File to write extracted reads to*/
+            buffCStr,        /*Buffer to hold input from fastq file*/
+            lenBuffUI,      /*Size of buffCStr*/
             majicNumULng,      /*Holds majick number for kunths hash*/
             digPerKeyUChar,    /*Digits needed to get a key*/
             &printReverseChar,
@@ -135,6 +175,9 @@ uint8_t fastqExtract(
     # Fun-1 Sec-4: Handle errors, clean up, & exit
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    fclose(fqFILE); /*No longer need open*/
+    fclose(outFILE); /*No longer need open*/
+
     /*Check if freeing tree or hash table with tree*/
     if(hashSearchChar == 0)
         freeReadTree(&readTree, readStack);
@@ -145,58 +188,59 @@ uint8_t fastqExtract(
 
     if(fastqErrULng == 0)
         return 0;         /*Not a valid fastq file*/
+
     return 1; /*Success*/
 } /*fastqExtract*/
 
 /*##############################################################################
 # Output:
-#    Returns: balanced readInfo tree with all read id's in filterFile
+#    Returns: balanced readInfo tree with all read id's in filtFILE
 #    Returns: 0 if calloc errored out
 ##############################################################################*/
 struct readInfo * buildAvlTree(
-    FILE *filterFile,                 /*File with read ids to keep or ignore*/
+    FILE *filtFILE,                 /*File with read ids to keep or ignore*/
     struct readNodeStack *readStack,  /*Stack to use in building AVL tree*/
-    char *lineInCStr,        /*Buffer to hold one line from file*/
-    uint32_t buffSizeUInt         /*Size of buffer to read each line*/
-) /*Builds a readInfo tree with read id's in filterFile*/
+    char *buffCStr,        /*Buffer to hold one line from file*/
+    uint32_t lenBuffUI         /*Size of buffer to read each line*/
+) /*Builds a readInfo tree with read id's in filtFILE*/
 { /*buildAvlTree function*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 TOC:
-    #    fun-2 Sec-1: Variable declerations
-    #    fun-2 Sec-2: Read id's in filter file and build tree
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-2 TOC:
+    '    fun-2 Sec-1: Variable declerations
+    '    fun-2 Sec-2: Read id's in filter file and build tree
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    char
-        *tmpIdCStr = 0;
+    char *tmpIdCStr = 0;
+    unsigned char maxHexChar = 1;  /*Size of bigNum array*/
+    uint64_t lenInputULng = lenBuffUI; /*length of read id*/
 
-    unsigned char
-        maxHexChar = 1;  /*Size of bigNum array*/
+    struct readInfo *readTree = 0;
+    struct readInfo *lastRead = 0;
 
-    uint64_t
-        lenInputULng = buffSizeUInt; /*length of read id*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-2: Read id's in filter file and build tree
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    struct readInfo
-        *readTree = 0,
-        *lastRead = 0;
+   /*Intalize read in loop*/
+   *(buffCStr + lenBuffUI) = '\0';
+   tmpIdCStr = buffCStr + lenBuffUI; /*Force initial read in*/
+   lenInputULng = lenBuffUI; /*Make sure read in first read*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-2: Read id's in filter file and build tree
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    do { /*While ids to read in*/
        lastRead = 
            cnvtIdToBigNum(
-               lineInCStr,
-               buffSizeUInt,
+               buffCStr,
+               lenBuffUI,
                &tmpIdCStr,
                &lenInputULng,
                &maxHexChar,
-               filterFile
+               filtFILE
        ); /*Read in id and convert to big number*/
 
        if(lastRead == 0)
@@ -222,18 +266,18 @@ struct readInfo * buildAvlTree(
 
             if(*tmpIdCStr == '\0')
             { /*If at the end of the buffer, but not at start of read*/
-                if(lenInputULng < buffSizeUInt)
+                if(lenInputULng < lenBuffUI)
                     break; /*At end of file*/
 
                 lenInputULng = fread(
-                                   lineInCStr,
+                                   buffCStr,
                                    sizeof(char),
-                                   buffSizeUInt,
-                                   filterFile
+                                   lenBuffUI,
+                                   filtFILE
                 ); /*Read in more of the file*/
 
-                *(lineInCStr + lenInputULng) = '\0';/*make sure a c-string*/
-                tmpIdCStr = lineInCStr;
+                *(buffCStr + lenInputULng) = '\0';/*make sure a c-string*/
+                tmpIdCStr = buffCStr;
             } /*If at the end of the buffer, but not at start of read*/
         } /*While not on next entry*/
    } while(lastRead != 0);/*ids to read in*/
@@ -247,10 +291,10 @@ struct readInfo * buildAvlTree(
 #    Returns: 0 if was not a valid fastq file
 ##############################################################################*/
 uint8_t extractReads(
-    FILE *fastqFile,            /*fastq file to search through*/
-    FILE *outFile,              /*File to write extracted reads to*/
-    char *lineInCStr,        /*Buffer to hold input from fastq file*/
-    uint32_t buffSizeUInt,      /*Size of lineInCStr*/
+    FILE *fqFILE,            /*fastq file to search through*/
+    FILE *outFILE,              /*File to write extracted reads to*/
+    char *buffCStr,        /*Buffer to hold input from fastq file*/
+    uint32_t lenBuffUI,      /*Size of buffCStr*/
     unsigned long majicNumULng, /*Holds majick number for kunths hash*/
     uint8_t digPerKeyUChar,     /*Digits needed to get a key*/
     uint8_t *printNonMatchBool, /*1: print non-match, 0: print match*/
@@ -273,7 +317,7 @@ uint8_t extractReads(
        endOfFileChar = 0;       /*Marks if at the end of the file*/
 
     char
-       *readPosCStr = 0,        /*Position in lineInCStr*/
+       *readPosCStr = 0,        /*Position in buffCStr*/
        dummyConvertUChar = '0',  /*blanck number to initalize bignum*/
        *startReadCStr = 0;      /*Start of read id for a fastq entry*/
 
@@ -297,9 +341,9 @@ uint8_t extractReads(
     #    fun-3 sec-3 sub-4: Keeping read, print out read
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    lineInCStr[buffSizeUInt] = '\0';          /*Make c-string for fread*/
-    readPosCStr = lineInCStr + buffSizeUInt; /*So will read in buffer*/
-    lenInputULng = buffSizeUInt;               /*So does not exit early*/
+    buffCStr[lenBuffUI] = '\0';          /*Make c-string for fread*/
+    readPosCStr = buffCStr + lenBuffUI; /*So will read in buffer*/
+    lenInputULng = lenBuffUI;               /*So does not exit early*/
 
     /*Intalize the bigNum struct*/
     lenIdInt = 256;
@@ -320,14 +364,14 @@ uint8_t extractReads(
 
         endOfFileChar =
             parseFastqHeader(
-                lineInCStr,     /*Buffer to hold file input*/
+                buffCStr,     /*Buffer to hold file input*/
                 &startReadCStr, /*Will hold start of read name*/
                 &readPosCStr,   /*Start of read name, wil hold end*/
                 &lenInputULng,
-                buffSizeUInt,
+                lenBuffUI,
                 &lenIdInt,     /*Will hold the lenght of read id*/
                 idBigNum,
-                fastqFile
+                fqFILE
         ); /*Get read name from file*/
 
          if(endOfFileChar == 0)
@@ -371,11 +415,11 @@ uint8_t extractReads(
 
              endOfFileChar =
                  moveToNextFastqEntry(
-                     lineInCStr,
+                     buffCStr,
                      &readPosCStr,   /*Start of read name, wil hold end*/
-                     buffSizeUInt,
+                     lenBuffUI,
                      &lenInputULng,   /*Holds how many characters fread got*/
-                     fastqFile
+                     fqFILE
              ); /*Move to next fastq entry*/
 
              if(endOfFileChar == 0)
@@ -393,13 +437,13 @@ uint8_t extractReads(
 
          endOfFileChar =
              printFastqEntry(
-                 lineInCStr,
+                 buffCStr,
                  &readPosCStr,   /*Start of read name, wil hold end*/
                  &startReadCStr, /*points to start of read name*/
-                 buffSizeUInt,
+                 lenBuffUI,
                  &lenInputULng,
-                 outFile,
-                 fastqFile
+                 outFILE,
+                 fqFILE
          ); /*Print read & move to next read*/
 
          if(endOfFileChar == 0)

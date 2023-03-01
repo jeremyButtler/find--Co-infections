@@ -307,7 +307,8 @@ void strToBackwardsBigNum(
             if(!(hexTblCharAry[(unsigned char) *cStrToCnvt] & 32))
             { /*If is a hex character*/
                 (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) *cStrToCnvt] << charBit);
+                    (hexTblCharAry[(unsigned char) *cStrToCnvt]);
+                *elmOnPtrULng = *elmOnPtrULng << 4;
                 charBit += 4;
             } /*If is a hex character*/
 
@@ -363,7 +364,7 @@ unsigned long cmpBigNums(
             return -1;
     } /*If on big number is larger*/
 
-    for(short shtElm = bigNumOne->lenUsedElmChar - 1; shtElm > -1; shtElm--)
+    for(short shtElm = 0; shtElm < bigNumOne->lenUsedElmChar; ++shtElm)
     { /*For all unsinged longs in the big number*/
         if(
              *(bigNumOne->bigNumAryULng + shtElm) !=
@@ -551,7 +552,8 @@ struct readInfo * cnvtIdToBigNum(
             if(!(hexTblCharAry[(unsigned char) **endNameCStr] & 32))
             { /*If was a hex character*/
                 (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) **endNameCStr] << charBit);
+                    (hexTblCharAry[(unsigned char) **endNameCStr]);
+                *elmOnPtrULng = *elmOnPtrULng << 4;
                 charBit += 4;
             } /*If was a hex character*/
 
@@ -573,6 +575,7 @@ struct readInfo * cnvtIdToBigNum(
                 continue;
             } /*If ran out of buffer & need to read more of the file*/
         } /*while empty bits in the current big number unsigned long element*/
+
     } while((unsigned char) **endNameCStr > 32);
     /*While still on the read name part of header*/
 

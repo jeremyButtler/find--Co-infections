@@ -1,6 +1,7 @@
 /*##############################################################################
-# Name: clustGraph.c
-# Use: Graps selected reads from a fastq file
+# Name: fqGetIdsThreads.c
+# Use: Is a multi-threaded implementation of fqGetIds, which grabs
+#      selected reads from a fastq file
 # Input:
 #    -f file.txt:
 #      - File with reads to copy from a fastq file           [Required]
@@ -17,6 +18,8 @@
 #          - Use a tree search instead of hashing.           [Default: hashing]
 #              - Default search is hash combined with tree. 
 #          - Adds more time, but uses slightly less memory. 
+#    -threads:                                               [2]
+#      - Number of threads to use
 #    -v:
 #      - Print reads not provided by -f                      [Default: not set]
 #    -V:
@@ -31,7 +34,8 @@
 #    fun-2: checkInput: check and process the user input (TO BE WRITTEN)
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-#include "fqGetIdsSearchFq.h" /*Holds functions to do read extraction*/
+#include "cStrToNumberFun.h"       /*Functions for number conversions*/
+#include "fqGetIdsSearchThread.h" /*Holds functions to do read extraction*/
     /*
       Includes:
           - "fqGetIdsFqFun.h"    # Functoions to read fastq file
@@ -55,6 +59,7 @@ char * checkInput(int *lenArgsInt,        /*Number of arugments user input*/
                   char **filtFileCStr,    /*Holds path/name of filter file*/
                   char **fastqFileCStr,   /*Holds path/name of fastq file*/
                   char **outFileCStr,     /*Holds path/name of output file*/
+                  unsigned char *threadsUC,/*Number of threads to use*/
                   char *stdinFastqChar,   /*1: stdin input for fastq*/
                   char *stdinFiltChar,    /*1: stdin input for filter*/
                   char *useHashChar,      /*Set to 0 if user wants tree search*/
@@ -91,8 +96,8 @@ int main(int lenArgsInt, char *argsCStr[])
         useHashChar = 1,      /*Holds if user wanted hashing [1: use hash]*/
         *inputChar = 0;       /*Holds arguemnt that had input error*/
 
-    unsigned char
-        sizeReadStackUChar = 200;
+    unsigned char sizeReadStackUChar = 200;
+    unsigned char threadsUC = 2;
 
     FILE *testFILE = 0;       /*Input file*/
 
@@ -109,6 +114,8 @@ int main(int lenArgsInt, char *argsCStr[])
             \n      - Take filter file from stdin            [Default: not set]\
             \n    -fastq file.fastq:\
             \n      - Fastq file to filter reads from        [Required]\
+            \n    -threads                                   [2]\
+            \n      - Number of threads to use.\
             \n    - out:\
             \n      - Name of file to output reads to        [stdout]\
             \n    -no-hash:\
@@ -132,6 +139,7 @@ int main(int lenArgsInt, char *argsCStr[])
                            &filtFileCStr,
                            &fastqFileCStr,
                            &outFileCStr,
+                           &threadsUC, /*Number of threads to use*/
                            &stdinFastqChar,
                            &stdinFiltChar,
                            &useHashChar,
@@ -279,10 +287,11 @@ int main(int lenArgsInt, char *argsCStr[])
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(
-        fastqExtract(
+        fastqThreadExtract(
             filtFileCStr,  /*File with read targets to keep or ignore*/
-            fastqFileCStr, /*Fastq File with reads to extract*/
-            outFileCStr,   /*File to put output to*/
+            fastqFileCStr,      /*Fastq File with reads to extract*/
+            outFileCStr,        /*File to put output to*/
+            threadsUC,          /*Number of threads to use*/
             sizeReadStackUChar, /*Number of elements to use in stack*/
             buffSizeULng,       /*Size of buffer to read input with*/
             useHashChar,        /*Tells if doing search with hashing*/
@@ -313,6 +322,7 @@ char * checkInput(int *lenArgsInt,        /*Number of arugments user input*/
                   char **filtFileCStr,    /*Holds path/name of filter file*/
                   char **fastqFileCStr,   /*Holds path/name of fastq file*/
                   char **outFileCStr,     /*Holds path/name of output file*/
+                  unsigned char *threadsUC,/*Number of threads to use*/
                   char *stdinFastqChar,   /*1: stdin input for fastq*/
                   char *stdinFiltChar,    /*1: stdin input for filter*/
                   char *useHashChar,      /*Set to 0 if user wants tree search*/
@@ -338,6 +348,9 @@ char * checkInput(int *lenArgsInt,        /*Number of arugments user input*/
 
         else if(strcmp(tmpCStr, "-out") == 0)
             *outFileCStr = singleArgCStr;
+
+        else if(strcmp(tmpCStr, "-threads") == 0)
+            cStrToUChar(singleArgCStr, threadsUC);
 
         else if(strcmp(tmpCStr, "-no-hash") == 0)
         { /*If user wants to do tree search instead*/

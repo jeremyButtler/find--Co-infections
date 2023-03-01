@@ -113,6 +113,8 @@ int main(
             \n        - Fastq file with reads to search      [Required]\
             \n    -ref:\
             \n        - Reference used to build consensus   [Best read]\
+            \n    -prefix:                                  [out]\
+            \n        - Prefix to name output file\
             \n    -stats:                                    [Not used]\
             \n        - tsv file output by score reads to use\
             \n          to select the best read by mapping\
@@ -131,14 +133,6 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
-            \n    -read-ref-min-read-length:                 [600]\
-            \n       - Discard reads with read lengths under\
-            \n         this when binning.\
-            \n       - Applied after the trimming step.\
-            \n    -read-ref-max-read-length:                 [1000]\
-            \n       - Discard reads with read lengths over\
-            \n         this when binning.\
-            \n       - Applied after the trimming step.\
             \n Additional Help messages:\
             \n    -h-build-consensus:\
             \n        - Print paramaters for building the consensus\
@@ -839,7 +833,6 @@ char * getUserInput(
 
          else if(strcmp(parmCStr, "-read-read-max-g-del-homo") == 0)
             cStrToUInt(inputCStr,&readToReadMinStats->maxHomoDelAry[3]);
-
 
         else
             return parmCStr;

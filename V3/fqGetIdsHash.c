@@ -212,27 +212,17 @@ uint64_t calcHash(
     # Fun-2 Sec-1 TOC: Find the hash for a single read id
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-   if(idBigNum->lenUsedElmChar < 2) /*The number fit in a single limb*/
-       return
+    return
          *(idBigNum->bigNumAryULng) *
          *majicNumULng >>
-         ((sizeof(unsigned long) << 3) - *digPerKeyUChar); /*<< 3 (byte to bit)*/
-
-   return
-       (
-        *(idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar - 1) +
-        *(idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar - 2)
-       ) *
-       *majicNumULng >>
-       ((sizeof(unsigned long) << 3) - *digPerKeyUChar);
-
+         ((sizeof(unsigned long) << 3) - *digPerKeyUChar);
+         /*<< 3 (byte to bit)*/
    /*Using unsinged long, because want to vary with arcitecture*/
    /*
-     Idea is that that Kunths multiplicative hash is only keeping the most
-     significant digits. So, I can cheat & only multiply the most siginificant
-     digits. This will loose some percisions since remainders are not passed,
-     but removes big number arithmetic. I add the two most significant limbs,
-     beacuse one limb may not be completely filled.
+     Idea is that that Kunths multiplicative hash is only keeping the
+     most significant digits. So, I can cheat & only multiply the most
+     siginificant digits. This will loose some percisions since
+     remainders are not passed,
    */
 } /*calcHash*/
 

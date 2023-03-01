@@ -1243,9 +1243,9 @@ void printSamEntry(
       their might be multiple entries for a single read. In this case
       only the first entry has the sequence.*/
     if(samStruct->queryCStr != 0)
-        fprintf(outFILE, "%s\n", samStruct->queryCStr);
+        fprintf(outFILE, "%s", samStruct->queryCStr);
     else
-        fprintf(outFILE, "%s\n", samStruct->samEntryCStr); /*header*/
+        fprintf(outFILE, "%s", samStruct->samEntryCStr); /*header*/
 } /*printSamEntry*/
 
 /*---------------------------------------------------------------------\
