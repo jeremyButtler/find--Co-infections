@@ -591,7 +591,6 @@ uint8_t binReadToCon(
     \******************************************************************/
 
     tmpStatsFILE = fopen(tmpStatsCStr, "w"); /*Open the temp file*/
-
     otherBinFILE = fopen(tmpFqCStr, "w"); /*file for discarded reads*/
 
     /******************************************************************\
@@ -599,23 +598,9 @@ uint8_t binReadToCon(
     \******************************************************************/
 
     /*Copy bin fastq name to cluster fastq name*/
-    strcpy(binClust->fqPathCStr, binTree->fqPathCStr);
-
-    tmpCStr = binClust->fqPathCStr;
-
-    while(*tmpCStr != '\0')
-        ++tmpCStr;
-
+    tmpCStr = cStrCpInvsDelm(binClust->fqPathCStr, binTree->fqPathCStr);
     tmpCStr -= 6; /*get to '.' in ".fastq"*/
-
-    /*Add --*/
-    *tmpCStr = '-';
-    ++tmpCStr;
-    *tmpCStr = '-';
-    ++tmpCStr;
-
-    strcpy(tmpCStr, "cluster-");
-    tmpCStr += 8;
+    tmpCStr = cStrCpInvsDelm(tmpCStr, "--clust-");
 
     /*Add the cluster number to the fastq file name*/
     tmpCStr = uCharToCStr(tmpCStr, *clustUChar);
