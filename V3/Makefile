@@ -3,6 +3,8 @@ gccArgs=-g \
     -Wall \
     cStrToNumberFun.c \
     cStrFun.c \
+    minAlnStatsStruct.c \
+    FCIStatsFun.c \
     printErrors.c \
     samEntryStruct.c \
     findCoInftChecks.c \
@@ -16,8 +18,8 @@ gccArgs=-g \
     fqGetIdsSearchFq.c \
     findCoInftBinTree.c \
     readExtract.c \
-	binReadsFun.c \
-	buildConFun.c \
+    binReadsFun.c \
+    buildConFun.c \
     findCoInft.c \
     -o findCoInft
 
@@ -25,6 +27,8 @@ gccBuildConArgs=-g \
     -Wall \
     cStrToNumberFun.c \
     cStrFun.c \
+	minAlnStatsStruct.c \
+    FCIStatsFun.c \
     printErrors.c \
     samEntryStruct.c \
     findCoInftChecks.c \
@@ -47,6 +51,8 @@ gccBinReadsArgs=-g \
     fqAndFaFun.c \
     cStrToNumberFun.c \
     cStrFun.c \
+	minAlnStatsStruct.c \
+	FCIStatsFun.c \
     printErrors.c \
     samEntryStruct.c \
     findCoInftChecks.c \
@@ -67,17 +73,25 @@ trimGccArgs=-g \
     -o trimSamFile
 
 scoreGccArgs= -g \
-         -Wall\
-         printErrors.c \
-         cStrToNumberFun.c \
-         samEntryStruct.c \
-         fqAndFaFun.c \
-         scoreReadsFun.c \
-         scoreReads.c \
-         -o scoreReads
+    -Wall\
+    printErrors.c \
+    cStrToNumberFun.c \
+    minAlnStatsStruct.c \
+    FCIStatsFun.c \
+    samEntryStruct.c \
+    fqAndFaFun.c \
+    scoreReadsFun.c \
+    scoreReads.c \
+    -o scoreReads
 
 fqGetIdsArgs=-g \
     -Wall \
+    cStrToNumberFun.c \
+    cStrFun.c \
+    FCIStatsFun.c \
+    printErrors.c \
+    samEntryStruct.c \
+    fqAndFaFun.c \
     fqGetIdsFqFun.c \
     fqGetIdsStructs.c \
     fqGetIdsAVLTree.c \
@@ -90,7 +104,13 @@ fqGetIdsArgs=-g \
 fqGetIdsTArgs=-g \
     -Wall \
 	-pthread \
+	-DTHREADS \
     cStrToNumberFun.c \
+    cStrFun.c \
+    FCIStatsFun.c \
+    printErrors.c \
+    samEntryStruct.c \
+    fqAndFaFun.c \
     fqGetIdsFqFun.c \
     fqGetIdsStructs.c \
     fqGetIdsAVLTree.c \
@@ -98,7 +118,7 @@ fqGetIdsTArgs=-g \
     fqGetIdsSearchFq.c \
     fqGetIdsSearchThread.c \
     fqGetIdsThread.c \
-    -o fqGetIdsT
+    -o fqGetIds
 
 # To find the compiler I am using || to default to different names for
 # gcc when the default gcc does not exist or failes. || is universal
@@ -145,3 +165,17 @@ linux:
 	gcc -O2 $(gccArgs)
 cc:
 	cc -O2 $(gccArgs)
+
+gccTrimSam:
+	gcc -O2 $(trimGccArgs)
+
+gccBuildCon:
+	gcc -O2 $(gccBuildConArgs)
+gccBinReads:
+	gcc -O2 $(gccBinReadsArgs)
+gccScoreReads:
+	gcc -O2 $(scoreGccArgs)
+gccFqGetIdsT:
+	gcc -O3 $(fqGetIdsTArgs)
+gccFqGetIds:
+	gcc -O3 $(fqGetIdsArgs)

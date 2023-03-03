@@ -92,7 +92,7 @@ uint8_t checkIfKeepRead(
 { /*checkIfKeepRead*/
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-    ' Fun-16 TOC: Sec-1 Sub-1: checkIfKeepRead
+    ' Fun-2 TOC: Sec-1 Sub-1: checkIfKeepRead
     \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     float

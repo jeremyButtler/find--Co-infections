@@ -8,6 +8,7 @@
 #define FQGREPFQFUN_H
 
 #include "fqGetIdsStructs.h" /*<stdlib.h>, <stdio.h>, <stdint.h>*/
+#include "fqAndFaFun.h"      /*Move to next fastq entry*/
      /*Has structure functions & hex look up tables*/
 
 /*##############################################################################
@@ -50,22 +51,5 @@ uint8_t printFastqEntry(
     FILE *outFILE,                /*File to print reads to*/
     FILE *fastqFile               /*Fastq file to get data from*/
 ); /*Reads input from file & marks end of read name*/
-
-/*##############################################################################
-# Output:
-#    Modifies: bufferCStr to have the next buffer if empty
-#    Modifies: incurments pointInBufferCStr to start of next read
-#    Returns:
-#        4: If the end of the file
-#        2: if nothing went wrong
-#        0: If ran out of file
-##############################################################################*/
-uint8_t moveToNextFastqEntry(
-    char *bufferCStr,     /*buffer to hold fread input (can have data)*/
-    char **pointInBufferCStr, /*position working on in buffer*/
-    uint32_t buffSizeInt,              /*Size of buffer to work on*/
-    uint64_t *lenInputULng,  /*Length of input from fread*/
-    FILE *fastqFile               /*Fastq file to get data from*/
-); /*Moves to next fastq read, without printing out*/
 
 #endif

@@ -50,6 +50,7 @@
 | Output:
 |   - Returns:
 |     o 1 if built a consensus
+|     o 2 if could not open a file (refs, stats?, or fastq)
 |     o 8 if stat file was specified, but no stat file provided
 |     o 16 if could not build a consensus, but no other errors
 |     o 64 for memory allocation error
@@ -91,7 +92,6 @@ unsigned char buildCon(
     char tmpBuffCStr[1024];
     unsigned char errUC = 0;
 
-    uint64_t tmpUL = 0; /*# reads for bulding consensus*/
     struct samEntry *zeroSam = 0; /*holds the reference (0 to ignore)*/
 
     FILE *fqFILE = 0;
@@ -137,28 +137,11 @@ unsigned char buildCon(
     ^ Fun-1 Sec-3: Make sure I know the number of reads in fastq file
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    if(conData->numReadsULng == 0)/*Find number of reads in fastq file*/
+        conData->numReadsULng = getNumReadsInFq(conData->fqPathCStr);
+
     if(conData->numReadsULng == 0)
-    { /*If I need to find the number of reads in the fastq file*/
-        fqFILE = fopen(conData->fqPathCStr, "r");
-
-        tmpCStr = tmpBuffCStr;
-        tmpBuffCStr[0] = '\0';
-        tmpUL = 1024; /*So moveToNextFastqEntry does not exit early*/
-
-        while(
-            moveToNextFastqEntry(
-               tmpBuffCStr,
-               &tmpCStr,
-               1024,
-               &tmpUL,
-               fqFILE
-            ) & 2
-        ) { /*While their are stil fastq entries*/
-            ++conData->numReadsULng;
-        } /*While their are stil fastq entries*/
-
-        fclose(fqFILE);
-    } /*If I need to find the number of reads in the fastq file*/
+        return 2;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-1 Sec-5: Polish the read or reference
@@ -441,7 +424,7 @@ unsigned char simpleMajCon(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char qEntryBl = 0;           /*Marks if reference has Q-core entry*/
-    char minimap2CmdCStr[1024];  /*Holds minimap2 command to run*/
+    char minimap2CmdCStr[2048];  /*Holds minimap2 command to run*/
     char *tmpCStr = 0;           /*Temp ptr for c-string manipulations*/
     char *cigCStr = 0;           /*Reading the cigar entry*/
     char *seqCStr = 0;           /*Manipulating/reading the sequence*/
@@ -539,9 +522,9 @@ unsigned char simpleMajCon(
     tmpCStr =
         cStrCpInvsDelm(binStruct->consensusCStr, binStruct->fqPathCStr);
     tmpCStr -= 6; /*Get to end of .fastq*/
-    tmpCStr = cStrCpInvsDelm(tmpCStr, "--cluster-");
+    tmpCStr = cStrCpInvsDelm(tmpCStr, "--clust-");
     tmpCStr = uCharToCStr(tmpCStr, *clustUC); /*Add cluster number*/
-    tmpCStr=cStrCpInvsDelm(tmpCStr, "--consensus.fasta");
+    tmpCStr=cStrCpInvsDelm(tmpCStr, "--con.fasta");
 
     /*Prepare the minimap2 command*/
     tmpCStr = cStrCpInvsDelm(minimap2CmdCStr, minimap2CMD);
@@ -651,6 +634,7 @@ unsigned char simpleMajCon(
     { /*While have alignments to read in from the sam file*/
         if(*samStruct->samEntryCStr == '@')
         { /*If on a header entry, read in next entry*/
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE);
             continue;
         } /*If on a header entry, read in next entry*/
@@ -661,12 +645,14 @@ unsigned char simpleMajCon(
 
         if(*seqCStr == '*' || (*qCStr == '*' && *(qCStr + 1) == '\t'))
         { /*If no entry to check*/
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE);
             continue;
         } /*If no entry to check*/
 
         if(samStruct->flagUSht & 4)
         { /*If was an unampped read*/
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE);
             ++numMisSeqUL;
             ++numSeqUL;
@@ -982,6 +968,7 @@ unsigned char simpleMajCon(
         } /*While not at the end of the sam alignment sequence*/
 
         ++numSeqUL;
+        blankSamEntry(samStruct);
         errUChar = readSamLine(samStruct, stdinFILE);
     } /*While have alignments to read in from the sam file*/
 
@@ -1116,9 +1103,9 @@ void buildConWithRacon(
 
     char
         *refFileCStr = conBin->bestReadCStr,
-        minimap2CmdCStr[1024], /*Holds command to run minimap2*/
-        raconCmdCStr[1024],   /*Holds command to run racon*/
-        tmpConCStr[128], /*Hold the consensus name for fq consensus*/
+        minimap2CmdCStr[2048], /*Holds command to run minimap2*/
+        raconCmdCStr[2048],   /*Holds command to run racon*/
+        tmpConCStr[256], /*Hold the consensus name for fq consensus*/
         *tmpCStr = 0,
         *tmpFileCStr = 0,    /*For swapping consensus file names*/
         *tmpFastaFileCStr = "tmp-2023-12-01-con-1563577017123412.fasta",
@@ -1134,11 +1121,11 @@ void buildConWithRacon(
         tmpCStr =
             cStrCpInvsDelm(conBin->consensusCStr, conBin->fqPathCStr);
         tmpCStr -= 6; /*Get to end of .fastq*/
-        tmpCStr = cStrCpInvsDelm(tmpCStr, "--cluster-");
+        tmpCStr = cStrCpInvsDelm(tmpCStr, "--clust-");
 
         /*Copy cluster number into file name; tmpCStr will point to end*/
         tmpCStr = uCharToCStr(tmpCStr, *clustUC);
-        tmpCStr=cStrCpInvsDelm(tmpCStr, "--consensus.fasta");
+        tmpCStr=cStrCpInvsDelm(tmpCStr, "--con.fasta");
 
         tmpFileCStr = conBin->consensusCStr;
         refFileCStr = conBin->bestReadCStr;
@@ -1250,9 +1237,9 @@ unsigned char medakaPolish(
     ^ Fun-6 Sec-1: Variable declerations
     \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-    char medakaConPathCStr[256];  /*Path to consesnsus medaka made*/
+    char medakaConPathCStr[512];  /*Path to consesnsus medaka made*/
     char medDirCStr[256];         /*For temporary c-string building*/
-    char medakaCmdCStr[1024];     /*Holds command to run medaka*/
+    char medakaCmdCStr[2048];     /*Holds command to run medaka*/
     char *tmpCStr = medakaCmdCStr;/*Temporary, for manipulating cStrs*/
     unsigned char errUC = 0;      /*Holds errors*/
 
@@ -1261,62 +1248,56 @@ unsigned char medakaPolish(
     FILE *testFILE = 0; /*Test if files exist*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-    ^ Fun-6 Sec-2: See if the best reads and consensus files exist
-    ^    fun-6 sec-2 sub-1: See if the conssus file exists
-    ^    fun-6 sec-2 sub-2: See if the best reads file exists
+    ^ Fun-6 Sec-2: See if the consensus or best read file exist
     \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
-
-    /*******************************************************************
-    * Fun-6 Sec-2 Sub-1: See if the conssus file exists
-    *******************************************************************/
 
     /*Open file*/
     testFILE = fopen(conBin->consensusCStr, "r");
 
     if(testFILE == 0)
-        return 2;    /*No file was made*/
+    { /*Check if using the consensus*/
+        testFILE = fopen(conBin->bestReadCStr, "r");
 
-    /*Finde the length of the file*/
-    fseek(testFILE, 0L, SEEK_END);   /*Find end of file*/
-    fileLenULng = ftell(testFILE);   /*Find offset (length) of end*/
-    fclose(testFILE);                /*No longer need the file open*/
+        if(testFILE == 0)
+            return 2;     /*Nothing to build a consensus with*/
 
-    if(fileLenULng < 10)
-        return 2;    /*Nothing or little in the file*/
-
-    /*******************************************************************
-    * Fun-6 Sec-2 Sub-2: See if the best reads file exists
-    *******************************************************************/
-
-    /*Check if need to build the consensus name*/
-    if(conBin->consensusCStr[0] == '\0')
-    { /*If using the best read for medaka*/
         tmpCStr =
             cStrCpInvsDelm(conBin->consensusCStr, conBin->fqPathCStr);
         tmpCStr -= 6; /*Get to end of .fastq*/
-        tmpCStr = cStrCpInvsDelm(tmpCStr, "--cluster-");
+        tmpCStr = cStrCpInvsDelm(tmpCStr, "--clust-");
 
         /*Copy cluster number into file name*/
         tmpCStr = uCharToCStr(tmpCStr, *clustUC);
-        tmpCStr=cStrCpInvsDelm(tmpCStr, "--consensus.fasta");
+        tmpCStr=cStrCpInvsDelm(tmpCStr, "--con.fasta");
 
-        errUC =
-            fqToFa(
-                conBin->bestReadCStr,
-                conBin->consensusCStr,
-                samStruct
-        ); /*convert fastq best read to fasta read*/
+        /*Determine if best read is a fasta file or fastq*/
+        tmpCStr = conBin->bestReadCStr;
+
+        while(*tmpCStr != '\0')
+            ++tmpCStr;
+
+        errUC = 1; /*Assume no error*/
+
+        if(*(tmpCStr - 1) == 'q')
+        { /*If is a fastq file, so is a read*/
+            errUC =
+                fqToFa(
+                    conBin->bestReadCStr,
+                    conBin->consensusCStr,
+                    samStruct
+            ); /*convert fastq best read to fasta read*/
+        } /*If is a fastq file, so is a read*/
+
+        else   /*Is a fasta file (likely a consensus*/
+            rename(conBin->bestReadCStr, conBin->consensusCStr);
 
         if(errUC & 64)
             return 64; /*Memory allocation error*/
         if(!(errUC & 1))
             return 2;  /*File read/write error*/
-    } /*If using the best read for medaka*/
 
-    testFILE = fopen(conBin->consensusCStr, "r");
-
-    if(testFILE == 0)
-        return 2;    /*No file was made*/
+        testFILE = fopen(conBin->consensusCStr, "r");
+    } /*Check if using the consensus*/
 
     /*Finde the length of the file*/
     fseek(testFILE, 0L, SEEK_END);   /*Find end of file*/
@@ -1643,35 +1624,43 @@ struct readBin * cmpCons(
             );
 
             stdinFILE = popen(minimap2CmdCStr, "r"); /*run minimap2*/
+
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE); /*1st line*/
 
             if(*samStruct->samEntryCStr != '@')
             { /*If no header*/
-                fclose(stdinFILE);
+                pclose(stdinFILE);
                 return 0;
             } /*If no header*/
 
             while(errUChar & 1)
             { /*While on the haeder lines*/
+                blankSamEntry(samStruct);
                 errUChar = readSamLine(samStruct, stdinFILE);
 
                 if(*samStruct->samEntryCStr != '@')
                     break; /*If not a header*/
             } /*While on the haeder lines*/
 
-            scoreAln(
-                minStats,
-                samStruct,
-                refStruct,   /*Reference struct to score deletions with*/ 
-                &zeroUChar,  /*Mapped consensus has no Q-score*/
-                &zeroUChar   /*Mapped consensus has no Q-score*/
-            ); /*Score the alignment*/
+            if(!(samStruct->flagUSht & 4))
+            { /*If the reads mapped to each other*/
+                scoreAln(
+                    minStats,
+                    samStruct,
+                    refStruct,   /*Reference struct to score dels with*/ 
+                    &zeroUChar,  /*Mapped consensus has no Q-score*/
+                    &zeroUChar   /*Mapped consensus has no Q-score*/
+                ); /*Score the alignment*/
+
+                if(checkIfKeepRead(minStats, samStruct) & 1)
+                { /*If the consensus were to similar*/
+                    pclose(stdinFILE); /*Done with this file*/
+                    return refBin; /*If consensus look the same*/
+                } /*If the consensus were to similar*/
+            } /*If the reads mapped to each other*/
 
             pclose(stdinFILE); /*Done with this file*/
-
-            if(checkIfKeepRead(minStats, samStruct) & 1)
-                return refBin; /*If consensus look the same*/
-
             refBin = refBin->rightChild;
         } /*While have another clusters consensus to compare*/
 

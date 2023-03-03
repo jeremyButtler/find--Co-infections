@@ -1,6 +1,22 @@
 /*######################################################################
 # Use:
-#   o Bins reads using a set of input references
+#   o Bins reads to a set of input references
+# Requires:
+#   o cStrFun.c/h
+#   o cStrToNumberFun.c/h
+#   o defaultSettings.h
+#   o printError.c/h
+#   o samEntryStruct.c/h
+#   o trimSam.c/h
+#   o scoreReadsFun.c/h
+#   o findCoInftBinTree.c/h
+#   o findCoInftChecks.c/h
+#   o binReadFun.c/h
+# C libaries:
+#   o string.h
+#   o stdlib.h
+#   o stdio.h
+#   o stdint.h
 ######################################################################*/
 
 #include "binReadsFun.h"

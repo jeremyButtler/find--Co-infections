@@ -1,66 +1,24 @@
 /*#####################################################################\
 # Name: findCoInfect
 # Use:
-#    - Detects co-infectoins in nanopore sequenced reads using Minimap2
-#      & Racon
-# External Requirments:
-#    - Minimap2
-#    - Racon
+#    - Detects co-infections in nanopore sequenced reads using Minimap2
+# Optinal Dependencies (depends on user input settings):
+#    - Minimap2 (Required for -enable-medaka)
+#    - Racon    (Required for -enable-racon)
 # Internal Requirments:
-#    scoreReadsFun.c/h   # Has read scoring functions
-#    trimSamFile.c/h     # Has functions to trim sam file alignments
-#    samEntryStruct.c/h  # Has structure trimSamFile & scoreReadsFun use
-#    printErrors.c/h     # For error messages
-#    cStrToNumberFum.c/h # Number conversion functions
-#    findCoInftBinTree.c/h # For building and AVL tree with the bins
-#    fastqGrepAVLTree.c/h     # Needed for fastq id extraction
-#    fastqGrepFastqFun.c/h    # Needed for fastq id extraction
-#    fastqGrepHash.c/h        # Needed for fastq id extraction
-#    fastqGrepSearchFastq.c/h # Needed for fastq id extractoin
-#    fastqGrepStructs.c/h     # Needed for fastq id extraction
+#    - Every *.c file that has a *.h file in this directory
+#      o buildCon.c, binReads.c, scoreReads.c, trimSamFile.c,
+#        fqGetIds.c, and fqGetIdsThread.c are not needed, but do allow
+#        for building some internal commands as stand alone programs.
 # Libraries used (in various files):
 #     - <stdlib.h>
 #     - <sdtint.h>
 #     - <stdio.h>
 #     - <string.h>
-# Note:
-#    - fastqGrep.c, trimSam.c, & scoreReads.c are here so that the user
-#      can build these programs for personal use
-#        - fastqGrep:
-#            - Is for read id extraction from a fastq file. It
-#              is faster than seqkit when extracting 30% to 50% of reads
-#              from a file and only a few seconds slower for extracting
-#              under 1% of reads.
-#            - Requires
-#                - fastqGrep.c
-#                - fastqGrepAVLTree.c/h
-#                - fastqGrepFastqFun.c/h
-#                - fastqGrepHash.c/h
-#                - fastqGrepSearchFastq.c/h
-#                - fastqGrepStructs.c/h
-#        - trimSam:
-#            - Trims soft clipping of ends of sam alignments
-#            - Requires
-#                - trimSam.c
-#                - trimSamFile.c/h
-#                - samEntryStruct.c/h
-#                - printErrors.c/h
-#                - cStrToNumberFum.c/h
-#        - scoreReads:
-#            - Counts number of matches, SNPs, & indels in a read. It
-#              also keeps track of the number matches, SNPs, & indels
-#              above a certian q-score. For indels it will also ignore
-#              indels in longer (user specified) homopolymers.
-#            - Requires
-#                - scoreReads.c
-#                - scoreReads.c
-#                - samEntryStruct.c/h
-#                - printErrors.c/h
-#                - cStrToNumberFum.c/h
 \#####################################################################*/
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-' TOC: Table of Contents
+' SOP: Start of program
 '    header:
 '      - Header section for functions, structures, & libraries
 '    main:
@@ -92,6 +50,9 @@ char * getUserInput(
     char **refsPathCStr, /*Holds path to references*/
     char *threadsCStr, /*Number threads for minimap2 & racon*/
     char *rmSupAlnBl,  /*1: Remove reads with supplemental alignments*/
+    char *skipBinBl,   /*1: Skip the binning step, 0 do not*/
+    char *skipClustBl, /*1: Skip the clusterin step, 0 do not*/
+    double *minReadsDbl,
     struct conBuildStruct *conSet,   /*Settings for consensus building*/
     struct minAlnStats *readToRefMinStats, /*Binning scoring settings*/
     struct minAlnStats *readToReadMinStats,/*Read pull scoring setting*/
@@ -99,9 +60,11 @@ char * getUserInput(
     struct minAlnStats *conToConMinStats   /*Consensus comparison set*/
 ); /*Reads in user input*/
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-^ Functions: Included files
-\<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+' SOF: Start of functions
+'   o main: driver function to run find co-infections
+'   o getUserInput: Process user input provided by command line
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 int main(
     int32_t lenArgsInt, /*Number of parameters & arguments user input*/
@@ -136,8 +99,12 @@ int main(
 
     /*User Input or related variables (non file names)*/
     char rmSupAlnBl = rmReadsWithSupAln;
+    char skipBinBl = defSkipBinBl;     /*Skip binning step?*/
+    char skipClustBl = defSkipClustBl; /*Skip clustering step?*/
     char prefCStr[100];        /*Holds the user prefix*/
     char threadsCStr[7];      /*Number of threads for minimap2 & racon*/
+    double minReadsDbl = defMinPercReads;
+        /*What percentage of reads should the final cluster have*/
 
     char *fqPathCStr = 0;      /*Holds fastq file to process*/
     char *refsPathCStr = 0;    /*Holds references for binning*/
@@ -152,6 +119,8 @@ int main(
     uint8_t errUC = 0;         /*Holds error messages*/
 
     char *inutErrCStr = 0; /*holds user input error*/
+
+    unsigned long totalKeptReadsUL = 0;
 
     /*FILES opened*/
     FILE *logFILE = 0;      /*Holds the log*/
@@ -197,6 +166,11 @@ int main(
             \n        - Prefix to add to file names          [Out]\
             \n    -threads:\
             \n        - Number of threads to use             [3]\
+            \n    -min-per-reads:                          [0.003=0.3%]\
+            \n        - Minimum percentage of reads expected\
+            \n          to keep a cluster.\
+            \n        - Is the percentage of all reads that\
+            \n          were assigned to a cluster.\
             \n    -min-reads-per-bin:\
             \n        - Min number of reads needed to keep   [100]\
             \n          a bin or a cluster\
@@ -207,29 +181,26 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
-            \n    -read-ref-min-read-length:                 [600]\
+            \n    -min-read-length:                          [600]\
             \n       - Discard reads with read lengths under\
-            \n         this when binning.\
-            \n       - Applied after the trimming step.\
-            \n    -read-ref-max-read-length:                 [1000]\
+            \n         the input length.\
+            \n    -max-read-length:                          [1000]\
             \n       - Discard reads with read lengths over\
-            \n         this when binning.\
-            \n       - Applied after the trimming step.\
+            \n         input setting (0 to ignore)\
+            \n       - When binning is done, this is applied\
+            \n         after the trimming step.\
             \n    -pick-read-with-med-q                      [No]\
             \n       - Picks the read to start consensus\
             \n         building by median Q-score.\
             \n       - Default is by mapping quality to the\
             \n         binned reference.\
             \n       - This setting requires more time to run.\
-            \n    -rm-sup-reads                 [No]\
-            \n       - Removes any read that has a\
-            \n         supplemental alignment. These might\
-            \n         be chimeras or could just be repeated\
-            \n         genes.\
-            \n       - If this setting is off, then supplemental\
-            \n         alignments are just ignored.\
-            \n       - This setting requires running minimap2 with\
-            \n         just one thread for binning.\
+            \n    -min-median-q:                             [10]\
+            \n       - Minimum read median quality score\
+            \n         needed to keep a read when binning.\
+            \n    -min-mean-q:                               [10]\
+            \n       - Minimum read mean quality score\
+            \n         needed to keep a read when binning.\
             \n Additional Help messages:\
             \n    -h-build-consensus:\
             \n        - Print paramaters for building the consensus\
@@ -294,7 +265,7 @@ int main(
             \n    -maj-con-min-base-q:                       [10]\
             \n        - Minimum q-score to keep a base when\
             \n          building a majority consensus.\
-            \n    -maj-con-min-ins                           [0.4=40%]\
+            \n    -maj-con-min-ins                           [0.3=30%]\
             \n        - When building the majority consesus\
             \n          ingore insertions that have support\
             \n          from less than x\% of reads (40%).\
@@ -307,12 +278,6 @@ int main(
             \n    -rounds-racon:\
             \n        - Number of rounds to polish a         [4]\
             \n          consensus with racon\
-            \n    -enable-medaka:                               [No]\
-            \n        - Do not use medaka to polish the\
-            \n          consensus.\
-            \n    -model:\
-            \n        - Model to use with medaka   [r941_min_high_g351]\
-            \n          (calling medaka_consensus)\
        "; /*consensus building parameters*/
 
     char
@@ -323,6 +288,17 @@ int main(
             \n    The read is discarded if it does not meet the quality\
             \n    thresholds.\
             \n\
+            \n -skip-bin:                                [No]\
+            \n    - Skip the binning step.\
+            \n -rm-sup-reads                             [No]\
+            \n    - Removes any read that has a\
+            \n      supplemental alignment. These might\
+            \n      be chimeras or could just be repeated\
+            \n      genes.\
+            \n    - If this setting is off, then supplemental\
+            \n      alignments are just ignored.\
+            \n    - This setting requires running minimap2 with\
+            \n      just one thread for binning.\
             \n -read-ref-snps:                           [0.02 = 2%]\
             \n    - Minimum percentage of snps needed to\
             \n      discard a read during the read to\
@@ -348,26 +324,12 @@ int main(
             \n -read-ref-min-mapq:                        [20]\
             \n    - Minimum mapping quality needed to\
             \n      keep a read when binning.\
-            \n -read-ref-min-read-length:                 [600]\
-            \n    - Discard reads with read lengths under\
-            \n      this when binning.\
-            \n    - Applied after the trimming step.\
-            \n -read-ref-max-read-length:                 [1000]\
-            \n    - Discard reads with read lengths over\
-            \n      this when binning.\
-            \n    - Applied after the trimming step.\
             \n\
-            \n -read-ref-min-median-q:                    [13]\
-            \n    - Minimum read median quality score\
-            \n      needed to keep a read when binning.\
-            \n -read-ref-min-mean-q:                      [13]\
-            \n    - Minimum read mean quality score\
-            \n      needed to keep a read when binning.\
-            \n -read-ref-min-aligned-median-q:            [13]\
+            \n -read-ref-min-aligned-median-q:            [10]\
             \n    - Minimum read median quality score\
             \n      of the aligned region of a read\
             \n      needed to keep a read when binning.\
-            \n -read-ref-min-aligned-mean-q:              [13]\
+            \n -read-ref-min-aligned-mean-q:              [10]\
             \n    - Minimum read mean quality score\
             \n      of the aligned region of a read\
             \n      needed to keep a read when binning.\
@@ -378,7 +340,7 @@ int main(
             \n     thresholds. These counts are used to find the\
             \n     percentages in the comparison step.\
             \n\
-            \n -read-ref-min-base-q:                      [13]\
+            \n -read-ref-min-base-q:                      [10]\
             \n    - Minimum Q-score needed to keep an\
             \n      SNP or insertion when binning.\
             \n\
@@ -508,6 +470,8 @@ int main(
             \n    is considered part of the cluster. The discarded\
             \n    reads are saved for another round of clustering.\
             \n\
+            \n     -skip-clust:                                [No]\
+            \n        - Skip the clusterin step.\
             \n     -read-con-snps:                       [0.015 = 1.5%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
@@ -693,6 +657,9 @@ int main(
             &refsPathCStr,
             threadsCStr,
             &rmSupAlnBl,
+            &skipBinBl,   /*1: Skip the binning step, 0 do not*/
+            &skipClustBl, /*1: Skip the clusterin step, 0 do not*/
+            &minReadsDbl,
             &conSet,                /*consensus building settings*/
             &readToRefMinStats,
             &readToReadMinStats,
@@ -779,7 +746,17 @@ int main(
         printf("Current settings have turned off all consensus");
         printf(" building methods.\nSelect a consensus step by");
         printf(" removing: -enable-medaka or -enable-racon\n");
+
+        exit(1);
     } /*If the user said to ingore all consensus building steps*/
+
+    if((skipBinBl & skipClustBl) & 1)
+    { /*If skipping both the binning and clustering step*/
+        printf("Binning and clustering steps has been turned of, so");
+        printf(" nothing can be done. Please enable the binning step");
+        printf(" or clustering step\n");
+        exit(1);
+    } /*If skipping both the binning and clustering step*/
 
     /*******************************************************************
     # Main Sec-3 Sub-2: Add prefix to file names
@@ -980,30 +957,33 @@ int main(
     # Main Sec-4 Sub-5: Check if the reference fasta file extists
     *******************************************************************/
 
-    stdinFILE = fopen(refsPathCStr, "r"); /*Open the reference file*/
+    if(!(skipBinBl & 1))
+    { /*If binning reads*/
+        stdinFILE = fopen(refsPathCStr, "r"); /*Open reference file*/
 
-    if(stdinFILE == 0)
-    { /*If no fastq file was provided*/
-        fprintf(
-            stderr,
-            "The provided reference file (%s) does not exist\n",
-            refsPathCStr
-        ); /*Let user know the fastq file does not exist*/
+        if(stdinFILE == 0)
+        { /*If no fastq file was provided*/
+            fprintf(
+                stderr,
+                "The provided reference file (%s) does not exist\n",
+                refsPathCStr
+            ); /*Let user know the fastq file does not exist*/
 
-        fprintf(
-            logFILE,
-            "File provided by -ref (%s) does not exist\n",
-            refsPathCStr
-        ); /*Print error to log*/
+            fprintf(
+                logFILE,
+                "File provided by -ref (%s) does not exist\n",
+                refsPathCStr
+            ); /*Print error to log*/
 
-        fclose(logFILE);
-        exit(1);
-    } /*If no fastq file was provided*/
+            fclose(logFILE);
+            exit(1);
+        } /*If no fastq file was provided*/
 
-    fclose(stdinFILE); /*No longer need open*/
+        fclose(stdinFILE); /*No longer need open*/
 
-    /*Print out file used for user*/
-    fprintf(logFILE, "    -ref %s \\\n", refsPathCStr);
+        /*Print out file used for user*/
+        fprintf(logFILE, "    -ref %s \\\n", refsPathCStr);
+    } /*If binning reads*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Main Sec-5: Put non-required input into log for user
@@ -1026,11 +1006,6 @@ int main(
 
     /*Print out the general settings*/
     fprintf(logFILE, "    -prefix %s \\\n", prefCStr);
-    fprintf(
-        logFILE,
-        "    -model %s \\\n",
-       conSet.medakaSet.modelCStr
-    );
 
     fprintf(
         logFILE,
@@ -1050,64 +1025,71 @@ int main(
         conSet.numRndsToPolishUI
     );
 
-    fprintf(
-        logFILE,
-        "    -rm-sup-reads %u \\\n",
-        rmSupAlnBl /*Supplemental alignment removal setting*/
-    );
+    fprintf(logFILE, "    -min-perc-reads %f \\\n", minReadsDbl);
 
-    fprintf(
-        logFILE,
-        "    -pick-read-with-med-q %u \\\n",
-        !(conSet.useStatBl)
-        /*Complementing because default (1) is to use the stat file*/
-    );
+    if(skipBinBl & 1)
+        fprintf(logFILE, "    -skip-bin \\\n");
 
-    fprintf(
-       logFILE,
-       "    -rounds-racon %u \\\n",
-       conSet.raconSet.rndsRaconUC
-    );
+    if(skipClustBl & 1)
+        fprintf(logFILE, "    -skip-clust \\\n");
 
-    fprintf(
-        logFILE,
-        "    -disable-majority-consensus %u \\\n",
-        !(conSet.majConSet.useMajConBl) /*Complementing since 1 is use*/
-    );
+    if(rmSupAlnBl & 1)
+        fprintf(logFILE, "    -rm-sup-reads \\\n");
 
-    fprintf(
-        logFILE,
-        "    -maj-con-min-bases %f \\\n",
-        conSet.majConSet.minReadsPercBaseFlt
-    ); /*min percentage of read support to keep a match/SNP*/
+    if(!(conSet.useStatBl & 1) || skipBinBl & 1)
+    { /*If using the median Q-score*/
+        fprintf(logFILE, "    -pick-read-with-med-q \\\n");
 
-    fprintf(
-        logFILE,
-        "    -maj-con-min-base-q %u \\\n",
-        conSet.majConSet.minBaseQUC
-    );
+        /*If user is skipping binning, make sure not using stat file*/
+        if(conSet.useStatBl & 1)
+            conSet.useStatBl = 0; 
+    } /*If using the median Q-score*/
 
-    fprintf(
-        logFILE,
-        "    -maj-con-min-ins %f \\\n",
-        conSet.majConSet.minReadsPercInsFlt
-    ); /*Min % of read support needed to keep an insertion*/
+    if(conSet.majConSet.useMajConBl & 1)
+    { /*If using the majority consensus  step*/
+        fprintf(logFILE, "    -disable-majority-consensus \\\n");
 
-    fprintf(
-        logFILE,
-        "    -maj-con-min-ins-q %u \\\n",
-        conSet.majConSet.minInsQUC
-    );
-    fprintf(
-        logFILE,
-        "    -enable-racon %u \\\n",
-        conSet.raconSet.useRaconBl
-    );
-    fprintf(
-        logFILE,
-        "    -enable-medaka %u \\\n",
-        conSet.medakaSet.useMedakaBl
-    );
+        fprintf(
+            logFILE,
+            "    -maj-con-min-bases %f \\\n",
+            conSet.majConSet.minReadsPercBaseFlt
+        ); /*min percentage of read support to keep a match/SNP*/
+
+        fprintf(
+            logFILE,
+            "    -maj-con-min-base-q %u \\\n",
+            conSet.majConSet.minBaseQUC
+        );
+
+        fprintf(
+            logFILE,
+            "    -maj-con-min-ins %f \\\n",
+            conSet.majConSet.minReadsPercInsFlt
+        ); /*Min % of read support needed to keep an insertion*/
+
+        fprintf(
+            logFILE,
+            "    -maj-con-min-ins-q %u \\\n",
+            conSet.majConSet.minInsQUC
+        );
+    } /*If using the majority consensus  step*/
+
+    if(conSet.raconSet.useRaconBl & 1)
+    { /*If using racon*/
+        fprintf(logFILE, "    -enable-racon \\\n");
+
+        fprintf(
+           logFILE,
+           "    -rounds-racon %u \\\n",
+           conSet.raconSet.rndsRaconUC
+        );
+    } /*If using racon*/
+
+    if(conSet.medakaSet.useMedakaBl & 1)
+    { /*If using medaka*/
+        fprintf(logFILE, "    -enable-medaka \\\n");
+       fprintf(logFILE,"    -model %s \\\n",conSet.medakaSet.modelCStr);
+    } /*If using medaka*/
 
     /******************************************************************\
     * Main Sec-5 Sub-2: Print out Comparision settings for binning
@@ -1283,13 +1265,13 @@ int main(
 
      fprintf(
          logFILE,
-         "    -read-ref-min-median-q %f \\\n",
+         "    -min-median-q %f \\\n",
          readToRefMinStats.minMedianQFlt
      );
 
      fprintf(
          logFILE,
-         "    -read-ref-min-mean-q %f \\\n",
+         "    -min-mean-q %f \\\n",
          readToRefMinStats.minMeanQFlt
      );
 
@@ -1307,13 +1289,13 @@ int main(
 
      fprintf(
          logFILE,
-         "    -read-ref-min-read-length %u \\\n",
+         "    -min-read-length %u \\\n",
          readToRefMinStats.minReadLenULng
      );
 
      fprintf(
          logFILE,
-         "    -read-ref-max-read-length %u \\\n",
+         "    -max-read-length %u \\\n",
          readToRefMinStats.maxReadLenULng
      );
 
@@ -1552,70 +1534,75 @@ int main(
     ^ Main Sec-6: Find initial bins with references
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    binTree =
-        binReads(
-            fqPathCStr,        /*Fastq file to bin*/
-            refsPathCStr,      /*References to bin with*/
-            prefCStr,          /*prefix to name all bins with*/
-            threadsCStr,      /*Number of threads to use with minimap2*/
-            rmSupAlnBl,         /*Remove supplementary alignments*/
-            1,                  /*1: trim reads, 0: do not*/
-            &samStruct,
-            &refStruct,
-            &readToRefMinStats,
-            &errUC              /*Reports any errors*/
-    );
+    if(!(skipBinBl & 1))
+    { /*If binning reads*/
+        binTree =
+            binReads(
+                fqPathCStr,        /*Fastq file to bin*/
+                refsPathCStr,      /*References to bin with*/
+                prefCStr,          /*prefix to name all bins with*/
+                threadsCStr,      /*Number of threads to use with minimap2*/
+                rmSupAlnBl,         /*Remove supplementary alignments*/
+                1,                  /*1: trim reads, 0: do not*/
+                &samStruct,
+                &refStruct,
+                &readToRefMinStats,
+                &errUC              /*Reports any errors*/
+        );
 
-    if(binTree == 0)
-    { /*If had an error*/
-        logFILE = fopen(logFileCStr, "a");
+        if(binTree == 0)
+        { /*If had an error*/
+            logFILE = fopen(logFileCStr, "a");
 
-        if(errUC & 64)
-        { /*If the binning step errored out*/
-            fprintf(stdout, "Memory error: not enough memory\n");
-            fprintf(logFILE, "Binning step ran out of memory\n");
-        } /*If the binning step errored out*/
+            if(errUC & 64)
+            { /*If the binning step errored out*/
+                fprintf(stdout, "Memory error: not enough memory\n");
+                fprintf(logFILE, "Binning step ran out of memory\n");
+            } /*If the binning step errored out*/
 
-        else if(errUC & 2)
-        { /*If the fastq file could not be opened*/
-            fprintf(
-                stdout,
-                "Fastq file (%s) could not be opened\n",
-                fqPathCStr
-            ); /*Let user know fastq file is invalid*/
-            fprintf(
-                logFILE,
-                "Binning step: Fastq file (%s) could not be opened\n",
-                fqPathCStr
-            ); /*Let user know fastq file is invalid*/
-        } /*If the fastq file could not be opened*/
+            else if(errUC & 2)
+            { /*If the fastq file could not be opened*/
+                fprintf(
+                    stdout,
+                    "Fastq file (%s) could not be opened\n",
+                    fqPathCStr
+                ); /*Let user know fastq file is invalid*/
+                fprintf(
+                    logFILE,
+                    "Binning: Fastq file (%s) could not be opened\n",
+                    fqPathCStr
+                ); /*Let user know fastq file is invalid*/
+            } /*If the fastq file could not be opened*/
 
-        else
-        { /*Else could not create a file*/
-            fprintf(stdout, "Could not create fastq or stats files\n");
-            fprintf(logFILE, "Binning step: Could not create files\n");
-        } /*Else could not create a file*/
+            else
+            { /*Else could not create a file*/
+                fprintf(stdout, "Could not create fastq/stats files\n");
+                fprintf(logFILE, "Binning: Could not create files\n");
+            } /*Else could not create a file*/
 
-        freeStackSamEntry(&samStruct);
-        freeStackSamEntry(&refStruct);
+            freeStackSamEntry(&samStruct);
+            freeStackSamEntry(&refStruct);
 
-        if(statFILE != 0)
-            fclose(statFILE);
-        if(logFILE != 0)
-            fclose(logFILE);
+            if(statFILE != 0)
+                fclose(statFILE);
+            if(logFILE != 0)
+                fclose(logFILE);
 
-        exit(1);
-    } /*If had an error*/
+            exit(1);
+        } /*If had an error*/
+    } /*If binning reads*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     ^ Main Sec-7: Non-reference based binning steps
-    ^    main sec-7 sub-1: Check if can do memory allocation
-    ^    main sec-7 sub-2: Build the consensus
-    ^    main sec-7 sub-3: Copy best read back into to its orignal bin
-    ^    main sec-7 sub-4: Bin reads to the consensus
-    ^    main sec-7 sub-5: Compare new consensus to old consensuses
-    ^    main sec-7 sub-6: Update list of clusters in bin
-    ^    main sec-7 sub-7: Add clusters to bin & move to next bin
+    ^    main sec-7 sub-1: Set up for clustering or consnsus buidling
+    ^    main sec-7 sub-2: Print read counts for bins & decide if keep
+    ^    main sec-7 sub-3: Set up readBin to hold a clusters files
+    ^    main sec-7 sub-4: Build the consensus
+    ^    main sec-7 sub-5: Copy best read back into to its orignal bin
+    ^    main sec-7 sub-6: Bin reads to the consensus
+    ^    main sec-7 sub-7: Compare new consensus to old consensuses
+    ^    main sec-7 sub-8: Update list of clusters in bin
+    ^    main sec-7 sub-9: Add clusters to bin & move to next bin
     ^        - Before going in the bin list is an balanced tree
     ^        - after this the bins are in a list, with the left pointer
     ^          pointing towards the bins & the right pointer pointing
@@ -1623,11 +1610,37 @@ int main(
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /******************************************************************\
-    * Main Sec-7 Sub-1: Check if can do memory allocation
+    * Main Sec-7 Sub-1: Set up for clustering or consensus building
     \******************************************************************/
 
-    /*Convert our bin tree to a list (No longer need AVL tree speed)*/
-    cnvtBinTreeToList(&binTree);
+    if(skipBinBl & 1)
+    { /*If skipping the binning step, then need to create a single bin*/
+        binTree = malloc(sizeof(struct readBin));
+
+        /*Blank the variables in binTree*/
+        blankReadBin(binTree);
+        strcpy(binTree->refIdCStr, "clust");
+        binTree->balUChar = 1; /*To mark keeping*/
+
+        /*Make a copy of the fastq file to protect the original*/
+        tmpCStr = cStrCpInvsDelm(binTree->fqPathCStr, prefCStr);
+        tmpCStr = cStrCpInvsDelm(tmpCStr, "--clust.fastq");
+
+        filterReads(
+            fqPathCStr,
+            binTree->fqPathCStr,
+            &samStruct,
+            &readToRefMinStats
+        ); /*Remove low quality reads*/
+
+        /*Get the number of reads in the copied fastq file*/
+        binTree->numReadsULng = getNumReadsInFq(binTree->fqPathCStr);
+    } /*If skipping the binning step, then need to create a single bin*/
+
+    else
+        cnvtBinTreeToList(&binTree);
+        /*Convert our bin tree to a list (No longer need AVL tree)*/
+
     clustOn = binTree;
     lastBin = binTree; /*so I can reset pointers when removing bin*/
     tmpBin = 0;
@@ -1635,6 +1648,10 @@ int main(
     /*Blank the rad count file*/
     statFILE = fopen(readCntFileCStr, "w");/*File to recored counts to*/
     fprintf(statFILE, "\nBins\t*\t0\t*\t*\n");
+
+    /******************************************************************\
+    * Main Sec-7 Sub-2: Print out read counts for bins & decide if keep
+    \******************************************************************/
 
     while(clustOn != 0)
     { /*While have reads to cluster*/
@@ -1671,6 +1688,10 @@ int main(
 
         fprintf(statFILE, "\tkept\tfirst-binning\n");
         fflush(statFILE); /*make sure io printed out*/
+
+        /**************************************************************\
+        * Main Sec-7 Sub-3: Set up readBin to hold a clusters files
+        \**************************************************************/
  
         while(clustOn->numReadsULng >= conSet.minReadsToBuildConUL)
         { /*While have reads to bin*/
@@ -1679,20 +1700,14 @@ int main(
             if(tmpBin == 0)
                 tmpBin = malloc(sizeof(struct readBin));
 
-            /*Make sure all bin values set to defaults/blanked*/
-            tmpBin->numReadsULng = 0;
-            tmpBin->refIdCStr[0] = '\0';
-            tmpBin->fqPathCStr[0] = '\0';
-            tmpBin->statPathCStr[0] = '\0';
-            tmpBin->bestReadCStr[0] = '\0';
-            tmpBin->topReadsCStr[0] = '\0';
-            tmpBin->consensusCStr[0] = '\0';
-            tmpBin->rightChild = 0;
-            tmpBin->leftChild = 0;
-            tmpBin->balUChar = 1; /*To mark keeping*/
+            if(tmpBin != 0)
+            { /*If I need to blank the bin*/
+                blankReadBin(tmpBin);
+                tmpBin->balUChar = 1; /*To mark keeping*/
+            } /*If I need to blank the bin*/
 
-            if(tmpBin == 0)
-            { /*If errored out*/
+            else
+            { /*Else memory allocation error*/
                 logFILE = fopen(logFileCStr, "a");
 
                 fprintf(
@@ -1712,10 +1727,10 @@ int main(
                 freeBinTree(&binTree);
 
                 exit(1); 
-            } /*If errored out*/
+            } /*Else memory allocation error*/
 
             /**********************************************************\
-            * Main Sec-7 Sub-2: Buld the consensus
+            * Main Sec-7 Sub-4: Buld the consensus
             \**********************************************************/
 
              errUC  = 
@@ -1757,7 +1772,7 @@ int main(
             } /*If had a memory allocation error*/
 
             /**********************************************************\
-            * Main Sec-7 Sub-3: Copy best read back to its oringal bin
+            * Main Sec-7 Sub-5: Copy best read back to its oringal bin
             \**********************************************************/
 
             ++clustOn->numReadsULng; /*Account for the best read*/
@@ -1777,11 +1792,24 @@ int main(
             remove(clustOn->bestReadCStr);/*Remove best read consensus*/
 
             /**********************************************************\
-            * Main Sec-7 Sub-4: Bin reads to the consensus
+            * Main Sec-7 Sub-6: Bin reads to the consensus
             \**********************************************************/
 
             /*Copy the consensus name to the clusters bin*/
             strcpy(tmpBin->consensusCStr, clustOn->consensusCStr);
+
+            if(skipClustBl & 1)
+            { /*If not clustering, move onto the next bin*/
+                lastClust->rightChild = tmpBin;
+                /*So can merge bins durning consensus comparisions*/
+                tmpBin->numReadsULng = lastClust->numReadsULng;
+                totalKeptReadsUL += tmpBin->numReadsULng;
+
+                strcpy(tmpBin->fqPathCStr, lastClust->fqPathCStr);
+                lastClust->fqPathCStr[0] = '\0';/*avoid deleting atEnd*/
+                tmpBin = 0;
+                break;        /*If not clusterin, move to next bin*/
+            } /*If not clustering, move onto the next bin*/
 
             binReadToCon(
                 &conSet.clustUC,    /*Cluster on*/
@@ -1792,8 +1820,11 @@ int main(
                 threadsCStr         /*# threads to use with Minimap2*/
             ); /*Find reads that mapp to the consensus*/
 
+            /*Find how many reads were kept in clustering*/
+            totalKeptReadsUL += tmpBin->numReadsULng;
+
             /**********************************************************\
-            * Main Sec-7 Sub-5: Compare new consensus to old consensuses
+            * Main Sec-7 Sub-7: Compare new consensus to old consensuses
             \**********************************************************/
 
             *clustOn->consensusCStr = '\0';
@@ -1809,7 +1840,7 @@ int main(
             ); /*Compares a consenses to other consensuses*/
 
             /**********************************************************\
-            * Main Sec-7 Sub-7: Update list of clusters in bin
+            * Main Sec-7 Sub-8: Update list of clusters in bin
             \**********************************************************/
 
             if(bestBin != 0)
@@ -1826,7 +1857,7 @@ int main(
         } /*While have reads to bin*/
 
         /**************************************************************\
-        * Main Sec-7 Sub-7: Add clusters to bin & move to next bin
+        * Main Sec-7 Sub-9: Add clusters to bin & move to next bin
         \**************************************************************/
 
         lastBin = clustOn; /*For reording the list*/
@@ -1902,6 +1933,8 @@ int main(
     * Main Sec-8 Sub-2: Find the most similar consensus to the cluster
     \******************************************************************/
 
+    /*Just rerun this step if just did clustering, should end pretty
+      quickly*/
     clustOn = binTree;
     lastClust = 0;     /*marks when have to leave consensus*/
 
@@ -1924,6 +1957,15 @@ int main(
                 tmpBin = tmpBin->rightChild;
                 continue;
             } /*If not enough reads to keep*/
+
+            if((double) tmpBin->numReadsULng / (double) totalKeptReadsUL
+               < minReadsDbl
+            ) { /*If discarding the bin*/
+                binDeleteFiles(tmpBin); /*Remove its files*/
+                tmpBin->balUChar = -1; /*mark for removal*/
+                tmpBin = tmpBin->rightChild;
+                continue;
+            } /*If discarding the bin*/
 
             bestBin =
                 cmpCons(
@@ -1966,7 +2008,7 @@ int main(
                 ); /*Compares a consenses to other consensuses*/
             } /*While have clusters with highly similar consensuses*/
 
-            tmpBin = tmpBin->rightChild; /*Move to next cluster*/
+           tmpBin = tmpBin->rightChild; /*Move to next cluster*/
                 /*First node is old bin, so is not a cluster*/
         } /*While have clusters to compare to other clusters*/
 
@@ -2057,6 +2099,9 @@ char * getUserInput(
     char **refsPathCStr, /*Holds path to references*/
     char *threadsCStr, /*Number threads for minimap2 & racon*/
     char *rmSupAlnBl,  /*1: Remove reads with supplemental alignments*/
+    char *skipBinBl,   /*1: Skip the binning step, 0 do not*/
+    char *skipClustBl, /*1: Skip the clusterin step, 0 do not*/
+    double *minReadsDbl,
     struct conBuildStruct *conSet,   /*Settings for consensus building*/
     struct minAlnStats *readToRefMinStats, /*Binning scoring settings*/
     struct minAlnStats *readToReadMinStats,/*Read pull scoring setting*/
@@ -2112,6 +2157,21 @@ char * getUserInput(
 
         else if(strcmp(parmCStr, "-threads") == 0)
             strcpy(conSet->medakaSet.modelCStr, inputCStr);
+
+        else if(strcmp(parmCStr, "-skip-bin") == 0)
+        { /*Else if skipping the binning step*/
+            *skipBinBl = 1;
+            --intArg; /*Account for this being a true or false*/
+        } /*Else if skipping the binning step*/
+
+        else if(strcmp(parmCStr, "-skip-clust") == 0)
+        { /*Else if skipping the clustering step*/
+            *skipClustBl = 1;
+            --intArg; /*Account for this being a true or false*/
+        } /*Else if skipping the clustering step*/
+
+        else if(strcmp(parmCStr, "-min-perc-reads") == 0)
+            sscanf(inputCStr, "%lf", minReadsDbl);
 
         else if(strcmp(parmCStr, "-pick-read-with-med-q") == 0)
         { /*If user wanted to use the median Q-score instead*/
@@ -2225,10 +2285,10 @@ char * getUserInput(
         else if(strcmp(parmCStr, "-read-ref-min-mapq") == 0)
             cStrToUInt(inputCStr, &readToRefMinStats->minMapqUInt);
 
-        else if(strcmp(parmCStr, "-read-ref-min-median-q") == 0)
+        else if(strcmp(parmCStr, "-min-median-q") == 0)
             sscanf(inputCStr, "%f", &readToRefMinStats->minMedianQFlt);
 
-        else if(strcmp(parmCStr, "-read-ref-min-mean-q") == 0)
+        else if(strcmp(parmCStr, "-min-mean-q") == 0)
             sscanf(inputCStr, "%f", &readToRefMinStats->minMeanQFlt);
 
         else if(strcmp(parmCStr, "-read-ref-min-aligned-median-q") == 0)
@@ -2245,11 +2305,11 @@ char * getUserInput(
                 &readToRefMinStats->minAlignedMeanQFlt
             );
 
-        else if(strcmp(parmCStr, "-read-ref-min-read-length") == 0)
+        else if(strcmp(parmCStr, "-min-read-length") == 0)
             readToRefMinStats->minReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
 
-         else if(strcmp(parmCStr, "-read-ref-max-read-length") == 0)
+         else if(strcmp(parmCStr, "-max-read-length") == 0)
             readToRefMinStats->maxReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
 

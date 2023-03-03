@@ -14,6 +14,14 @@
 '   fun-3 addLineToBuff:
 '     o Add characters from file to buffer, if needed resize.
 '     o This will only read in till the end of the line
+'   fun-4 getNumReadsInFq:
+'     o Finds the number of reads in a fastq file
+'   fun-5 copyFile:
+'     o Makes a copy of a file (I am using this to copying fastq files)
+'   fun-6 filterReads:
+'     o Filters reads in a fastq file by length and mean/median Q-score
+'   fun-7 moveToNextFastqEntry:
+'     o Move to next entry in buffer holding data from a fastq file
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*---------------------------------------------------------------------\
@@ -235,6 +243,7 @@ uint8_t readRefFqSeq(
 
     /*Go to start of the sequence entry*/
     fqIterCStr = refStruct->samEntryCStr + headBuffUL;
+    oldIterCStr = fqIterCStr;
 
     /******************************************************************\
     * Fun-2 Sec-5 Sub-2: Get sequence length, remove '\n''s, set pointer
@@ -415,3 +424,358 @@ unsigned char addLineToBuff(
 
     return 0; /*End of file*/
 } /*addToBuff*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|   - Returns:
+|     o 0 if the fastq file could not be opened
+|     o The number of reads in the fastq file
+| Note:
+|   - fqFILE will be set back to its starting position at the end
+\---------------------------------------------------------------------*/
+unsigned long getNumReadsInFq(
+    char *fqFileCStr /*Path to fastq file to get number of reads in*/
+) /*Find the number of reads in a fastq file*/
+{ /*getnUmReadsInFq*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-4 TOC: Sec-1 Sub-1: getNumReadsInFq
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    char *tmpCS = 0;
+    char buffCS[1024];
+    uint64_t tmpUL = 1024;
+    unsigned long numReadsUL = 0;
+    FILE *fqFILE = fopen(fqFileCStr, "r");
+
+    if(fqFileCStr == 0)
+        return 0; /*No fastq file to work with*/
+
+    tmpCS = buffCS;
+    buffCS[0] = '\0';
+
+     while(moveToNextFastqEntry(buffCS, &tmpCS,1024, &tmpUL,fqFILE) & 2)
+         ++numReadsUL;
+
+     return numReadsUL;
+} /*getnUmReadsInFq*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|   o Writes a copy of the original file (orgFqCStr):
+|   o Returns:
+|     - 1 if no problems happened
+|     - 2 if could not open orgFqCStr
+|     - 4 if could not open newFqCStr
+\---------------------------------------------------------------------*/
+unsigned char copyFile(
+    char *orgFqCStr,  /*Path to fastq file to copy (orignal)*/
+    char *newFqCStr   /*Path to the new duplicate Fastq file*/
+) /*Copies a fastq file to a new file*/
+{ /*copyFile*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-5 TOC: Sec-1 Sub-1: copyFqFile
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    unsigned short lenBuffUS = 1024;
+    char buffCStr[lenBuffUS];
+    unsigned long bytesReadInUL = 0;
+    FILE *fqFILE = 0;
+    FILE *cpFqFILE = 0;
+
+    /*Make sure can open and write both files*/
+    fqFILE = fopen(orgFqCStr, "r");
+
+    if(fqFILE == 0)
+        return 2;
+
+    cpFqFILE = fopen(newFqCStr, "w");
+
+    if(cpFqFILE == 0)
+    { /*If could not open the copy file*/
+        fclose(fqFILE);
+        return 4;
+    } /*If could not open the copy file*/
+
+    /*Copy the input file*/
+    bytesReadInUL = fread(buffCStr, sizeof(char), lenBuffUS, fqFILE);
+
+    while(bytesReadInUL == lenBuffUS)
+    { /*While I have not reached the end of the file*/
+        fwrite(buffCStr, sizeof(char), bytesReadInUL, cpFqFILE);
+        bytesReadInUL = fread(buffCStr,sizeof(char), lenBuffUS, fqFILE);
+    } /*While I have not reached the end of the file*/
+
+    if(bytesReadInUL > 0)
+        fwrite(buffCStr, sizeof(char), bytesReadInUL, cpFqFILE);
+
+    fclose(fqFILE);
+    fclose(cpFqFILE);
+    return 1;
+} /*copyFile*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Creates File: from outFqPathCStr with filtered reads
+|    Returns:
+|        - 1: if succeded
+|        - 2: If file was not a fastq file
+|        - 130: If file had an invalide entry
+|            - This error uses to flags, first it uses 2 to specify that
+|              it is not a fastq file (invalid file).
+|            - 2nd it uses 128 to specifty that it is not an blank file
+|        - 64: If malloc failed to find memory
+\---------------------------------------------------------------------*/
+unsigned char filterReads(
+    char *fqCStr,/*Fastq file with reads to filter (null for stdin)*/
+    char *outCStr,/*Name of fastq to write reads to (null for stdout)*/
+    struct samEntry *samST, /*For reading in lines for the fastq file*/
+    struct minAlnStats *minStats
+        /*Has min/max lengths & mean/median Q-score*/
+) /*Filters reads in a fastq file by length and mean/median Q-score*/
+{ /*filterReads*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-6 TOC: Sec-1 Sub-1: filterReads
+    '   o fun-6 sec-1: variable declerations
+    '   o fun-6 sec-2: Check if input files are valid
+    '   o fun-6 sec-3: Filter reads
+    '   o fun-6 sec-4: Clean up
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-1: variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    unsigned char errUC = 0;
+    FILE *fqFILE = 0;
+    FILE *outFILE = 0;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-2: Check if input files are valid
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    if(fqCStr == 0)
+        fqFILE = stdin;
+    else
+        fqFILE = fopen(fqCStr, "r");
+
+    if(fqFILE == 0)
+        return 2;
+
+    if(*outCStr == 0)
+        outFILE = stdout;
+    else
+        outFILE = fopen(outCStr, "w");
+
+    if(outFILE == 0)
+        return 4;
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-3: Filter reads
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*Read in the first line*/
+    blankSamEntry(samST);
+    errUC = readRefFqSeq(fqFILE, samST, 0);
+       /*Want to remove extra new lines for Q-score calculations*/
+
+    while(errUC & 1)
+    { /*While have entries to check*/
+
+        findQScores(samST);
+
+        /*Check if keeping the read*/
+        if(samST->medianQFlt < minStats->minMedianQFlt)
+            goto readNextLine;
+
+        if(samST->meanQFlt < minStats->minMeanQFlt)
+            goto readNextLine;
+
+        if(samST->readLenUInt < minStats->minReadLenULng)
+            goto readNextLine;
+
+        if(minStats->maxReadLenULng == 0)
+            samToFq(samST, outFILE); /*Save the read*/
+
+        else if(samST->readLenUInt <= minStats->maxReadLenULng)
+            samToFq(samST, outFILE); /*Save the read*/
+
+        readNextLine:
+            blankSamEntry(samST);
+            errUC = readRefFqSeq(fqFILE, samST, 0);
+    } /*While have entries to check*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-4: Clean up
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    fclose(fqFILE);
+    fclose(outFILE);
+
+    if(errUC != 0)
+       return errUC; /*If errored out*/
+
+    return 1;
+} /*filterReads*/
+
+/*##############################################################################
+# Output:
+#    Modifies: bufferCStr to have the next buffer if empty
+#    Modifies: incurments pointInBufferCStr to start of next read
+#    Returns:
+#        4: If the end of the file
+#        2: if nothing went wrong
+#        0: If ran out of file
+##############################################################################*/
+uint8_t moveToNextFastqEntry(
+    char *bufferCStr,  /*buffer to hold fread input (can have data)*/
+    char **pointInBufferCStr, /*position working on in buffer*/
+    uint32_t buffSizeInt,        /*Size of buffer to work on*/
+    uint64_t *lenInputULng,      /*Length of input from fread*/
+    FILE *fastqFile              /*Fastq file to get data from*/
+) /*Moves to next fastq read, without printing out*/
+{ /*moveToNextFastqEntry*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 TOC:
+    #     fun-7 sec-1: Variable declerations
+    #     fun-7 sec-2: Move past header
+    #     fun-7 sec-3: Find number of newlines in sequence & move to spacer
+    #     fun-7 sec-4: Move past spacer
+    #     fun-7 Sec-5: Move past Q-score entry
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 Sec-1: Variable declerations
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    uint64_t
+        numSeqlinesULng = 0;  /*Record the number of new lines in the sequence*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 Sec-2: Move past header
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+ 
+    while(**pointInBufferCStr != '\n')
+    { /*While on header, move to sequence line*/
+
+        if(**pointInBufferCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+
+            if(*lenInputULng < buffSizeInt)
+                return 0;         /*Is not a complete fastq file*/
+
+            *lenInputULng = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *pointInBufferCStr = bufferCStr;
+            continue;                           /*so can check if '\n'*/
+        } /*If ran out of buffer & need to read more of the file*/
+
+        (*pointInBufferCStr)++;
+    } /*While on header, move to sequence line*/
+
+    ++(*pointInBufferCStr); /*get off the new line*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 Sec-3: Find number new lines in seqence line & move to spacer
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    while(**pointInBufferCStr != '+')
+    { /*While on sequence line, count number new lines & move to spacer*/
+
+        if(**pointInBufferCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+
+            if(*lenInputULng < buffSizeInt)
+                return 0;         /*Is not a complete fastq file*/
+
+            *lenInputULng = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *pointInBufferCStr = bufferCStr;
+            continue;                           /*so can check if '\n'*/
+        } /*If ran out of buffer & need to read more of the file*/
+
+        if(**pointInBufferCStr == '\n')
+            numSeqlinesULng++;    /*Record number new lines, for q-score entry*/
+
+        (*pointInBufferCStr)++;
+    } /*While on sequence line, count number new lines & move to spacer*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 Sec-4: Move past spacer entry
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+ 
+    while(**pointInBufferCStr != '\n')
+    { /*While on the spacer entry*/
+
+        if(**pointInBufferCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+
+            if(*lenInputULng < buffSizeInt)
+                return 0;         /*Is not a complete fastq file*/
+
+            *lenInputULng = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *pointInBufferCStr = bufferCStr;
+            continue;                           /*so can check if '\n'*/
+        } /*If ran out of buffer & need to read more of the file*/
+
+        (*pointInBufferCStr)++;
+    } /*While on the spacer entry*/
+
+    ++(*pointInBufferCStr); /*get off the new line*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Fun-7 Sec-5: Move past q-score entry (same number lines as sequence)
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    while(numSeqlinesULng > 0)
+    { /*While have q-score entry lines to print out*/
+
+        if(**pointInBufferCStr == '\0')
+        { /*If ran out of buffer & need to read in more of the file*/
+
+            if(*lenInputULng < buffSizeInt)
+            { /*If at end of the file*/
+                if(numSeqlinesULng > 1)
+                    return 0;         /*Missing q-score lines for entry*/
+                else
+                    return 4;         /*At end of file & printed last line*/
+            } /*If at end of the file*/
+
+            *lenInputULng = fread(bufferCStr,
+                                 sizeof(char),
+                                 buffSizeInt,
+                                 fastqFile
+            ); /*Read in more of the file*/
+
+            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *pointInBufferCStr = bufferCStr;
+            continue;                           /*so can check if '\n'*/
+        } /*If ran out of buffer & need to read more of the file*/
+
+        if(**pointInBufferCStr == '\n')
+            numSeqlinesULng--;    /*Record number new lines, for q-score entry*/
+
+        (*pointInBufferCStr)++;
+    } /*While have q-score entry lines to print out*/
+
+    return 2; /*Copied name sucessfully*/
+} /*moveToNextFastqEntry*/

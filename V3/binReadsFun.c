@@ -58,10 +58,10 @@ struct readBin * binReads(
     ^ Fun-1 Sec-1: Varaible declerations
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    char minimap2CMDCStr[1024];
-    char binFileCStr[128];
-    char statFileCStr[128];
-    char refIdCStr[128];
+    char minimap2CMDCStr[2048];
+    char binFileCStr[256];
+    char statFileCStr[256];
+    char refIdCStr[256];
     char *tmpCStr = 0;
     char dupBL = 0;        /*Was the last read a duplicate*/
     uint8_t zeroUChar = 0;    /*For when I need to pass a 0 as a pointer*/
@@ -159,6 +159,7 @@ struct readBin * binReads(
             oldSam = tmpSam;
 
             /*Read the next sam entry*/
+            blankSamEntry(oldSam); /*Remove old stats in sam file*/
             funErrUC = readSamLine(oldSam, stdinFILE);
             continue;
         } /*If entry did not have a sequence, discard*/
@@ -537,7 +538,7 @@ uint8_t binReadToCon(
     uint8_t zeroUChar = 0;
     uint8_t headBool = 0; /*Tells if frist round in stats file*/
 
-    char minimap2CmdCStr[1024];  /*Holds minimap2 command to run*/
+    char minimap2CmdCStr[2048];  /*Holds minimap2 command to run*/
     char *tmpCStr = 0;
     char *tmpStatsCStr = "2023-01-17-1239-stats-tmp-01928327456123.tsv";
     char *tmpFqCStr = "2023-01-17-1239-fastq-tmp-019283274561234.fastq";
@@ -640,13 +641,29 @@ uint8_t binReadToCon(
         if(*samStruct->samEntryCStr == '@')
         { /*If was a header*/
             /*Read in next entry*/
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a header*/
 
+        if(samStruct->flagUSht & 256 || samStruct->flagUSht & 2048)
+        { /*If was a secondary or supplementary alignement, ignore*/
+            /*Read in next entry*/
+            blankSamEntry(samStruct);
+            errUChar = readSamLine(samStruct, stdinFILE);
+            continue; /*Is a header line, move to next line in file*/
+        } /*If was a secondary or supplementary alignement, ignore*/
+
+        findQScores(samStruct); /*Find the Q-scores*/
+
         if(samStruct->flagUSht & 4)
         { /*Make sure the read mapped to something*/
+            samToFq(samStruct, otherBinFILE);
+            printSamStats(samStruct, &headBool, tmpStatsFILE);
+            ++binTree->numReadsULng; /*Update total scores in bin*/
+
             /*Read in next entry*/
+            blankSamEntry(samStruct);
             errUChar = readSamLine(samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*Make sure the read mapped to something*/
@@ -654,8 +671,6 @@ uint8_t binReadToCon(
         /**************************************************************\
         * Fun-2 Sec-4 Sub-2: Score read
         \**************************************************************/
-
-       findQScores(samStruct); /*Find the Q-scores*/
 
         scoreAln(
             minStats,
@@ -696,9 +711,8 @@ uint8_t binReadToCon(
         * Fun-2 Sec-4 Sub-4: Read next line from minimap2 & stats file
         \**************************************************************/
 
+        /*Read in the next line*/
         blankSamEntry(samStruct);
-
-         /*Read in the next line*/
         errUChar = readSamLine(samStruct, stdinFILE);
     } /*While their is a samfile entry to read in*/
 

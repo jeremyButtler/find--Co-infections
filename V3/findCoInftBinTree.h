@@ -24,12 +24,12 @@
 typedef struct readBin
 { /*readBin structer*/
     char
-        refIdCStr[100],        /*Holds reference name*/
-        fqPathCStr[100],       /*Holds fastq file name for this ref*/
-        statPathCStr[100],     /*Holds stat file name for this ref*/
-        bestReadCStr[100],     /*Holds file with the best read*/
-        topReadsCStr[100],     /*Holds file name of top reads fastq*/
-        consensusCStr[100];    /*Holds file name of consensus fasta*/
+        refIdCStr[128],        /*Holds reference name*/
+        fqPathCStr[256],       /*Holds fastq file name for this ref*/
+        statPathCStr[256],     /*Holds stat file name for this ref*/
+        bestReadCStr[256],     /*Holds file with the best read*/
+        topReadsCStr[256],     /*Holds file name of top reads fastq*/
+        consensusCStr[256];    /*Holds file name of consensus fasta*/
 
     int8_t
         balUChar;              /*Tells if the node is balanced*/
@@ -268,5 +268,13 @@ void mergeBins(
     struct readBin *binToKeep,  /*Bin to merge into*/
     struct readBin *binToMerge /*Bin to merge into binToKeep*/
 ); /*Merge two readBins together into on bin*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: Sets all variables in binToBlank to null/0
+\---------------------------------------------------------------------*/
+void blankReadBin(
+    struct readBin *binToBlank /*readBin struct to blank all variables*/
+); /*Sets all variables in a readBin struct to 0/null*/
 
 #endif

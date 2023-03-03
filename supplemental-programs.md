@@ -80,11 +80,9 @@ minimap2 --secondary=no --eqx -a ref.fasta reads.fastq | scoreReads -stdin > sta
 
 FqGetIds is a program that extracts fastq entries using a provided set
   of read ids. It runs on less memory than seqkit, but also runs slower
-  than seqkit when you are extracting less than 33% of nanopore
-  sequenced reads. When extracting over 33% of the file it is a toss up,
-  with fqGetIds doing better as read depth increases. It does a bit
-  better on Illumina reads than seqkit, but this is due to processing
-  the read ids backwards instead of the normal forwards direction.
+  than seqkit for Illumina reads. This programs speed for Illumina and
+  Nanopore sequenced reads has changed a bit. I am hoping to get a more
+  even rate between Illumina and Nanopore in the future.
 
 FqGetIds was first seen as fastqGrep in find co-infections. It is mainly
   here to remove additional dependencies.

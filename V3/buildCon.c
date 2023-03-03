@@ -2,7 +2,25 @@
 # Use:
 #   o buildCon is the driver file for the buildCon program.
 #   o It will buid a consensus from a fastq file with or without a 
-#     reference
+#     reference.
+# Requires:
+#   o cStrFun.c/h
+#   o cStrToNumberFun.c/h
+#   o defaultSettings.h
+#   o printError.c/h
+#   o samEntryStruct.c/h
+#   o trimSam.c/h
+#   o fqGetIdsStructs.c/h
+#   o fqGetIdsAVLTree.c/h
+#   o fqGetIdsHash.c/h
+#   o fqGetIdsFqFun.c/h
+#   o fqGetIdsSearchFq.c/h
+#   buildConFun.c/h
+# C libaries:
+#   o string.h
+#   o stdlib.h
+#   o stdio.h
+#   o stdint.h
 ######################################################################*/
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
@@ -534,15 +552,7 @@ int main(
 
     tmpCStr = cStrCpInvsDelm(tmpPathCStr, prefixCStr);
     tmpCStr = cStrCpInvsDelm(tmpCStr, ".fastq");
-
-    stdinFILE = fopen(fqPathCStr, "r");
-    cpFILE = fopen(tmpPathCStr, "w");
-
-    while(fgets(tmpCmdCStr, 1024, stdinFILE))
-        fprintf(cpFILE, "%s", tmpCmdCStr);
-
-    fclose(stdinFILE);
-    fclose(cpFILE);
+    copyFile(fqPathCStr, tmpPathCStr);
     strcpy(fastqStruct.fqPathCStr, tmpPathCStr);
 
     /******************************************************************\

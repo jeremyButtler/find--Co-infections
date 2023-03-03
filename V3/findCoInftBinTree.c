@@ -35,8 +35,10 @@
 '      o Remove bin from a list of bins
 '    fun-19 binDeleteFiles:
 '      o Delete all files in a readBin
-'    fun-20 mergeBin
+'    fun-20 mergeBin:
 '      o Merge two readBins together into on bin:
+'    fun-21 blankReadBin:
+'      o Sets all variables in a readBin struct to 0/null
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*######################################################################
@@ -1106,3 +1108,29 @@ void mergeBins(
 
     return;
 } /*mergeBins*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: Sets all variables in binToBlank to null/0
+\---------------------------------------------------------------------*/
+void blankReadBin(
+    struct readBin *binToBlank /*readBin struct to blank all variables*/
+) /*Sets all variables in a readBin struct to 0/null*/
+{ /*blankReadBin*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-21 TOC: Sec-1 Sub-1: blankReadBin
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+    binToBlank->numReadsULng = 0;
+    binToBlank->refIdCStr[0] = '\0';
+    binToBlank->fqPathCStr[0] = '\0';
+    binToBlank->statPathCStr[0] = '\0';
+    binToBlank->bestReadCStr[0] = '\0';
+    binToBlank->topReadsCStr[0] = '\0';
+    binToBlank->consensusCStr[0] = '\0';
+    binToBlank->rightChild = 0;
+    binToBlank->leftChild = 0;
+    binToBlank->balUChar = 0;
+
+    return;
+} /*blankReadBin*/

@@ -1,15 +1,6 @@
 /*######################################################################
 # Name: scoreReadsFun
-# Use:
-#    - Holds unique functions needed for scoreReads.
-#    - Use scoreAln to score a single alignment
-# Includes:
-#    - "samEntryStruct.h"
-#        - <stdlib.h>
-#        - "cStrToNumberFun.h"
-#            - <sdtint.h>
-#        - "printError.h"
-#            - <stdio.h>
+# Use: Holds unique functions needed for scoreReads.
 ######################################################################*/
 
 #include "scoreReadsFun.h" /*Holds structers to hold samfile stats*/
@@ -30,14 +21,8 @@
 '    fun-8 checkSoftMasks: Increments pointer when soft mask is present
 '    fun-9 readAndCheckRef: Read in reference (calls readRefFqSeq)and
 '                            check if reference meets requirements
-'    fun-11 findQScores: find Q-score of read using q-score entry
-'    fun-12 qHistToMed: Find median Q-score from a q-score histogram
-'    fun-13 readCigEntry: Get number of bases in a single cigar entry
-'    fun-14 readReverseCigEntry: readCigEntry, but works backwards
-'    fun-15 blankMinStats: set a minAlnStats structer to defaults
-'    fun-16 blankMinStatsReadRead: For read/read settings
-'    fun-17 blankMinStatsReadCon: For read/consensus settings
-'    fun-18 blankMinStatsConCon: For consensus/consensus settings
+'    fun-10 readCigEntry: Get number of bases in a single cigar entry
+'    fun-11 readReverseCigEntry: readCigEntry, but works backwards
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static uint32_t MAX_UINT = 0xFFFFFFFF; /*max value of 32 bit number*/
@@ -129,6 +114,8 @@ uint8_t scoreReads(
             ) & 1)
                 printSamStats(samStruct, &printHeadChar, outFILE);
                 /*Logic is >> 2 removes first two flags*/
+
+         blankSamEntry(samStruct);
          keepAlnUChar = readSamLine(samStruct, samFILE);
     } /*While I have lines to read in the sam file*/
 
@@ -1088,105 +1075,6 @@ uint8_t readAndCheckRef(
 } /*readAndCheckRef*/
 
 /*######################################################################
-# output:
-#    returns: The read length (unsigned long)
-# Note: 
-#    - samStruct->seqQHistUInt must have all values initialized to 0
-#    - Requires: qHistToMedian from scoreReadsSamFileFunctions.c
-######################################################################*/
-void findQScores(
-    struct samEntry *samStruct /*Sam entry to find Q-scores for*/
-) /*Finds Q-scores for input sam entry*/
-{ /*findQScores*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-11 Sec-1 Sub-1 TOC: findQScores
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    char
-        *seqQCStr = samStruct->qCStr;
-    uint64_t
-        lenReadULng = 0;
-
-    samStruct->totalQScoreULng = 0;
-    samStruct->meanQFlt = 0;
-    samStruct->medianQFlt = 0;
-
-    if(seqQCStr == 0)
-        return;       /*No Q-score entry*/
-
-           /* *qCStr ^ '*' is 0 when qCStr == '*'
-              *(qCStr + 1) ^ '\t' is 0 when qCStr == '\t'
-              | ensures value is only 0 when qCStr = "*\t"*/
-    if(((*samStruct->qCStr ^ '*') | (*(samStruct->qCStr+1) ^ '\t')) ==0)
-        return;       /*No Q-score entry*/
-
-    while(*seqQCStr > 32)
-    { /*loop through the Q-score entry*/
-        ++(samStruct->seqQHistUInt[*seqQCStr - Q_ADJUST]);
-        samStruct->totalQScoreULng += (*seqQCStr - Q_ADJUST);
-        ++seqQCStr;
-        ++lenReadULng;
-    } /*loop through the Q-score entry*/
-    
-    /*Find the mean and median*/
-    samStruct->meanQFlt =
-        samStruct->totalQScoreULng / ((float) lenReadULng);
-
-    samStruct->medianQFlt =
-        qHistToMed(samStruct->seqQHistUInt, lenReadULng);
-
-    return;
-} /*findQScores*/
-
-/*######################################################################
-# Output:
-#    returns: double with the median Q-score [or 0 if nothing]
-######################################################################*/
-float qHistToMed(
-    uint32_t qHistUInt[], /*Histogram of Q-scores*/
-    uint32_t readLenUInt     /*Number of bases in the read*/
-) /*converts histogram of q-scores into samStruct into median Q-score*/
-{ /*qHistToMedian*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-12 Sec-1 Sub-1 TOC: qHistToMedian
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    uint32_t
-        numBasesUInt = 0,
-        midPointULng = readLenUInt / 2;
-
-    for(uint32_t intQ = 0; intQ < MAX_Q_SCORE; intQ++)
-    { /*Loop through Q-score histogram to find mean and median Q-score*/
-        numBasesUInt += qHistUInt[intQ];
-
-        if(numBasesUInt >= midPointULng)
-        { /*if found the midpoint, then find the median*/
-
-            if(numBasesUInt > midPointULng)
-                return intQ;  /*at least 2 bases past mid have same Q*/
-
-            else if(numBasesUInt % 2 == 1)
-                return intQ;  /*Is odd, so Their is a middle number*/
-
-            else
-            { /*Else is even, so no middle number (two numbers at mid)*/
-                numBasesUInt = intQ;
-                ++intQ;
-
-                while(qHistUInt[intQ] == 0)
-                    ++intQ;
-
-                return (numBasesUInt + qHistUInt[intQ]) / ((float) 2);
-            } /*Else is even, so no middle number (two numbers at mid)*/
-        } /*if found the midpoint, then find the median*/
-    } /*Loop through Q-score histogram to find mean and median Q-score*/
-
-    return 0; /*Just in case was all 0's in the array*/
-} /*qHistToMedian*/
-
-/*######################################################################
 # Output:
 #    modifies: retULng to hold number of bases in cigar entry
 #    modifies: cigarUCStr to point to entry type (SNP, indel, ect...)
@@ -1201,7 +1089,7 @@ void readCigEntry(
 { /*readCigEntry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-13 Sec-1 Sub-1 TOC: readCigEntry
+    # Fun-10 Sec-1 Sub-1 TOC: readCigEntry
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     *retUInt = 0;
@@ -1235,7 +1123,7 @@ void readReverseCigEntry(
 { /*readReverseCigEntry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-14 Sec-1 Sub-1 TOC: readReverseCigEntry
+    # Fun-11 Sec-1 Sub-1 TOC: readReverseCigEntry
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     uint64_t tensPosULng = 1;
@@ -1255,247 +1143,3 @@ void readReverseCigEntry(
 
     return;
 } /*readReverseCigEntry*/
-
-/*######################################################################
-# Output:
-#    modifes minStats to have default entries
-# Uses default read to reference mapping settings from defaultSettings.h
-######################################################################*/
-void blankMinStats(
-    struct minAlnStats *minStats
-) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
-{ /*blankMinStats*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-15 Sec-1 Sub-1 TOC: blankMinStats
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    minStats->minMapqUInt = readRefMapq; /*min mapping quality*/
-    minStats->minQChar = readRefMinBaseQ; /*default min Q-score*/
-    minStats->minMedianQFlt = readRefMinMedQ;/*default median Q-score*/
-    minStats->minMeanQFlt = readRefMinMeanQ; /*default mean Q-score*/
-    minStats->minAlignedMedianQFlt = readRefMinAlnMedQ;/*med aligend Q*/
-    minStats->minAlignedMeanQFlt = readRefMinAlnMeanQ;/*mean aligend Q*/
-    minStats->maxReadLenULng = readRefMaxReadLen; /*max read length*/
-    minStats->minReadLenULng = readRefMinReadLen; /*min read length*/
-    
-    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
-    { /*loop till have initialized the deltion and insertion arrays*/
-        minStats->maxHomoInsAry[uCharCnt] = 0;
-        minStats->maxHomoDelAry[uCharCnt] = 0;
-    } /*loop till have initialized the deltion and insertion arrays*/
-
-    minStats->maxHomoInsAry[0] = readRefMaxInsAHomo;
-        /*Discard A insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[10] = readRefMaxInsTHomo;
-        /*Discard T insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[1] = readRefMaxInsCHomo;
-        /*Discard C insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[3] = readRefMaxInsGHomo;
-        /*Discard G insertion if homopoymer in is larger than setting*/
-
-    minStats->maxHomoDelAry[0] = readRefMaxDelAHomo;
-        /*Discard A deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[10] = readRefMaxDelTHomo;
-        /*Discard T deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[1] = readRefMaxDelCHomo;
-        /*Discard C deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[3] = readRefMaxDelGHomo;
-        /*Discard G deletion if homopoymer in is larger than setting*/
-
-    /*These settings are for findCoInft*/
-    minStats->minSNPsFlt = readRefMinPercSNPs;
-    minStats->minDelsFlt = readRefMinPercDels;
-    minStats->minInssFlt = readRefMinPercInss;
-    minStats->minIndelsFlt = readRefMinPercIndels;
-    minStats->minDiffFlt = readRefMinPercDiff;
-    return;
-} /*blankMinStats*/
-
-/*######################################################################
-# Output:
-#    modifes minStats to have default entries
-# Uses default read to read mapping settings from defaultSettings.h
-######################################################################*/
-void blankMinStatsReadRead(
-    struct minAlnStats *minStats
-) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
-{ /*blankMinStatsReadRead*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-16 Sec-1 Sub-1 TOC: blankMinStatsReadRead
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    minStats->minMapqUInt = readReadMapq;
-        /*Mininum mapping quality to keep a read*/
-    minStats->minQChar = readReadMinBaseQ;
-         /*Minimum Q-score to keep a base or insertion*/
-    minStats->minMedianQFlt = readReadMinMedQ;
-        /*Minimum median Q-score to keep a read*/
-    minStats->minMeanQFlt = readReadMinMeanQ;
-        /*Minimum mean Q-score to keep a read*/
-    minStats->minAlignedMedianQFlt = readReadMinAlnMedQ;
-        /*Minimum median aligend Q-score to keep a read*/
-    minStats->minAlignedMeanQFlt = readReadMinAlnMeanQ;
-        /*Minimum mean aligend Q-score to keep a read*/
-    minStats->maxReadLenULng = readReadMaxReadLen; /*max read length*/
-    minStats->minReadLenULng = readReadMinReadLen; /*min read length*/
-    
-    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
-    { /*loop till have initialized the deltion and insertion arrays*/
-        minStats->maxHomoInsAry[uCharCnt] = 0;
-        minStats->maxHomoDelAry[uCharCnt] = 0;
-    } /*loop till have initialized the deltion and insertion arrays*/
-
-    minStats->maxHomoInsAry[0] = readReadMaxInsAHomo;
-        /*Discard A insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[10] = readReadMaxInsTHomo;
-        /*Discard T insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[1] = readReadMaxInsCHomo;
-        /*Discard C insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[3] = readReadMaxInsGHomo;
-        /*Discard G insertion if homopoymer in is larger than setting*/
-
-    minStats->maxHomoDelAry[0] = readReadMaxDelAHomo;
-        /*Discard A deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[10] = readReadMaxDelTHomo;
-        /*Discard T deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[1] = readReadMaxDelCHomo;
-        /*Discard C deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[3] = readReadMaxDelGHomo;
-        /*Discard G deletion if homopoymer in is larger than setting*/
-
-    /*These settings are for findCoInft*/
-    minStats->minSNPsFlt = readReadMinPercSNPs;
-    minStats->minDelsFlt = readReadMinPercDels;
-    minStats->minInssFlt = readReadMinPercInss;
-    minStats->minIndelsFlt = readReadMinPercIndels;
-    minStats->minDiffFlt = readReadMinPercDiff;
-    return;
-} /*blankMinStatsReadRead*/
-
-/*######################################################################
-# Output:
-#    modifes minStats to have default entries
-# Uses default read to consensus mapping settings from defaultSettings.h
-######################################################################*/
-void blankMinStatsReadCon(
-    struct minAlnStats *minStats
-) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
-{ /*blankMinStatsReadCon*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-17 Sec-1 Sub-1 TOC: blankMinStatsReadCon
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    minStats->minMapqUInt = readConMapq;
-        /*Mininum mapping quality to keep a read*/
-    minStats->minQChar = readConMinBaseQ;
-         /*Minimum Q-score to keep a base or insertion*/
-    minStats->minMedianQFlt = readConMinMedQ;
-        /*Minimum median Q-score to keep a read*/
-    minStats->minMeanQFlt = readConMinMeanQ;
-        /*Minimum mean Q-score to keep a read*/
-    minStats->minAlignedMedianQFlt = readConMinAlnMedQ;
-        /*Minimum median aligend Q-score to keep a read*/
-    minStats->minAlignedMeanQFlt = readConMinAlnMeanQ;
-        /*Minimum mean aligend Q-score to keep a read*/
-    minStats->maxReadLenULng = readConMaxReadLen; /*max read length*/
-    minStats->minReadLenULng = readConMinReadLen; /*min read length*/
-    
-    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
-    { /*loop till have initialized the deltion and insertion arrays*/
-        minStats->maxHomoInsAry[uCharCnt] = 0;
-        minStats->maxHomoDelAry[uCharCnt] = 0;
-    } /*loop till have initialized the deltion and insertion arrays*/
-
-    minStats->maxHomoInsAry[0] = readConMaxInsAHomo;
-        /*Discard A insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[10] = readConMaxInsTHomo;
-        /*Discard T insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[1] = readConMaxInsCHomo;
-        /*Discard C insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[3] = readConMaxInsGHomo;
-        /*Discard G insertion if homopoymer in is larger than setting*/
-
-    minStats->maxHomoDelAry[0] = readConMaxDelAHomo;
-        /*Discard A deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[10] = readConMaxDelTHomo;
-        /*Discard T deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[1] = readConMaxDelCHomo;
-        /*Discard C deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[3] = readConMaxDelGHomo;
-        /*Discard G deletion if homopoymer in is larger than setting*/
-
-    /*These settings are for findCoInft*/
-    minStats->minSNPsFlt = readConMinPercSNPs;
-    minStats->minDelsFlt = readConMinPercDels;
-    minStats->minInssFlt = readConMinPercInss;
-    minStats->minIndelsFlt = readConMinPercIndels;
-    minStats->minDiffFlt = readConMinPercDiff;
-    return;
-} /*blankMinStatsReadCon*/
-
-/*######################################################################
-# Output:
-#    modifes minStats to have default entries
-# default consensus to consensus mapping settings from defaultSettings.h
-######################################################################*/
-void blankMinStatsConCon(
-    struct minAlnStats *minStats
-) /*Sets minStats minimum requirements for sam alingemtns to defaults*/
-{ /*blankMinStatsConCon*/
-
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-18 Sec-1 Sub-1 TOC: blankMinStatsConCon
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-    minStats->minMapqUInt = conConMapq;
-        /*Mininum mapping quality to keep a con*/
-    minStats->minQChar = conConMinBaseQ;
-         /*Minimum Q-score to keep a base or insertion*/
-    minStats->minMedianQFlt = conConMinMedQ;
-        /*Minimum median Q-score to keep a con*/
-    minStats->minMeanQFlt = conConMinMeanQ;
-        /*Minimum mean Q-score to keep a con*/
-    minStats->minAlignedMedianQFlt = conConMinAlnMedQ;
-        /*Minimum median aligend Q-score to keep a con*/
-    minStats->minAlignedMeanQFlt = conConMinAlnMeanQ;
-        /*Minimum mean aligend Q-score to keep a con*/
-    minStats->maxReadLenULng = conConMaxReadLen; /*max con length*/
-    minStats->minReadLenULng = conConMinReadLen; /*min con length*/
-    
-    for(uint8_t uCharCnt = 0; uCharCnt < 16; ++uCharCnt)
-    { /*loop till have initialized the deltion and insertion arrays*/
-        minStats->maxHomoInsAry[uCharCnt] = 0;
-        minStats->maxHomoDelAry[uCharCnt] = 0;
-    } /*loop till have initialized the deltion and insertion arrays*/
-
-    minStats->maxHomoInsAry[0] = conConMaxInsAHomo;
-        /*Discard A insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[10] = conConMaxInsTHomo;
-        /*Discard T insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[1] = conConMaxInsCHomo;
-        /*Discard C insertion if homopoymer in is larger than setting*/
-    minStats->maxHomoInsAry[3] = conConMaxInsGHomo;
-        /*Discard G insertion if homopoymer in is larger than setting*/
-
-    minStats->maxHomoDelAry[0] = conConMaxDelAHomo;
-        /*Discard A deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[10] = conConMaxDelTHomo;
-        /*Discard T deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[1] = conConMaxDelCHomo;
-        /*Discard C deletion if homopoymer in is larger than setting*/
-    minStats->maxHomoDelAry[3] = conConMaxDelGHomo;
-        /*Discard G deletion if homopoymer in is larger than setting*/
-
-    /*These settings are for findCoInft*/
-    minStats->minSNPsFlt = conConMinPercSNPs;
-    minStats->minDelsFlt = conConMinPercDels;
-    minStats->minInssFlt = conConMinPercInss;
-    minStats->minIndelsFlt = conConMinPercIndels;
-    minStats->minDiffFlt = conConMinPercDiff;
-    return;
-} /*blankMinStatsConCon*/
-
-

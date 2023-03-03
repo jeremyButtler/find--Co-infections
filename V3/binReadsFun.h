@@ -2,23 +2,20 @@
 # Use:
 #   o Holds functions related to read binning.
 # Includes:
-#   o "cStrFun.h"
-#   o "trimSam.h"
-#       - "samEntryStruct.h" (See "findCoInftChecks.h" for sub-includes)
-#   o "findCoInftBinTree.h"
-#     - <string.h>
-#     - <stdlib.h>
-#     - <stdio.h>
-#     - <stdint.h>
-#   o "findCoInftChecks.h"
-#       - "defaultSettings.h"
-#       - "scoreReadsFun.h"
-#          o "samEntryStruct.h"
-#            - <stdlib.h>
-#            - "cStrToNumberFun.h"
-#              o <sdtint.h>
-#            - "printError.h"
-#              o <stdio.h>
+#   - "cStrFun.h"
+#   - "trimSam.h"
+#   - "findCoInftBinTree.h"
+#   - "findCoInftChecks.h"
+#   o "samEntryStruct.h"
+#   o "defaultSettings.h"
+#   o "scoreReadsFun.h"
+#   o "cStrToNumberFun.h"
+#   o "printError.h"
+# C standard libraries:
+#     o <string.h>
+#     o <stdlib.h>
+#     o <stdio.h>
+#     o <stdint.h>
 ######################################################################*/
 
 #ifndef BINREADSFUN_H

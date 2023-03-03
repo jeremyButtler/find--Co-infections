@@ -1,19 +1,24 @@
 /*######################################################################
 # Use:
 #   o Holds functions for manipulating fastq and fasta files.
-# Includes:
+# Non c-standard includes:
+#   - "minAlnStatsStruct.h"
+#   - "fqGetIdsFqFun.h"      (For moving through a fastq file)
+#   - "FCIStatsFun.h"
 #   o "samEntryStruct.h"
-#     - <stdlib.h>
-#     - "cStrToNumberFun.h"
-#       o <sdtint.h>
-#     - "printError.h"
-#       o <stdio.h>
+#   o "cStrToNumberFun.h"
+#   o "printError.h"
+# C standard Includes (all though non c-standard includes):
+#   o <stdlib.h>
+#   o <sdtint.h>
+#   o <stdio.h>
 ######################################################################*/
 
 #ifndef FQANDFAFUN_H
 #define FQANDFAFUN_H
 
-#include "samEntryStruct.h"
+#include "minAlnStatsStruct.h"
+#include "FCIStatsFun.h"
 
 /*---------------------------------------------------------------------\
 | Output:
@@ -75,5 +80,66 @@ unsigned char addLineToBuff(
 ); /*Add characters from file to buffer, if needed resize.
     This will only read in till the end of the line.*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|   - Returns:
+|     o 0 if the fastq file could not be opened
+|     o The number of reads in the fastq file
+| Note:
+|   - fqFILE will be set back to its starting position at the end
+\---------------------------------------------------------------------*/
+unsigned long getNumReadsInFq(
+    char *fqFileCStr /*Path to fastq file to get number of reads in*/
+); /*Find the number of reads in a fastq file*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|   o Writes a copy of the original file (orgFqCStr):
+|   o Returns:
+|     - 1 if no problems happened
+|     - 2 if could not open orgFqCStr
+|     - 4 if could not open newFqCStr
+\---------------------------------------------------------------------*/
+unsigned char copyFile(
+    char *orgFqCStr,  /*Path to fastq file to copy (orignal)*/
+    char *newFqCStr   /*Path to the new duplicate Fastq file*/
+); /*Copies a fastq file to a new file*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|    Creates File: from outFqPathCStr with filtered reads
+|    Returns:
+|        - 1: if succeded
+|        - 2: If file was not a fastq file
+|        - 130: If file had an invalide entry
+|            - This error uses to flags, first it uses 2 to specify that
+|              it is not a fastq file (invalid file).
+|            - 2nd it uses 128 to specifty that it is not an blank file
+|        - 64: If malloc failed to find memory
+\---------------------------------------------------------------------*/
+unsigned char filterReads(
+    char *fqCStr,/*Fastq file with reads to filter (null for stdin)*/
+    char *outCStr,/*Name of fastq to write reads to (null for stdout)*/
+    struct samEntry *samST, /*For reading in lines for the fastq file*/
+    struct minAlnStats *minStats
+        /*Has min/max lengths & mean/median Q-score*/
+); /*Filters reads in a fastq file by length and mean/median Q-score*/
+
+/*##############################################################################
+# Output:
+#    Modifies: bufferCStr to have the next buffer if empty
+#    Modifies: incurments pointInBufferCStr to start of next read
+#    Returns:
+#        4: If the end of the file
+#        2: if nothing went wrong
+#        0: If ran out of file
+##############################################################################*/
+uint8_t moveToNextFastqEntry(
+    char *bufferCStr,     /*buffer to hold fread input (can have data)*/
+    char **pointInBufferCStr, /*position working on in buffer*/
+    uint32_t buffSizeInt,              /*Size of buffer to work on*/
+    uint64_t *lenInputULng,  /*Length of input from fread*/
+    FILE *fastqFile               /*Fastq file to get data from*/
+); /*Moves to next fastq read, without printing out*/
 
 #endif

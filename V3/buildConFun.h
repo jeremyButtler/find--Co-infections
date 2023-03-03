@@ -3,37 +3,28 @@
 #   o Holds functions to build consensuses from fastq files or work
 #     with consensuses
 # Includes:
-#   o "trimSam.h"
-#     - "samEntryStruct.h" (Includes listed later in list)
-#   o "fqAndFaFun.h"
-#   o "readExtract.h"
-#     - "cStrFun.h"
-#     - "findCoInftBinTree.h"
-#       o <string.h>
-#       o <stdlib.h>
-#       o <stdio.h>
-#       o <stdint.h>
-#     - "findCoInftChecks.h
-#       o "defaultSettings.h"
-#       o "scoreReadsFun.h"
-#          - "samEntryStruct.h"
-#            o <stdlib.h>
-#            o "cStrToNumberFun.h"
-#              - <sdtint.h>
-#            o "printError.h"
-#              - <stdio.h>
-#     - fqGetIdsSearchFq
-#       o "fqGetIdsFqFun.h"
-#          - "fqGetIdsStructs.h"
-#       o fqGetIdsHash.h
-#          - fqGetIdsAVLTree.h:
-#            o <string.h>
-#            o "fqGetIdsStructs.h"
-#              - <stdlib.h>
-#              - <stdio.h>
-#              - <stdint.h>
+#   - "trimSam.h"
+#   - "fqAndFaFun.h"
+#   - "readExtract.h"
+#   o "defaultSettings.h"
+#   o "cStrFun.h"
+#   o "cStrToNumberFun.h"
+#   o "printError.h"
+#   o "samEntryStruct.h"
+#   o "findCoInftBinTree.h"
+#   o "findCoInftChecks.h
+#   o "scoreReadsFun.h"
+#   o "fqGetIdsSearchFq.h"
+#   o "fqGetIdsFqFun.h"
+#   o "fqGetIdsStructs.h"
+#   o "fqGetIdsHash.h"
+#   o "fqGetIdsAVLTree.h"
+# C standard librarys (may be in non-standard library includes):
+#   o <string.h>
+#   o <stdlib.h>
+#   o <stdio.h>
+#   o <stdint.h>
 ######################################################################*/
-
 
 #ifndef BUILDCONFUN_H
 #define BUILDCONFUN_H
@@ -127,6 +118,7 @@ typedef struct baseStruct
 | Output:
 |   - Returns:
 |     o 1 if built a consensus
+|     o 2 if could not open a file (refs, stats?, or fastq)
 |     o 8 if stat file was specified, but no stat file provided
 |     o 16 if could not build a consensus, but no other errors
 |     o 64 for memory allocation error

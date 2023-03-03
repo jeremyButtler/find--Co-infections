@@ -16,13 +16,12 @@ Finds co-infections in nanopore sequenced reads.
 
 ## Install:
 
+```
 cd V3;
-
 make;
-
 mv findCoInft /path/to/install;
-
 chmod a+x /path/to/install/findCoInft;
+```
 
 ## Run:
 
@@ -31,12 +30,7 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
 ## Some quick options:
   - -h:
     - Show the main help message.
-    - Their are enough parameters in find co-infections to 
-      make a single help message daunting. To get around this
-      I split the parameters into multiple help messages by
-      ctagory. The main help message shows what I think are
-      the most useful parameters and all commands to show
-      the other help messages.
+    - Also shows commands for additional help messages.
   - -prefix:                                                     [Out]
     - Prefix to add to file names.
   - -threads:                                                    [3]
@@ -45,19 +39,27 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
     - Minimum number of reads to keep a cluster or bin.
   - -max-reads-per-con:                                          [300]
     - Max number of of reads to use in building a consensus.
-    - -extra-consensus-steps:                                    [2]\
-       - Number of times to rebuild the
-         consensus using a new set of best
-         reads.
-  - -read-ref-min-read-length:                                 [600]\
+  - -extra-consensus-steps:                                      [2]
+      - Number of times to rebuild the consensus using a
+        new set of best reads.
+  - -min-read-length:                                           [600]
     - Discard reads with read lengths under this setting
       during the binning step.
     - Minimum read length to keep a read when binning.
     - Length is compared after the trimming step.
-  - -read-ref-max-read-length:                                 [1000]\
+  - -max-read-length:                                          [1000]
     - Discard reads with read lengths over this setting
       during the binning step.
     - Length is compared after the trimming step.
+  - -min-median-q:                                             [10]
+    - Minimum read median quality score needed to keep a
+      read in inital filtering steps.
+  - -min-mean-q:                                               [10]
+    - Minimum read mean quality score needed to keep a read
+      in inital filtering steps.
+  - -min-per-reads:                                        [0.003=0.3%]
+    - Minimum percentage of total clustered reads needed
+      to keep a cluster.
   - -enable-racon:                                               [No]
     - Use Racon in building consensuses.
   - -enable-medaka:                                              [No]

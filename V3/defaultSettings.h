@@ -14,7 +14,7 @@
 '    sec-2: System commands
 '    sec-3: General settings
 '    sec-4: Specific settings for separate consensus building steps
-'    sec-5: Read to reference mapping settings
+'    Sec-5: Read to reference mapping and scoreRead default settings
 '    sec-6: read to read mapping settings
 '    sec-7: read to consensus mapping settings
 '    sec-8: consensus to consensus mapping settings
@@ -56,8 +56,12 @@
     /*Maximum number of reads to use to build a consensus*/
 #define minReadsPerBin 100 
     /*Minimum number reads to keep a bin or build a consensus*/
+#define defMinPercReads 0.003 /*(0.3% of all clustered reads)*/
+  /*Minimum percentage of all clustered reads needed to keep a cluster*/
 
 #define defNumPolish 2      /*Number of times to rebuild the consensus*/
+#define defSkipBinBl 0      /*Do not skip binning step*/
+#define defSkipClustBl 0    /*Do not skip clustering step*/
 
 /**********************************************************************\
 * Sec-4: Specific settings for separate consensus building steps
@@ -77,7 +81,7 @@
 #define defCondaBl 0      /*Default no, but my code will autofind*/
 
 /**********************************************************************\
-* Sec-5: Read to reference mapping settings
+* Sec-5: Read to reference mapping settings/scoreRead default settings
 \**********************************************************************/
 
 #define readRefMinPercSNPs 0.07 /*Min % of SNPs to keep a read*/
@@ -90,10 +94,10 @@
 #define readRefMinBaseQ 10      /*Min Q-score needed to keep a base*/
 
 /*read to reference mapping quality thresholds*/
-#define readRefMinMedQ 13
-#define readRefMinMeanQ 13
-#define readRefMinAlnMedQ 13
-#define readRefMinAlnMeanQ 13
+#define readRefMinMedQ 10
+#define readRefMinMeanQ 10
+#define readRefMinAlnMedQ 10
+#define readRefMinAlnMeanQ 10
 
 #define readRefMinReadLen 600   /*Min length to keep a read*/
 #define readRefMaxReadLen 1000  /*Maximum length to keep a read*/

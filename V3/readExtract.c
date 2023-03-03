@@ -503,7 +503,7 @@ uint8_t findBestXReads(
         zeroUChar = 0;
 
     char
-        minimapCmdCStr[1024],
+        minimapCmdCStr[2048],
         *tmpCStr = 0,
         buffCStr[lenBuffUInt];  /*Buffer to extract reads with*/
 
@@ -617,12 +617,14 @@ uint8_t findBestXReads(
     { /*While their is a samfile entry to read in*/
         if(*samStruct->samEntryCStr == '@')
         { /*If was a header*/
+            blankSamEntry(samStruct); /*Make sure start with blank*/
             errUChar = readSamLine( samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a header*/
 
         if(samStruct->flagUSht & (2048 | 256 | 4))
         { /*If was a suplemental, secondary, or unmapped alignment*/
+            blankSamEntry(samStruct); /*Make sure start with blank*/
             errUChar = readSamLine(samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a suplemental, secondary, or unmapped alignment*/
@@ -632,6 +634,7 @@ uint8_t findBestXReads(
 
         if(errUChar >> 2)
         { /*If entry did not have a sequence, discard*/
+            blankSamEntry(samStruct); /*Make sure start with blank*/
             errUChar = readSamLine(samStruct, stdinFILE);
             continue;
         } /*If entry did not have a sequence, discard*/
