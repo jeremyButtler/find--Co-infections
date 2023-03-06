@@ -144,15 +144,8 @@ uint8_t fastqExtract(
 
     fclose(filtFILE); /*No longer need open*/
 
-    if(readTree == 0 && hashFailedBool == 1)
-    { /*If calloc errored out in making the tree*/
-        fprintf(
-            stderr,
-            "calloc failed: fastqGrepSearchFastq.c: Fun-1: 99\n"
-        ); /*Warn user calloc failed*/
-
+    if(readTree == 0 && hashFailedBool == 1) /*Calloc errored out*/
         return 0;
-    } /*If calloc errored out in making the tree*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-1 Sec-3: Call the tree or hash table function to search the file

@@ -212,11 +212,31 @@ uint64_t calcHash(
     # Fun-2 Sec-1 TOC: Find the hash for a single read id
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    return
-         *(idBigNum->bigNumAryULng) *
-         *majicNumULng >>
-         ((sizeof(unsigned long) << 3) - *digPerKeyUChar);
-         /*<< 3 (byte to bit)*/
+    /*Hash calucation for speed or memory efficent (MEM) compiles*/ 
+    #ifndef MEM
+        return
+             (idBigNum->totalL * *majicNumULng)
+          >> (defBitsInUL- *digPerKeyUChar);
+    #else
+        if(idBigNum->lenUsedElmChar == 1)
+        { /*If only had one element*/
+            return
+                  (*(idBigNum->bigNumAryIOrL) * *majicNumULng)
+               >> (defBitsInUL - *digPerKeyUChar);
+                 /*<< 3 (byte to bit)*/
+        } /*If only had one element*/
+    
+        /*Make sure get at least on full size array in hash*/
+        return
+           ( 
+              *(idBigNum->bigNumAryIOrL + idBigNum->lenUsedElmChar - 1)
+            + *(idBigNum->bigNumAryIOrL + idBigNum->lenUsedElmChar - 2)
+            * *majicNumULng
+           )
+            >> (defBitsInUL - *digPerKeyUChar);
+                 /*<< 3 (byte to bit)*/
+    #endif
+
    /*Using unsinged long, because want to vary with arcitecture*/
    /*
      Idea is that that Kunths multiplicative hash is only keeping the

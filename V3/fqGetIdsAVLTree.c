@@ -48,8 +48,7 @@ struct readInfo * findAddNodeToReadTree(
     # Fun-1 Sec-1: variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    int32_t
-        matchInt = 0;                   /*Holds if read names were match*/
+    long matchL = 0;                   /*Holds if read names were match*/
 
     struct readInfo
         *refNode = *readTree,    /*Starting node of tree*/
@@ -83,9 +82,9 @@ struct readInfo * findAddNodeToReadTree(
     while(refNode != 0)
     { /*Loop till at a leaf node or found node*/
 
-        matchInt = cmpBigNums(queryNode->idBigNum, refNode->idBigNum);
+        matchL = cmpBigNums(queryNode->idBigNum, refNode->idBigNum);
 
-        if(matchInt == 0)
+        if(matchL == 0)
         { /*If was a match, return match & free old node*/
             freeReadInfoStruct(&queryNode); /*already in tree*/
             return refNode;  /*Return match*/
@@ -93,7 +92,7 @@ struct readInfo * findAddNodeToReadTree(
 
         pushReadNodeStack(&readStackAry /*Holds path traveled*/, refNode);
 
-        if(matchInt < 0)         /*If new id < older id, move left*/
+        if(matchL < 0)         /*If new id < older id, move left*/
             refNode = refNode->leftChild;
         else                       /*else, new id > old id, move right*/
             refNode = refNode->rightChild;
@@ -103,7 +102,7 @@ struct readInfo * findAddNodeToReadTree(
     # Fun-1 Sec-4: Add node to tree, rebalance tree, return the new node
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
     
-    if(matchInt < 0)
+    if(matchL < 0)
         readStackAry->readNode->leftChild = queryNode;
     else
         readStackAry->readNode->rightChild = queryNode;
@@ -135,7 +134,7 @@ uint8_t insertNodeIntoReadTree(
     # Fun-2 Sec-1: variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    int32_t matchInt = 0;                     /*Holds if read names were match*/
+    long matchL = 0;                     /*Holds if read names were match*/
 
     struct readInfo
         *refNode = *readTree;           /*Starting (root) node of tree*/
@@ -159,9 +158,9 @@ uint8_t insertNodeIntoReadTree(
     { /*Loop till at a leaf node or found node*/
 
         /*Compare id numbers to see if the same*/
-        matchInt = cmpBigNums(idToInsert->idBigNum, refNode->idBigNum);
+        matchL = cmpBigNums(idToInsert->idBigNum, refNode->idBigNum);
 
-        if(matchInt == 0)
+        if(matchL == 0)
             return 0;
 
         pushReadNodeStack(
@@ -169,7 +168,7 @@ uint8_t insertNodeIntoReadTree(
             refNode   /*Node visited*/
         ); /*Add node on to the history of visited nodes*/
 
-        if(matchInt < 0)         /*If new id < older id, move left*/
+        if(matchL < 0)         /*If new id < older id, move left*/
             refNode = refNode->leftChild;
         else                       /*else, new id > old id, move right*/
             refNode = refNode->rightChild;
@@ -179,7 +178,7 @@ uint8_t insertNodeIntoReadTree(
     # Fun-2 Sec-3: Add node to tree, rebalance tree, return the new node
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    if(matchInt < 0)
+    if(matchL < 0)
         readStackAry->readNode->leftChild = idToInsert;
     else
         readStackAry->readNode->rightChild = idToInsert;
@@ -204,17 +203,17 @@ struct readInfo * searchTree(
     # Fun-3 Sec-1 Sub-1 TOC: searchTree
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    int matchInt = 0;                   /*Holds if read names were match*/
+    long matchL = 0;                   /*Holds if read names were match*/
 
     while(readTree != 0)
     { /*Loop till at a leaf node or found node*/
 
         /*Compare id numbers to see if the same*/
-        matchInt = cmpBigNums(queryIdBigNum, readTree->idBigNum);
+        matchL = cmpBigNums(queryIdBigNum, readTree->idBigNum);
 
-        if(matchInt == 0)
+        if(matchL == 0)
             return readTree;                        /*Return match*/
-        else if(matchInt < 0)                      /*query < ref, move left*/
+        else if(matchL < 0)                      /*query < ref, move left*/
             readTree = readTree->leftChild;
         else                                        /*query > ref, move right*/
             readTree = readTree->rightChild;

@@ -3,18 +3,27 @@
 # Use: Holds structers needed to make a tree of read names
 ##############################################################################*/
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# TOC: clustGraphGraphAndTreeStructs
-#    fun-1: makeReadInfoStruct: makes a readInfo struction with default values
-#    fun-2: freeReadInfoStruct: frees a readInfo structer
-#    fun-3: pushReadNodeStack: pushes a readNodeStack structer onto stack
-#    fun-4: popReadNodeStack: frees readNodeStack & returns next node in stack
-#    fun-5: makeBigNumStruct: Converts hex elements in c-string to big number
-#    fun-6: strToBackwardsBigNum: Filps c-string & converts to big number
-#    fun-7: freeBigNumStruct: Frees bigNum structer
-#    fun-8: cmpBigNums: compare two big numbers
-#    fun-9: cnvtIdToBigNum: read in read id line & convert to big num
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+' SOF: fqGetsIdsStructs
+'    fun-1 makeReadInfoStruct:
+'      o Makes a readInfo struction with default values
+'    fun-2 freeReadInfoStruct:
+'      o Frees a readInfo structer
+'    fun-3 pushReadNodeStack:
+'      o Pushes a readNodeStack structer onto stack
+'    fun-4 popReadNodeStack:
+'      o Frees readNodeStack & returns next node in stack
+'    fun-5 makeBigNumStruct:
+'      o Converts hex elements in c-string to big number
+'    fun-6 strToBackwardsBigNum:
+'      o Filps c-string & converts to big number
+'    fun-7 freeBigNumStruct:
+'      o Frees bigNum structer
+'    fun-8 cmpBigNums:
+'      o Compare two big numbers
+'    fun-9 cnvtIdToBigNum:
+'      o Read in read id line & convert to big num
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #include "fqGetIdsStructs.h"
 
@@ -24,24 +33,47 @@
 */
 char hexTblCharAry[] =
     {
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,/*0-32 (invisible)*/
+     /*0-32 (invisible)*/
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+     64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+     64,
 
-     32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, /*non-#*/
+     /*Special characters ! " # $ % & ' ( ) & * + ' - . / (33 to 47)*/
+     37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
 
-     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
+     /*Numbers: 48 (0) to 57 (9)*/
+     16, 1, 2, 3, 4, 5, 6, 7, 8, 9, /*48-57 Numbers*/
 
-     32, 32, 32, 32, 32, 32, 32, /*Between numbers & uppcase letters*/
+     /*Special characters : ; < = > ? @ (58 to 64)*/
+     52, 53, 54, 55, 56, 57, 58,
 
-     10, 11, 12, 13, 14, 15,     /*A-F (65-70)*/
+     /*Hext A-F (65-70)*/
+     10, 11, 12, 13, 14, 15,
 
-     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,/*G-Z(71-96)*/
-     32,32,32,32,32,32,/*specialcharacters91to96*/
+     /*5 bit G-U (71 to 85)*/
+     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
 
-     10, 11, 12, 13, 14, 15,     /*a-f (97 to 102)*/
+     /*W,X,Y,Z (86 to 90)*/
+     32,33,34,35,36,
 
-     32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32, /*g-z 98-122*/
-     32, 32, 32, 32, 32, /*Final special characters (123 to 127)*/
+     /*specialcharacters [ \ ] ^ _ ` (91 to 96)*/
+     59,60,61,62,63,49,
+
+     /*a-f (97 to 102)*/
+     10, 11, 12, 13, 14, 15,
+
+     /*5 bit g-u (103 to 117)*/
+     17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+
+     /*w,x,y,z 98-122*/
+     32,33,34,35,36,
+
+     /*special characters { | } ~ (123 to 126)*/
+     32, 32, 32, 32,
+
+     /*127 del*/
+     32,
+
      /*unsigned extended range (just in case)*/
      32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
      32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
@@ -51,25 +83,25 @@ char hexTblCharAry[] =
      32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
     };
 
-/*##############################################################################
-# Output: Modifies: readInfoStruct to have default values (all 0's)
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output: Modifies: readInfoStruct to have default values (all 0's)
+\---------------------------------------------------------------------*/
 struct readInfo * makeReadInfoStruct(
     char *readIdCStr,         /*c-string with read name to copy*/
     const int32_t *lenCStrUInt /*Length of cString to convert*/
-) /*Allocates memomory and makes a readInfo structer (variables set to 0)*/
+) /*Allocates memomory & makes a readInfo struct (variables set to 0)*/
 { /*makeReadInfoStruct*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 TOC: Make a readInfo structer
-    #     fun-1 sec-1: Variable declerations
-    #     fun-1 sec-2: Copy the input string
-    #     fun-1 sec-3: Set other variables to 0
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-1 TOC: Make a readInfo structer
+    '     fun-1 sec-1: Variable declerations
+    '     fun-1 sec-2: Copy the input string
+    '     fun-1 sec-3: Set other variables to 0
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     struct readInfo
         *readInfoStruct = malloc(sizeof(readInfo));
@@ -84,12 +116,12 @@ struct readInfo * makeReadInfoStruct(
         return 0;
     } /*If mallac failed to allocate memory*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-2: Get numeric id of intput string
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-2: Get numeric id of intput string
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*Convert hex elements in read id to big number*/
-    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr, lenCStrUInt);
+    readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr,lenCStrUInt);
 
     if(readInfoStruct->idBigNum == 0)
     { /*If mallac failed to allocate memory*/
@@ -102,9 +134,9 @@ struct readInfo * makeReadInfoStruct(
     } /*If mallac failed to allocate memory*/
 
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-3: Set other variables to 0
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-3: Set other variables to 0
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     readInfoStruct->balanceChar = 0;
     readInfoStruct->leftChild = 0;
@@ -113,18 +145,18 @@ struct readInfo * makeReadInfoStruct(
     return readInfoStruct;
 } /*makeReadInfoStruct*/
 
-/*##############################################################################
-# Output: frees readInforStruct and sets pointer to 0
-# Note: Does not free nodeInGraph.
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output: frees readInforStruct and sets pointer to 0
+| Note: Does not free nodeInGraph.
+\---------------------------------------------------------------------*/
 void freeReadInfoStruct(
     struct readInfo **readInfoStruct /*struct to free*/
 ) /*frees a readInfo structer*/
 { /*freeReadInfoStruct*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-1 TOC: free readInfoStruct
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-1 TOC: free readInfoStruct
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     freeBigNumStruct(&((*readInfoStruct)->idBigNum));
     free(*readInfoStruct);               /*User handles nodeInGraph*/
@@ -133,19 +165,19 @@ void freeReadInfoStruct(
     return;
 } /*freeReadInfoStruct*/
 
-/*##############################################################################
-# Output:
-#    Modifes readStack to piont to last element
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifes readStack to piont to last element
+\---------------------------------------------------------------------*/
 void pushReadNodeStack(
     struct readNodeStack **readStackAry, /*Array of read info nodes*/
     struct readInfo *readNode            /*readInfo to assing to next node*/
 ) /*pushes a readNodeStack structer onto a readNodeStack stack*/
 { /*makeReadNodeStack*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-3 Sec-1 TOC: makes a readNodeStack structer
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-3 Sec-1 TOC: makes a readNodeStack structer
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*Move to next node*/
     *readStackAry = (*readStackAry) + 1; /*+ sizeof(readNodeStack);*/
@@ -154,293 +186,295 @@ void pushReadNodeStack(
     return;
 } /*makeReadNodeStack*/
 
-/*##############################################################################
-# Output: Modifies: readNodeStack to point to next readInfo node in stack
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output: Modifies: readNodeStack to point to next node in stack
+\---------------------------------------------------------------------*/
 void popReadNodeStack(
     struct readNodeStack **readStackAry /*readInfo Array (stack) to pop*/
-) /*frees readNodeStack & sets readNodeStack to next readInfo node in stack*/
+) /*Sets readNodeStack to next readInfo node in stack*/
 { /*popReadNodeStack*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-4 Sec-1 TOC: frees readNodeStack & returns next node in stack
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-4 Sec-1 TOC: frees readNodeStack & returns next node in stack
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
     *readStackAry = (*readStackAry) - 1;/* - sizeof(readNodeStack);*/
     return;
 } /*popReadNodeStack*/
 
-/*##############################################################################
-# Output:
-#    returns: bigNum structer with the converted big number
-#    returns: 0 if memory alloaction failed
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    returns: bigNum structer with the converted big number
+|    returns: 0 if memory alloaction failed
+\---------------------------------------------------------------------*/
 struct bigNum * makeBigNumStruct(
-    char *cStrToCnvt,/*C-string to convert hex elements to big number*/
+    char *cnvtCStr,/*C-string to convert hex elements to big number*/
     const int32_t *lenCStrUInt /*Length of cString to convert*/
-) /*Converts hex characters in c-string to a bitNum struct with a big number*/
+) /*Converts hex characters in c-string to a bigNum struct*/
 { /*makeBigNumStruct*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-5 Sec-1 Sub-1 TOC: makeBigNumStruct
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-5 Sec-1 Sub-1 TOC: makeBigNumStruct
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     struct bigNum *idBigNum = malloc(sizeof(struct bigNum));
 
-    if(idBigNum == 0)
-    { /*If memory allocation failed*/
-        fprintf(
-            stderr,
-            "Memory allocation failed: Fun-5 makeBigNumStruct %s",
-            "fastqGrepStructs.c Line 153\n"
-        ); /*Print error message to user*/
-
+    if(idBigNum == 0) /*Memory allocation error*/
         return 0; 
-    } /*If memory allocation failed*/
 
-    idBigNum->lenAllElmChar = 0; /*So function knows to reallocate memory*/
-    idBigNum->bigNumAryULng = 0;  /*Just in case realloc needs*/
+    idBigNum->lenAllElmChar = 0;  /*tell to reallocate memory*/
+    idBigNum->bigNumAryIOrL = 0;  /*Just in case realloc needs*/
 
     /*Convert the c-string to a big number*/
-    strToBackwardsBigNum(idBigNum, cStrToCnvt, lenCStrUInt); 
+    strToBackwardsBigNum(idBigNum, cnvtCStr, lenCStrUInt); 
 
     if(idBigNum->lenUsedElmChar == 0)
     { /*If memory allocation failed*/
         freeBigNumStruct(&idBigNum); /*Errored out, so no longer need*/
-
-        fprintf(
-            stderr,
-            "Memory allocation failed in c-strin to number conversion: %s",
-            "Fun-5 makeBigNumStruct fastqGrepStructs.c line 170\n"
-        ); /*Print error message to user*/
-
         return 0; 
     } /*If memory allocation failed*/
 
     return idBigNum;
 } /*makeBigNumStruct*/
 
-/*##############################################################################
-# Output:
-#    Modifies: idBigNum to hold the converted big number.
-#        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: idBigNum to hold the converted big number.
+|        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
+\---------------------------------------------------------------------*/
 void strToBackwardsBigNum(
     struct bigNum *idBigNum,         /*Holds the output big number*/
-    char *cStrToCnvt,       /*C-string to convert to large number*/
+    char *cnvtCStr,       /*C-string to convert to large number*/
     const int32_t *lenCStrUInt
 ) /*Flips c-string & converts to big number*/
 { /*strToBackwardsBigNum*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-6 TOC: strToGackwardsBigNum
-    #    fun-6 sec-1: Variable declerations
-    #    fun-6 sec-2: Resize big number array if needed
-    #    fun-6 sec-3: Convert string to big number (work backwards)
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-6 TOC: strToGackwardsBigNum
+    '    fun-6 sec-1: Variable declerations
+    '    fun-6 sec-2: Resize big number array if needed
+    '    fun-6 sec-3: Convert string to big number (work backwards)
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-6 Sec-1: Variable declerations
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char charBit = 0; /*Number bits to shift*/
 
-    unsigned long *elmOnPtrULng = 0;
+    /*compiler settings for memory (MEM) or speed compile*/
+    #ifndef MEM
+        #if defOSBit == 64
+            int *elmILPtr = 0;
+        #else
+            short *elmILPtr = 0;
+        #endif
+    #else
+        long *elmILPtr = 0;
+    #endif
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-6 Sec-2: Resize big number array if needed
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-2: Resize big number array if needed
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    idBigNum->lenUsedElmChar =
-        1 + (*lenCStrUInt >> (sizeof(unsigned long) >> 1));
-        /* Each hex number takes up 4 bits
-           sizeof returns number of bytes so multipy by 8 (<< 3)
-           (sizeof(unsigned long) << 3) >> 1 = sizeof(unsigned long) >> 1)
-        */
+    /*Get the number of limbs needed to store the number*/ 
+    idBigNum->lenUsedElmChar = 1 + (*lenCStrUInt / defBitsPerLimb);
+       /*+ 1 to handle truncation by division*/
 
     /*Make sure have an array large enough to store number*/
     if(idBigNum->lenAllElmChar < idBigNum->lenUsedElmChar)
     { /*If I need to make the array biger*/
-        if(idBigNum->bigNumAryULng == 0)
-            idBigNum->bigNumAryULng =
-                malloc(sizeof(unsigned long) * idBigNum->lenUsedElmChar);
+        if(idBigNum->bigNumAryIOrL == 0)
+            idBigNum->bigNumAryIOrL =
+                #ifndef MEM
+                     #if defOSBit == 64
+                        malloc(sizeof(int) *idBigNum->lenUsedElmChar);
+                    #else
+                        malloc(sizeof(short) *idBigNum->lenUsedElmChar);
+                    #endif
+                #else
+                    malloc(sizeof(long) *idBigNum->lenUsedElmChar);
+                #endif
         else
-            idBigNum->bigNumAryULng =
+            idBigNum->bigNumAryIOrL =
                 realloc(
-                    idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * idBigNum->lenUsedElmChar
+                    idBigNum->bigNumAryIOrL,
+                    #ifndef MEM
+                         #if defOSBit == 64
+                            sizeof(int) * idBigNum->lenUsedElmChar
+                        #else
+                            sizeof(short) * idBigNum->lenUsedElmChar
+                        #endif
+                    #else
+                        sizeof(long) * idBigNum->lenUsedElmChar
+                    #endif
             ); /*Need to reallocate memory*/
 
  
-        if(idBigNum->bigNumAryULng == 0)
+        if(idBigNum->bigNumAryIOrL == 0)
         { /*If memory reallocation failed*/
             idBigNum->lenUsedElmChar = 0;
-            fprintf(
-                stderr,
-               "Memory allocation failed: Fun-6 fastqGrepStructs.c line 225\n"
-            ); /*Print error message to user*/
-
             return;
         } /*If memory reallocation failed*/
 
         idBigNum->lenAllElmChar = idBigNum->lenUsedElmChar;
     } /*If I need to make the array biger*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-6 Sec-3: Convert string to big number (work backwards)
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-3: Convert string to big number (work backwards)
+    \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
     idBigNum->lenUsedElmChar = 0;
 
-    do { /*While there are array elements to fill*/
+    #ifndef MEM
+        idBigNum->totalL = 0;
+    #endif
 
+    do { /*While there are array elements to fill*/
         /*Graph unsigned long element working on*/
-        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
-        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
-        *elmOnPtrULng = 0;
+        elmILPtr =idBigNum->bigNumAryIOrL+ idBigNum->lenUsedElmChar;
+        (idBigNum->lenUsedElmChar)++;/*Track number ULngs used*/
+        *elmILPtr = 0;
         charBit = 0;
 
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexTblCharAry[(unsigned char) *cStrToCnvt] & 64)
-                return; /*If have finshed converting the hex string*/
+        while(charBit < defMaxDigPerLimb)
+        { /*while their are empty bits in the current big number limb*/
+            if(hexTblCharAry[(unsigned char) *cnvtCStr] & 64)
+                break; /*If have finshed converting the hex string*/
 
-            if(!(hexTblCharAry[(unsigned char) *cStrToCnvt] & 32))
+            if(!(hexTblCharAry[(unsigned char) *cnvtCStr] & 32))
             { /*If is a hex character*/
-                (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) *cStrToCnvt]);
-                *elmOnPtrULng = *elmOnPtrULng << 4;
-                charBit += 4;
+                *elmILPtr = *elmILPtr << defBitsPerChar;
+                *elmILPtr+=hexTblCharAry[(unsigned char) *cnvtCStr];
+                ++charBit;
             } /*If is a hex character*/
 
-            cStrToCnvt++; /*move to next character in id*/
-        } /*while empty bits in the current big number unsigned long element*/
+            ++cnvtCStr; /*move to next character in id*/
+        } /*while their are empty bits in the current big number limb*/
 
-    } while((unsigned char) *cStrToCnvt > 32);
+        #ifndef MEM
+            /*add up all limbs for faster comparisons with Illumina*/
+            idBigNum->totalL += *elmILPtr;
+        #endif
+    } while((unsigned char) *cnvtCStr > 32);
     /*While still on the read name part of header*/
 
     return;
 } /*strToBackwardsBigNum*/
 
-/*##############################################################################
-# Output:
-#    frees: idBigNum & sets pointer to 0
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    frees: idBigNum & sets pointer to 0
+\---------------------------------------------------------------------*/
 void freeBigNumStruct(
     struct bigNum **idBigNum  /*Address to bigNum structer to free*/
 ) /*Frees a bigNum struct from memory*/
 { /*freeBigNumStruct*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-1 Sub-1 TOC: freeBigNumStruct
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-7 Sec-1 Sub-1 TOC: freeBigNumStruct
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    free((*idBigNum)->bigNumAryULng); /*Should be 0 or on heap*/
+    free((*idBigNum)->bigNumAryIOrL); /*Should be 0 or on heap*/
     free(*idBigNum);
     *idBigNum = 0;  /*Make sure user can never use again*/
 
     return;
 } /*freeBigNumStruct*/
 
-/*##############################################################################
-# Output:
-#    Returns: 0 if both equal, < 0 if first is smaller, > 0 if first is bigger
-##############################################################################*/
-unsigned long cmpBigNums(
-    struct bigNum *bigNumOne,
-    struct bigNum *bigNumTwo
-) /*Compares bigNumOne to bigNumTwo to see if equal, >, or <*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Returns:
+|      - 0 if both equal,
+|      - < 0 if query is smaller than subject
+|      - > 0 if qeury is bigger than subject
+\---------------------------------------------------------------------*/
+long cmpBigNums(
+    struct bigNum *bigNumQ, /*Query to compare against*/
+    struct bigNum *bigNumS  /*Subject to compare to*/
+) /*Compares bigNumQ to bigNumS to see if equal, >, or <*/
 { /*cmpBigNums*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-8 Sec-1 Sub-1 TOC: cmpBigNums
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-8 Sec-1 Sub-1 TOC: cmpBigNums
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /*A speed setting*/ 
+    #ifndef MEM
+        if(bigNumQ->totalL != bigNumS->totalL)
+            return bigNumQ->totalL - bigNumS->totalL;
+    #endif
 
     /*If one stuct has more elements*/
-    if(bigNumOne->lenUsedElmChar != bigNumTwo->lenUsedElmChar)
-    { /*If on big number is larger*/
-        if(bigNumOne->lenUsedElmChar > bigNumTwo->lenUsedElmChar)
-            return 1;
-        else
-            return -1;
-    } /*If on big number is larger*/
+    if(bigNumQ->lenUsedElmChar != bigNumS->lenUsedElmChar)
+        return bigNumQ->lenUsedElmChar - bigNumS->lenUsedElmChar;
 
-    for(short shtElm = 0; shtElm < bigNumOne->lenUsedElmChar; ++shtElm)
+    for(short sElm = bigNumQ->lenUsedElmChar - 1; sElm > -1; --sElm)
     { /*For all unsinged longs in the big number*/
-        if(
-             *(bigNumOne->bigNumAryULng + shtElm) !=
-             *(bigNumTwo->bigNumAryULng + shtElm)
-        ) { /*If one number is bigger*/
-
-            if(
-                *(bigNumOne->bigNumAryULng + shtElm) >
-                *(bigNumTwo->bigNumAryULng + shtElm)
-            )
-                return 1;
-            else
-                return -1;
-             /*ISSUE WITH ULNG NOT GOING NEGATIVE*/
-             /*return
-                 *(bigNumOne->bigNumAryULng + shtElm) -
-                 *(bigNumTwo->bigNumAryULng + shtElm);*/
-        } /*If one number is bigger*/
+        if(*(bigNumQ->bigNumAryIOrL +sElm)
+           != *(bigNumS->bigNumAryIOrL +sElm)
+        ) return
+             *(bigNumQ->bigNumAryIOrL + sElm) -
+             *(bigNumS->bigNumAryIOrL + sElm);
     } /*For all unsinged longs in the big number*/
 
     return 0;
 } /*cmpBigNums*/
 
-/*##############################################################################
-# Output:
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
-#    Modifies: lenIdULng to hold the length of the read id
-#    Modifies: lenInputULng to hold length of input buffer
-#        - Sets to 0 if memory allocation failed
-#    Returns: readInfo struct with bigNum struct having read id converted to hex
-#        - 0 if fails or end of file (lenIdULng < buffSizeInt)
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies:
+|      - EndNameCStr to point to '\n', ' ', & '\t' at end of read name
+|      - LenIdULng to hold the length of the read id
+|      - LenInputInt to hold length of input buffer
+|    Returns:
+|      - 0 if fails or end of file (lenIdULng < buffSizeInt)
+|      - pointer to struct with bigNum struct having converted read id
+\---------------------------------------------------------------------*/
 struct readInfo * cnvtIdToBigNum(
     char *bufferCStr,  /*buffer to hold fread input (can have data)*/
     uint32_t buffSizeInt,   /*Size of buffer to work on*/
-    char  **endNameCStr, /*Points to start of id, will point to end*/
+    char **endCStr, /*Points to start of id, will point to end*/
     uint64_t *lenInputULng, /*Length of input from fread*/
     unsigned char *lenBigNumChar, /*Holds size to make bigNumber*/
     FILE *idFILE         /*Fastq file to get data from*/
-) /*Converts read id in buffer to bigNum read id, will grab new file input*/
+) /*Converts read id to bigNum read id, will grab new file input*/
 { /*cnvtIdToBigNum*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-9 cnvtIdToBigNum TOC:
-    #    fun-9 sec-1: Variable declerations
-    #    fun-1 sec-2: Initalize readInfo & bigNum structs
-    #    fun-1 sec-3: Move to first character on header
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-9 cnvtIdToBigNum TOC:
+    '    fun-9 sec-1: Variable declerations
+    '    fun-1 sec-2: Initalize readInfo & bigNum structs
+    '    fun-1 sec-3: Move to first character on header
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-9 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     unsigned char charBit = 0;
     struct bigNum *idBigNum = malloc(sizeof(struct bigNum));
     struct readInfo *readNode = malloc(sizeof(struct readInfo));
-    unsigned long *elmOnPtrULng = 0;
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-9 Sec-2: Initalize readInfo & bigNum structs
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    #ifndef MEM
+        #if defOSBit == 64
+            int *elmILPtr = 0;
+        #else
+            short *elmILPtr = 0;
+        #endif
+    #else
+        long *elmILPtr = 0;
+    #endif
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-2: Initalize readInfo & bigNum structs
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(idBigNum == 0 || readNode == 0)
     { /*If memory allocation failed*/
-        if(idBigNum != 0)
-            free(idBigNum);
-        if(readNode != 0)
-            free(readNode);
+        if(idBigNum != 0) free(idBigNum);
+        if(readNode != 0) free(readNode);
 
         *lenInputULng = 0; /*Make sure user detects failure*/
-        fprintf(
-            stderr,
-            "Memory allocation failed: Fun-5 makeBigNumStruct %s",
-            "fastqGrepStructs.c Line 153\n"
-        ); /*Print error message to user*/
-
         return 0; 
     } /*If memory allocation failed*/
 
@@ -450,36 +484,41 @@ struct readInfo * cnvtIdToBigNum(
     readNode->idBigNum = idBigNum;
 
     idBigNum->lenUsedElmChar = 0;
-    idBigNum->bigNumAryULng =
-        malloc(sizeof(unsigned long) * (*lenBigNumChar));
+
+    #ifndef MEM
+        idBigNum->totalL = 0;
+
+         #if defOSBit == 64
+           idBigNum->bigNumAryIOrL=malloc(sizeof(int)*(*lenBigNumChar));
+        #else
+         idBigNum->bigNumAryIOrL=malloc(sizeof(short)*(*lenBigNumChar));
+        #endif
+    #else
+        idBigNum->bigNumAryIOrL = malloc(sizeof(long)*(*lenBigNumChar));
+    #endif
+
     idBigNum->lenAllElmChar = *lenBigNumChar;
 
-    if(idBigNum->bigNumAryULng == 0)
+    if(idBigNum->bigNumAryIOrL == 0)
     { /*If memory reallocation failed*/
-        fprintf(
-            stderr,
-           "Memory allocation failed: Fun-6 fastqGrepStructs.c line 225\n"
-        ); /*Print error message to user*/
-
         *lenInputULng = 0; /*Make sure user detects failure*/
         free(idBigNum);
         free(readNode);
         return 0;
     } /*If memory reallocation failed*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-9 Sec-3: Move to first character on header
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-3: Move to first character on header
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    if(**endNameCStr == '\n')
-        (*endNameCStr)++;
+    if(**endCStr == '\n') (*endCStr)++;
 
-    if(**endNameCStr == '\0')
+    if(**endCStr == '\0')
     { /*If at the end of the buffer, but not at start of read*/
 
         if(*lenInputULng < buffSizeInt)
         { /*If at end of file*/
-          free(idBigNum->bigNumAryULng);
+          free(idBigNum->bigNumAryIOrL);
           free(idBigNum);
           free(readNode);
           return 0;                    /*Done with file*/
@@ -492,18 +531,18 @@ struct readInfo * cnvtIdToBigNum(
                            idFILE
         ); /*Read in more of the file*/
 
-      *endNameCStr = bufferCStr;
+      *endCStr = bufferCStr;
     } /*If at the end of the buffer, but not at start of read*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-9 Sec-4: Convert string to big number
-    #    fun-9 sec-4 sub-1: Check if need to resize the unsigned long array
-    #    fun-9 sec-4 sub-2: Convert characters until selected long is full
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-4: Convert string to big number
+    ^    fun-9 sec-4 sub-1: Check if need to resize the long array
+    ^    fun-9 sec-4 sub-2: Convert characters until long is full
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    /***************************************************************************
-    # Fun-9 Sec-4 Sub-1: Check if need to resize the unsigned long array
-    ***************************************************************************/
+    /******************************************************************\
+    * Fun-9 Sec-4 Sub-1: Check if need to resize the long array
+    \******************************************************************/
       
     do { /*While still on the read name part of header*/
 
@@ -511,58 +550,58 @@ struct readInfo * cnvtIdToBigNum(
         { /*If need to reallocate memory*/
             (idBigNum->lenAllElmChar)++;
             (*lenBigNumChar)++;
-            idBigNum->bigNumAryULng =
+            idBigNum->bigNumAryIOrL =
                 realloc(
-                    idBigNum->bigNumAryULng,
-                    sizeof(unsigned long) * idBigNum->lenAllElmChar
+                    idBigNum->bigNumAryIOrL,
+                    #ifndef MEM
+                         #if defOSBit == 64
+                            sizeof(int) * idBigNum->lenAllElmChar
+                        #else
+                            sizeof(short) * idBigNum->lenAllElmChar
+                        #endif /*Check if 32 bit or 64 bit*/
+                    #else
+                        sizeof(long) * idBigNum->lenAllElmChar
+                    #endif
             ); /*Rellocate memory for the array*/
 
             if(idBigNum == 0 || readNode == 0)
             { /*If memory allocation failed*/
-                free(idBigNum->bigNumAryULng);
+                free(idBigNum->bigNumAryIOrL);
                 free(idBigNum);
                 free(readNode);
                 *lenInputULng = 0; /*Make sure user detects failure*/
-
-                fprintf(
-                    stderr,
-                    "Memory allocation failed: Fun-5 makeBigNumStruct %s",
-                    "fastqGrepStructs.c Line 153\n"
-                ); /*Print error message to user*/
-
                 return 0; 
             } /*If memory allocation failed*/
         } /*If need to reallocate memory*/
 
         /*Graph unsigned long element working on*/
-        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
-        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
-        *elmOnPtrULng = 0;
+        elmILPtr =idBigNum->bigNumAryIOrL +idBigNum->lenUsedElmChar;
+        (idBigNum->lenUsedElmChar)++; /*Track number of used longs*/
+        *elmILPtr = 0;
         charBit = 0;
 
-       /************************************************************************
-       # Fun-9 Sec-4 Sub-1: Convert characters until selected U long is full
-       ************************************************************************/
+       /***************************************************************\
+       * Fun-9 Sec-4 Sub-1: Convert characters until long is full
+       \***************************************************************/
 
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexTblCharAry[(unsigned char) **endNameCStr] & 64)
-                return readNode; /*If have finshed converting the hex string*/
+        while(charBit < defMaxDigPerLimb)
+        { /*while their are empty bits in the current big number limb*/
+            if(hexTblCharAry[(unsigned char) **endCStr] & 64)
+                break; /*If finshed converting the c-string*/
 
-            if(!(hexTblCharAry[(unsigned char) **endNameCStr] & 32))
+            if(!(hexTblCharAry[(unsigned char) **endCStr] & 32))
             { /*If was a hex character*/
-                (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) **endNameCStr]);
-                *elmOnPtrULng = *elmOnPtrULng << 4;
-                charBit += 4;
+                *elmILPtr = *elmILPtr << defBitsPerChar;
+                *elmILPtr += hexTblCharAry[(unsigned char) **endCStr];
+                ++charBit;
             } /*If was a hex character*/
 
-            (*endNameCStr)++;
+            ++(*endCStr);
 
-            if(**endNameCStr == '\0')
-            { /*If ran out of buffer & need to read in more of the file*/
+            if(**endCStr == '\0')
+            { /*If ran out of buffer & need to read in more of file*/
                 if(*lenInputULng < buffSizeInt)
-                    return readNode; /*at end of file*/
+                    break; /*at end of file*/
 
                 *lenInputULng = fread(bufferCStr,
                                      sizeof(char),
@@ -570,21 +609,25 @@ struct readInfo * cnvtIdToBigNum(
                                      idFILE
                 ); /*Read in more of the file*/
 
-                *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
-                *endNameCStr = bufferCStr;
+                *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
+                *endCStr = bufferCStr;
                 continue;
-            } /*If ran out of buffer & need to read more of the file*/
-        } /*while empty bits in the current big number unsigned long element*/
+            } /*If ran out of buffer & need to read in more of file*/
+        } /*while their are empty bits in the current big number limb*/
 
-    } while((unsigned char) **endNameCStr > 32);
+        #ifndef MEM
+            /*add up all limbs for faster comparisons with Illumina*/
+            idBigNum->totalL += *elmILPtr;
+        #endif
+    } while((unsigned char) **endCStr > 32);
     /*While still on the read name part of header*/
 
     return readNode; /*Copied name sucessfully*/
 } /*cnvtIdToBigNum*/
 
 /* Ascii table
-Dec  Char                           Dec  Char     Dec  Char     Dec  Char
----------                           ---------     ---------     ----------
+Dec  Char                           Dec  Char     Dec  Char     Dec Char
+---------                           ---------     ---------     --------
   0  NUL (null)                      32  SPACE     64  @         96  `
   1  SOH (start of heading)          33  !         65  A         97  a
   2  STX (start of text)             34  "         66  B         98  b

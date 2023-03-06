@@ -1,31 +1,32 @@
-/*##############################################################################
+/*######################################################################
 # Name: fastqGrepFastqFun
 # Use:
 #    Functions to read input from fastq, find fastq header, & print out entries
-##############################################################################*/
+######################################################################*/
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# fastqGrepFastqFun TOC:
-#   fun-1: parseFastqHeader: Sets pointer to start of fastq header
-#   fun-2: printFastqEntry: Print out an entry in a fastq file
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+^ fastqGrepFastqFun TOC:
+^   fun-1: parseFastqHeader: Sets pointer to start of fastq header
+^   fun-2: printFastqEntry: Print out an entry in a fastq file
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #include "fqGetIdsFqFun.h"
 
-/*##############################################################################
-# Output:
-#    Modifies: startNameCStr to point to the start of the read name
-#    Modifies: endNameCStr to pont to the '\n', ' ', & '\t' at end of read name
-#    Modifies: lenIdInt to hold the length of the read id
-#    Returns:
-#        4: If the end of the file
-#        2: if nothing went wrong
-#        0: If ran out of file
-##############################################################################*/
+/*---------------------------------------------------------------------/
+| Output:
+|    Modifies:
+|      o startNameCStr to point to the start of the read name
+|      o EndNameCStr to point to '\n', ' ', & '\t' at end of read name
+|      o LenIdInt to hold the length of the read id
+|    Returns:
+|        4: If the end of the file
+|        2: if nothing went wrong
+|        0: If ran out of file
+\---------------------------------------------------------------------*/
 uint8_t parseFastqHeader(
     char *bufferCStr,     /*buffer to hold fread input (can have data)*/
     char **startNameCStr, /*Will hold the start of the name*/
-    char **endNameCStr,   /*start of read name, will point to end*/
+    char **endCStr,   /*start of read name, will point to end*/
     uint64_t *lenInputULng,  /*Length of input from fread*/
     uint32_t buffSizeInt,    /*Size of buffer to work on*/
     int32_t *lenIdInt,     /*Length of the read id*/
@@ -34,32 +35,45 @@ uint8_t parseFastqHeader(
 ) /*Reads input from file & sets pointer to start of read name*/
 { /*parseFastqHeader*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 TOC:
-    #    fun-1 sec-1: Variable declerations
-    #    fun-1 sec-2: Move to start of read id
-    #    fun-1 sec-2: loop through buffer & check if need to get input from file
-    #    fun-1 sec-3: Convert c-string read id to bigNum read id (U long array)
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-1 TOC:
+    '    fun-1 sec-1: Variable declerations
+    '    fun-1 sec-2: Move to start of read id
+    '    fun-1 sec-3: Convert read id to bigNum read id (long array)
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     uint8_t charBit = 0;
-    unsigned long *elmOnPtrULng = 0;
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-2: Move to start of read id
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*For speed versus memroy (MEM) compile settings*/
+    #ifndef MEM
+        #if defOSBit == 64
+            int *elmILPtr = 0;
+        #else
+            short *elmILPtr = 0;
+        #endif
+    #else
+        long *elmILPtr = 0;
+    #endif
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-2: Move to start of read id
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     *lenIdInt = 0; /*Make sure starts at 0*/
     idBigNum->lenUsedElmChar = 0;
 
-    if(**endNameCStr == '\n')
-        (*endNameCStr)++;
+    #ifndef MEM
+        idBigNum->totalL = 0;
+    #endif
 
-    if(**endNameCStr == '\0')
+    if(**endCStr == '\n')
+        (*endCStr)++;
+
+    if(**endCStr == '\0')
     { /*If at the end of the buffer, but not at start of read*/
         if(*lenInputULng < buffSizeInt)
           return 4;                    /*Done with file*/
@@ -71,42 +85,40 @@ uint8_t parseFastqHeader(
                            fastqFile
         ); /*Read in more of the file*/
 
-      *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
-      *endNameCStr = bufferCStr;
+      *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
+      *endCStr = bufferCStr;
     } /*If at the end of the buffer, but not at start of read*/
 
-    *startNameCStr = *endNameCStr;    /*know at the start of the read name*/
+    *startNameCStr = *endCStr;    /*at the start of the read name*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-3: Convert c-string read id to bigNum read id (U long array)
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-1 Sec-3: Convert read id to bigNum read id (long array)
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
       
      do { /*While still on the read name part of header*/
-
         /*Graph unsigned long element working on*/
-        elmOnPtrULng = idBigNum->bigNumAryULng + idBigNum->lenUsedElmChar;
-        (idBigNum->lenUsedElmChar)++; /*Track number ULngs acctualy used*/
-        *elmOnPtrULng = 0;
+        elmILPtr = idBigNum->bigNumAryIOrL + idBigNum->lenUsedElmChar;
+        (idBigNum->lenUsedElmChar)++; /*Track number used longs*/
+        *elmILPtr = 0;
         charBit = 0;
 
-        while(charBit < (sizeof(unsigned long) << 3))
-        { /*while empty bits in the current big number unsigned long element*/
-            if(hexTblCharAry[(unsigned char) **endNameCStr] & 64)
-                return 2; /*If have finshed converting the hex string*/
+        while(charBit < defMaxDigPerLimb)
+        { /*while empty bits in the current big number long element*/
+            if(hexTblCharAry[(unsigned char) **endCStr] & 64)
+                break; /*If have finshed converting the hex string*/
 
-            if(!(hexTblCharAry[(unsigned char) **endNameCStr] & 32))
+            if(!(hexTblCharAry[(unsigned char) **endCStr] & 32))
             { /*If is a hex character*/
-                (*elmOnPtrULng) +=
-                    (hexTblCharAry[(unsigned char) **endNameCStr]);
-                *elmOnPtrULng = *elmOnPtrULng << 4;
-                charBit += 4;
+                *elmILPtr = *elmILPtr << defBitsPerChar;
+                *elmILPtr += hexTblCharAry[(unsigned char) **endCStr];
+                ++charBit;
             } /*If is a hex character*/
 
-            (*lenIdInt)++;
-            (*endNameCStr)++;
+            ++(*lenIdInt);
+            ++(*endCStr);
 
-            if(**endNameCStr == '\0')
-            { /*If ran out of buffer & need to read in more of the file*/
+            if(**endCStr == '\0')
+            { /*If ran out of buffer & need to read in more of file*/
                 if(*lenInputULng < buffSizeInt)
                     return 0;     /*At end of file, but no sequence*/
 
@@ -119,14 +131,18 @@ uint8_t parseFastqHeader(
                                      fastqFile
                 ); /*Read in more of the file*/
 
-                *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+                *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
                 *startNameCStr = bufferCStr;
-                *endNameCStr = bufferCStr + *lenIdInt;
+                *endCStr = bufferCStr + *lenIdInt;
                 continue;
-            } /*If ran out of buffer & need to read more of the file*/
-        } /*while empty bits in the current big number unsigned long element*/
+            } /*If ran out of buffer & need to read more of file*/
+        } /*while empty bits in the current big number long element*/
 
-    } while((unsigned char) **endNameCStr > 32);
+        /*Only used in speed setting*/
+        #ifndef MEM
+            idBigNum->totalL += *elmILPtr;
+        #endif
+    } while((unsigned char) **endCStr > 32);
     /*While still on the read name part of header*/
 
     return 2; /*Copied name sucessfully*/

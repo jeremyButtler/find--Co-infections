@@ -620,15 +620,15 @@ unsigned char filterReads(
     return 1;
 } /*filterReads*/
 
-/*##############################################################################
-# Output:
-#    Modifies: bufferCStr to have the next buffer if empty
-#    Modifies: incurments pointInBufferCStr to start of next read
-#    Returns:
-#        4: If the end of the file
-#        2: if nothing went wrong
-#        0: If ran out of file
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: bufferCStr to have the next buffer if empty
+|    Modifies: incurments pointInBufferCStr to start of next read
+|    Returns:
+|        4: If the end of the file
+|        2: if nothing went wrong
+|        0: If ran out of file
+\---------------------------------------------------------------------*/
 uint8_t moveToNextFastqEntry(
     char *bufferCStr,  /*buffer to hold fread input (can have data)*/
     char **pointInBufferCStr, /*position working on in buffer*/
@@ -638,25 +638,24 @@ uint8_t moveToNextFastqEntry(
 ) /*Moves to next fastq read, without printing out*/
 { /*moveToNextFastqEntry*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 TOC:
-    #     fun-7 sec-1: Variable declerations
-    #     fun-7 sec-2: Move past header
-    #     fun-7 sec-3: Find number of newlines in sequence & move to spacer
-    #     fun-7 sec-4: Move past spacer
-    #     fun-7 Sec-5: Move past Q-score entry
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ^ Fun-7 TOC:
+    ^     fun-7 sec-1: Variable declerations
+    ^     fun-7 sec-2: Move past header
+    ^     fun-7 sec-3: Find number newlines in sequence & move to spacer
+    ^     fun-7 sec-4: Move past spacer
+    ^     fun-7 Sec-5: Move past Q-score entry
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    ^ Fun-7 Sec-1: Variable declerations
+    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    uint64_t
-        numSeqlinesULng = 0;  /*Record the number of new lines in the sequence*/
+    uint64_t numSeqlinesULng = 0;  /*Record number of '\n' in sequence*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-2: Move past header
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-7 Sec-2: Move past header
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
  
     while(**pointInBufferCStr != '\n')
     { /*While on header, move to sequence line*/
@@ -673,7 +672,7 @@ uint8_t moveToNextFastqEntry(
                                  fastqFile
             ); /*Read in more of the file*/
 
-            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
             *pointInBufferCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
@@ -683,12 +682,12 @@ uint8_t moveToNextFastqEntry(
 
     ++(*pointInBufferCStr); /*get off the new line*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-3: Find number new lines in seqence line & move to spacer
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-7 Sec-3: Find number new lines in seqence line & move to spacer
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     while(**pointInBufferCStr != '+')
-    { /*While on sequence line, count number new lines & move to spacer*/
+    { /*While on sequence, count number new lines & move to spacer*/
 
         if(**pointInBufferCStr == '\0')
         { /*If ran out of buffer & need to read in more of the file*/
@@ -702,20 +701,20 @@ uint8_t moveToNextFastqEntry(
                                  fastqFile
             ); /*Read in more of the file*/
 
-            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
             *pointInBufferCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
         if(**pointInBufferCStr == '\n')
-            numSeqlinesULng++;    /*Record number new lines, for q-score entry*/
+            numSeqlinesULng++; /*count new lines, for q-score entry*/
 
         (*pointInBufferCStr)++;
-    } /*While on sequence line, count number new lines & move to spacer*/
+    } /*While on sequence, count number new lines & move to spacer*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-4: Move past spacer entry
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-7 Sec-4: Move past spacer entry
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
  
     while(**pointInBufferCStr != '\n')
     { /*While on the spacer entry*/
@@ -732,7 +731,7 @@ uint8_t moveToNextFastqEntry(
                                  fastqFile
             ); /*Read in more of the file*/
 
-            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
             *pointInBufferCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
@@ -742,9 +741,9 @@ uint8_t moveToNextFastqEntry(
 
     ++(*pointInBufferCStr); /*get off the new line*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-7 Sec-5: Move past q-score entry (same number lines as sequence)
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-7 Sec-5: Move past q-score entry (has same # of lines as seq)
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     while(numSeqlinesULng > 0)
     { /*While have q-score entry lines to print out*/
@@ -755,9 +754,9 @@ uint8_t moveToNextFastqEntry(
             if(*lenInputULng < buffSizeInt)
             { /*If at end of the file*/
                 if(numSeqlinesULng > 1)
-                    return 0;         /*Missing q-score lines for entry*/
+                    return 0;        /*Missing q-score lines for entry*/
                 else
-                    return 4;         /*At end of file & printed last line*/
+                    return 4;     /*At end of file & printed last line*/
             } /*If at end of the file*/
 
             *lenInputULng = fread(bufferCStr,
@@ -766,13 +765,13 @@ uint8_t moveToNextFastqEntry(
                                  fastqFile
             ); /*Read in more of the file*/
 
-            *(bufferCStr + *lenInputULng) = '\0';/*make sure a c-string*/
+            *(bufferCStr + *lenInputULng) = '\0';/*make a c-string*/
             *pointInBufferCStr = bufferCStr;
             continue;                           /*so can check if '\n'*/
         } /*If ran out of buffer & need to read more of the file*/
 
         if(**pointInBufferCStr == '\n')
-            numSeqlinesULng--;    /*Record number new lines, for q-score entry*/
+            numSeqlinesULng--;
 
         (*pointInBufferCStr)++;
     } /*While have q-score entry lines to print out*/

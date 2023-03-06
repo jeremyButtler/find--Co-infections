@@ -97,28 +97,10 @@ fqGetIdsArgs=-g \
     fqGetIdsAVLTree.c \
     fqGetIdsHash.c \
     fqGetIdsSearchFq.c \
-    fqGetIds.c \
-    -o fqGetIds
+    fqGetIds.c
 
-# fqGetIds multithreaded command
-fqGetIdsTArgs=-g \
-    -Wall \
-	-pthread \
-	-DTHREADS \
-    cStrToNumberFun.c \
-    cStrFun.c \
-    FCIStatsFun.c \
-    printErrors.c \
-    samEntryStruct.c \
-    fqAndFaFun.c \
-    fqGetIdsFqFun.c \
-    fqGetIdsStructs.c \
-    fqGetIdsAVLTree.c \
-    fqGetIdsHash.c \
-    fqGetIdsSearchFq.c \
-    fqGetIdsSearchThread.c \
-    fqGetIdsThread.c \
-    -o fqGetIds
+fqGIdO=-o fqGetIds
+fqGIdOMem=-DMEM -o fqGetIdsMem
 
 # To find the compiler I am using || to default to different names for
 # gcc when the default gcc does not exist or failes. || is universal
@@ -152,11 +134,11 @@ trimSam:
 
 # Program to extract fastq entries by a set of read ids
 fqGetIds:
-	$(CC) -O3 $(fqGetIdsArgs) || gcc -O3 $(fqGetIdsArgs) || egcc -O3 $(fqGetIdsArgs) || cc -O3 $(fqGetIdsArgs)
+	$(CC) -O3 $(fqGetIdsArgs) $(fqGIdO) || gcc -O3 $(fqGetIdsArgs) $(fqGIdO) || egcc -O3 $(fqGetIdsArgs) $(fqGIdO) || cc -O3 $(fqGetIdsArgs) $(fqGIdO)
 
 # Program to extract fastq entries by a set of read ids
-fqGetIdsT:
-	$(CC) -O3 $(fqGetIdsTArgs) || gcc -O3 $(fqGetIdsTArgs) || egcc -O3 $(fqGetIdsTArgs) || cc -O3 $(fqGetIdsTArgs)
+fqGetIdsMem:
+	$(CC) -O3 $(fqGetIdsArgs) $(fqGIdOMem) || gcc -O3 $(fqGetIdsArgs) $(fqGIdOMem) || egcc -O3 $(fqGetIdsArgs) $(fqGIdOMem) || cc -O3 $(fqGetIdsArgs) $(fqGIdOMem)
 
 # commands for indvidual compilers
 openbsd:
@@ -165,17 +147,3 @@ linux:
 	gcc -O2 $(gccArgs)
 cc:
 	cc -O2 $(gccArgs)
-
-gccTrimSam:
-	gcc -O2 $(trimGccArgs)
-
-gccBuildCon:
-	gcc -O2 $(gccBuildConArgs)
-gccBinReads:
-	gcc -O2 $(gccBinReadsArgs)
-gccScoreReads:
-	gcc -O2 $(scoreGccArgs)
-gccFqGetIdsT:
-	gcc -O3 $(fqGetIdsTArgs)
-gccFqGetIds:
-	gcc -O3 $(fqGetIdsArgs)
