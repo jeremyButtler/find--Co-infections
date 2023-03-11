@@ -60,7 +60,7 @@ uint8_t extractBestRead(
     int8_t ignoreC = 0;
 
     uint8_t
-        errUChar = 0,     /*Holds error messages*/
+        errUC = 0,     /*Holds error messages*/
         onHeaderBool = 1; /*Tells if need to ignore the first line*/
 
     struct readStat
@@ -125,19 +125,25 @@ uint8_t extractBestRead(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
     
     /*Read in the frist line (assume is best read*/
-    errUChar = readStatsFileLine(inFILE, &onHeaderBool, &bestRead);
+    errUC = readStatsFileLine(inFILE, &onHeaderBool, &bestRead);
         /*onHeaderBool tells if have read in the header*/
 
-    if(!(errUChar & 1))
+    if(!(errUC & 1))
+    { /*If had a file error*/
+        fclose(inFILE);
         return 16;     /*File error, return 16 so user knows*/
+    } /*If had a file error*/
 
     /*Read in next line, so have something to compare*/
-    errUChar = readStatsFileLine(inFILE, &onHeaderBool, &tmpRead);
+    errUC = readStatsFileLine(inFILE, &onHeaderBool, &tmpRead);
 
-    if(!(errUChar & 1))
+    if(!(errUC & 1))
+    { /*If had a file error*/
+        fclose(inFILE);
         return 16;     /*File error, return 16 so user knows*/
+    } /*If had a file error*/
    
-    while(errUChar & 1)
+    while(errUC & 1)
     { /*While not at end of file or no problems*/
         ignoreC =
             (int8_t) (
@@ -185,16 +191,13 @@ uint8_t extractBestRead(
             cpReadStat(&bestRead, &tmpRead); /*copy the read*/
         } /*else have a new best mapq*/
 
-        errUChar =
+        errUC =
             readStatsFileLine(
                 inFILE,     /*File with line to grab*/
                 &onHeaderBool, /*Tells if their is a header line*/
                 &tmpRead   /*Will hold the stats from the stats file*/
         ); /*Read in the next line*/
     } /*While not at end of file or no problems*/
-
-    if(errUChar != 2) 
-        return 16; /*File error*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-1 Sec-6: Make the temporay stat file the new bin stat file   v
@@ -203,6 +206,9 @@ uint8_t extractBestRead(
      /*Close the open files (no longer need to read from)*/
      fclose(inFILE);
      fclose(outFILE);
+
+    if(errUC != 2) 
+        return 16; /*File error*/
 
      remove(binIn->statPathCStr); /*Remove the old stats file*/
 
@@ -216,26 +222,42 @@ uint8_t extractBestRead(
     /*Open the fastq file (already check if could open)*/
     inFILE = fopen(binIn->fqPathCStr, "r");
 
+    if(inFILE == 0)
+        return 32;
+
     /*Open the temporary file to hold the best read*/
     outFILE = fopen(binIn->bestReadCStr, "w");
 
     if(outFILE == 0)
+    { /*If  could not open the output file*/
+        fclose(inFILE);
         return 32;
+    } /*If  could not open the output file*/
 
     /*File to hold all reads except the best read*/
     otherOutFILE = fopen(tmpFqCStr, "w");
 
     if(otherOutFILE == 0)
+    { /*If could not open the other out file*/
+        fclose(inFILE);
+        fclose(outFILE);
         return 32;
+    } /*If could not open the other out file*/
 
-    if(
+    errUC = 
         fqOneIdExtract(
             bestRead.queryIdCStr,
             inFILE,     /*fastq file to extract read from*/
             outFILE,
             otherOutFILE
-        ) != 1
-    ) /*If could not extract the best read*/
+    ); /*See if I can extract the read*/
+
+    /*No longer need files open*/
+    fclose(inFILE);
+    fclose(outFILE);
+    fclose(otherOutFILE);
+
+    if(!(errUC & 1)) /*If could not extract the best read*/
         return 128;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
@@ -243,11 +265,6 @@ uint8_t extractBestRead(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     --binIn->numReadsULng; /*Account for the extracted best read*/
-
-    /*No longer need files open*/
-    fclose(inFILE);
-    fclose(outFILE);
-    fclose(otherOutFILE);
 
     remove(binIn->fqPathCStr); /*Remove the old file*/
 
@@ -497,7 +514,7 @@ uint8_t findBestXReads(
         lenBuffUInt = 1 << 15; /*wil make a 65536 byte array*/
 
     uint8_t
-        errUChar = 0, /*Holds error output*/
+        errUC = 0, /*Holds error output*/
         oneUChar = 1,
         digPerKeyUChar = 0,
         zeroUChar = 0;
@@ -554,10 +571,13 @@ uint8_t findBestXReads(
         blankSamEntry(refStruct);
 
         /*Read in the reference sequence*/
-        errUChar = readRefFqSeq(testFILE, refStruct, 0);
+        errUC = readRefFqSeq(testFILE, refStruct, 0);
 
-        if(!(errUChar & 1))
+        if(!(errUC & 1))
+        { /*If failed to read in the reference*/
+            fclose(testFILE); /*No longer need open*/
             return 4;
+        } /*If failed to read in the reference*/
     } /*If using the reference for deletion scoring*/
 
     fclose(testFILE); /*No longer need open*/
@@ -587,9 +607,9 @@ uint8_t findBestXReads(
     blankSamEntry(samStruct); /*Make sure start with blank*/
 
     /*Read in a single sam file line to check if valid (header)*/
-    errUChar = readSamLine(samStruct, stdinFILE);
+    errUC = readSamLine(samStruct, stdinFILE);
 
-    if(!(errUChar & 1))
+    if(!(errUC & 1))
     { /*If an error occured*/
         pclose(stdinFILE);
         return 16;
@@ -613,29 +633,29 @@ uint8_t findBestXReads(
     | Fun-3 Sec-4 Sub-1: Trim read & remove read if no sequence        |
     \******************************************************************/
 
-    while(errUChar & 1)
+    while(errUC & 1)
     { /*While their is a samfile entry to read in*/
         if(*samStruct->samEntryCStr == '@')
         { /*If was a header*/
             blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUChar = readSamLine( samStruct, stdinFILE);
+            errUC = readSamLine(samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a header*/
 
         if(samStruct->flagUSht & (2048 | 256 | 4))
         { /*If was a suplemental, secondary, or unmapped alignment*/
             blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUChar = readSamLine(samStruct, stdinFILE);
+            errUC = readSamLine(samStruct, stdinFILE);
             continue; /*Is a header line, move to next line in file*/
         } /*If was a suplemental, secondary, or unmapped alignment*/
 
         /*Convert & print out sam file entry*/
-        errUChar = trimSamEntry(samStruct);
+        errUC = trimSamEntry(samStruct);
 
-        if(errUChar >> 2)
+        if(errUC >> 2)
         { /*If entry did not have a sequence, discard*/
             blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUChar = readSamLine(samStruct, stdinFILE);
+            errUC = readSamLine(samStruct, stdinFILE);
             continue;
         } /*If entry did not have a sequence, discard*/
 
@@ -658,11 +678,12 @@ uint8_t findBestXReads(
         \**************************************************************/
 
         if(samStruct->mapqUChar < minStats->minMapqUInt ||
-           !(checkIfKeepRead(minStats, samStruct) & 1)
+           !(checkIfKeepRead(minStats, samStruct) & 1) ||
+          samStruct->readAligLenUInt < minStats->minReadLenULng
         ) { /*If the read Is to different from the reference*/
             /*Move to the next entry*/
             blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUChar = readSamLine(samStruct, stdinFILE);
+            errUC = readSamLine(samStruct, stdinFILE);
             continue;
         } /*If the read Is to different from the reference*/
 
@@ -761,7 +782,7 @@ uint8_t findBestXReads(
 
         /*Move to the next read*/
         blankSamEntry(samStruct); /*Make sure start with blank*/
-        errUChar = readSamLine(samStruct, stdinFILE);
+        errUC = readSamLine(samStruct, stdinFILE);
     } /*While their is a samfile entry to read in*/
 
     pclose(stdinFILE);

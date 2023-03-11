@@ -319,7 +319,7 @@ char * backwarsCStrToUInt(
 \----------------------------------------------------------------------*/
 char * uCharToCStr(
     char *buffCStr,  /*Buffer to hold output c-string (4 elements)*/
-    char uCharToCnvt /*Chacter to convert to c-string*/
+    unsigned char uCharToCnvt /*Chacter to convert to numeric c-string*/
 ) /*converts unsigned character value to a numeric c-string*/
 { /*uCharToCStr*/
 
@@ -327,18 +327,37 @@ char * uCharToCStr(
     ' Fun-5 TOC: Sec-1 Sub-1: uCharToCStr
     \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    *buffCStr = (uCharToCnvt % 10) + 48; /*Get first digit*/
-    uCharToCnvt = uCharToCnvt / 10; /*Move to next digit in character*/
-    ++buffCStr;                     /*Move to next character in buffer*/
+    char onesUC = 0;
+    char tensUC = 0;
 
-    while(uCharToCnvt != 0)
-    { /*While have digits to convert*/
-        *buffCStr = (uCharToCnvt % 10) + 48; /*Convert the digit*/
-        uCharToCnvt = uCharToCnvt / 10;      /*Move to next digit*/
-        ++buffCStr;                /*Move to next character in buffer*/
-    } /*While have digits to convert*/
+    onesUC = (uCharToCnvt % 10) + 48;
+    uCharToCnvt = uCharToCnvt / 10; /*Move to next digit in character*/
+
+    if(uCharToCnvt > 0)
+        tensUC = (uCharToCnvt % 10) + 48;
+    else
+    { /*Else their is only a ones position*/
+       *buffCStr = onesUC;
+       ++buffCStr;
+
+       *buffCStr = '\0';
+       return buffCStr;
+    } /*Else their is only a ones position*/
+
+    uCharToCnvt = uCharToCnvt / 10; /*Move to next digit in character*/
+
+    if(uCharToCnvt > 0)
+    { /*If looking at the 100s position*/
+        *buffCStr = (uCharToCnvt % 10) + 48;
+        ++buffCStr;
+    } /*If looking at the 100s position*/
+
+    *buffCStr = tensUC;
+    ++buffCStr;
+
+    *buffCStr = onesUC;
+    ++buffCStr;
 
     *buffCStr = '\0';
     return buffCStr;
 } /*uCharToCStr*/
-

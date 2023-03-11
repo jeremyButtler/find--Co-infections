@@ -42,12 +42,16 @@
 #define medCondCMD "eval \"$(conda shell.bash hook)\"; conda activate medaka;"
 #define medCondCMDEnd "; conda deactivate"
 
+/*Command for mapping reads to primers*/
+#define defMinimap2PrimCMD "minimap2 -k5 -w1 -s 20 -p"
+
 /**********************************************************************\
 * Sec-3: General settings
 \**********************************************************************/
 
 /*Gereral find co-infections settings*/
-#define defVersion 3.0       /*The Version number of this program*/
+#define defVersion 3.20230310  /*The Version number of this program*/
+    /*Format is version.yearMonthDay*/
 #define defPrefix "out"      /*Default prefix to use*/
 #define defThreads "3"       /*Default number of threads to use*/
 #define rmReadsWithSupAln 0
@@ -100,6 +104,7 @@
 #define readRefMinAlnMeanQ 10
 
 #define readRefMinReadLen 600   /*Min length to keep a read*/
+    /*Also the mininum length to keep a consensus length*/
 #define readRefMaxReadLen 1000  /*Maximum length to keep a read*/
 
 /*read to reference mapping settings for insertion homopolymers*/
@@ -143,6 +148,7 @@
 #define readReadMaxDelTHomo 0
 #define readReadMaxDelCHomo 0
 #define readReadMaxDelGHomo 0
+#define readReadMinReadLen 500   /*Min length to keep a read*/
 
 /*THSE SETTINGS WILL HAVE LITTE AFFECT IN findCoInft, MOVE ON TO NEXT
   SECTION. They are here for setting default settings*/
@@ -152,8 +158,8 @@
 #define readReadMinAlnMedQ 13
 #define readReadMinAlnMeanQ 13
 
-#define readReadMinReadLen 0   /*Min length to keep a read*/
-#define readReadMaxReadLen 3000000000  /*Maximum length to keep a read*/
+/*Maximum length to keep a read*/
+#define readReadMaxReadLen 0  /*0 is for any length*/
 
 /**********************************************************************\
 * Sec-7: read to consensus mapping settings
@@ -184,6 +190,7 @@
 #define readConMaxDelTHomo 0
 #define readConMaxDelCHomo 0
 #define readConMaxDelGHomo 0
+#define readConMinReadLen 500  /*Min length to keep a read*/
 
 /*THESE SETTINGS WILL HAVE LTTILE AFFECT, FOR findCoIfnt MOVE TO NEXT
   SECTION. They are here for setting default settings*/
@@ -192,8 +199,8 @@
 #define readConMinAlnMedQ 13
 #define readConMinAlnMeanQ 13
 
-#define readConMinReadLen 0  /*Min length to keep a read*/
-#define readConMaxReadLen 3000000000  /*Maximum length to keep a read*/
+/*Maximum length to keep a read*/
+#define readConMaxReadLen 0 /*0 is any length*/
 
 /**********************************************************************\
 * Sec-8: consensus to consensus mapping settings
@@ -229,6 +236,6 @@
 #define conConMinAlnMeanQ 0
 
 #define conConMinReadLen 0   /*Min length to keep a con*/
-#define conConMaxReadLen 3000000000  /*Maximum length to keep a con*/
+#define conConMaxReadLen 0  /*Maximum length to keep a con (is is all)*/
 
 #endif

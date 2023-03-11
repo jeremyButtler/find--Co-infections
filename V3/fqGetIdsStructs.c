@@ -242,8 +242,8 @@ struct bigNum * makeBigNumStruct(
 |        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
 \---------------------------------------------------------------------*/
 void strToBackwardsBigNum(
-    struct bigNum *idBigNum,         /*Holds the output big number*/
-    char *cnvtCStr,       /*C-string to convert to large number*/
+    struct bigNum *idBigNum,     /*Holds the output big number*/
+    char *cnvtCStr,              /*C-string to convert to large number*/
     const int32_t *lenCStrUInt
 ) /*Flips c-string & converts to big number*/
 { /*strToBackwardsBigNum*/
@@ -624,6 +624,167 @@ struct readInfo * cnvtIdToBigNum(
 
     return readNode; /*Copied name sucessfully*/
 } /*cnvtIdToBigNum*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|   - Modifies:
+|     o endNameCStr to point to '\n', ' ', & '\t' at end of read name
+|     o lenBigNumChar to hold array sized needed to make this big
+|       number. This allows you to re-use this size on future calls.
+|   - Returns:
+|     o 0 if fails
+|     o pointer to struct with bigNum struct having converted read id
+|  - Note:
+|     o This will only read the buffer untile hte first invisible 
+|       character. It is up to you to ensure that you are on the next
+|       read id.
+\---------------------------------------------------------------------*/
+struct bigNum * buffToBigNum(
+    char *idCStr,  /*buffer to hold fread input (can have data)*/
+    char **endCStr, /*Will point to end of read id*/
+    unsigned char *lenBigNumChar
+        /*Holds starting size to make bigNumber. This will be updated
+          each time I have to resize the array.*/
+) /*Converts read id in the input cString to bigNum read id. This 
+    function will not grab new file input, so make sure your entire
+    read id is in idCStr.*/
+{ /*lineToBigNum*/
+
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-9 cnvtIdToBigNum TOC:
+    '    fun-9 sec-1: Variable declerations
+    '    fun-1 sec-2: Initalize readInfo & bigNum structs
+    '    fun-1 sec-4: Do conversion
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    unsigned char charBit = 0;
+    struct bigNum *idBigNum = malloc(sizeof(struct bigNum));
+
+    #ifndef MEM
+        #if defOSBit == 64
+            int *elmILPtr = 0;
+        #else
+            short *elmILPtr = 0;
+        #endif
+    #else
+        long *elmILPtr = 0;
+    #endif
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-2: Initalize readInfo & bigNum structs
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    if(idBigNum == 0)
+    { /*If memory allocation failed*/
+        if(idBigNum != 0) free(idBigNum);
+
+        *lenInputULng = 0; /*Make sure user detects failure*/
+        return 0; 
+    } /*If memory allocation failed*/
+
+    idBigNum->lenUsedElmChar = 0;
+
+    #ifndef MEM
+        idBigNum->totalL = 0;
+
+         #if defOSBit == 64
+           idBigNum->bigNumAryIOrL=malloc(sizeof(int)*(*lenBigNumChar));
+        #else
+         idBigNum->bigNumAryIOrL=malloc(sizeof(short)*(*lenBigNumChar));
+        #endif
+    #else
+        idBigNum->bigNumAryIOrL = malloc(sizeof(long)*(*lenBigNumChar));
+    #endif
+
+    idBigNum->lenAllElmChar = *lenBigNumChar;
+
+    if(idBigNum->bigNumAryIOrL == 0)
+    { /*If memory reallocation failed*/
+        *lenInputULng = 0; /*Make sure user detects failure*/
+        free(idBigNum);
+        return 0;
+    } /*If memory reallocation failed*/
+
+    *endCStr = idCStr; /*So can move to end of id*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-9 Sec-5: Convert string to big number
+    ^    fun-9 sec-5 sub-1: Check if need to resize the long array
+    ^    fun-9 sec-5 sub-2: Convert characters until long is full
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    /******************************************************************\
+    * Fun-9 Sec-5 Sub-1: Check if need to resize the long array
+    \******************************************************************/
+      
+    do { /*While still on the read name part of header*/
+
+        if(idBigNum->lenUsedElmChar >= idBigNum->lenAllElmChar)
+        { /*If need to reallocate memory*/
+            (idBigNum->lenAllElmChar)++;
+            (*lenBigNumChar)++;
+            idBigNum->bigNumAryIOrL =
+                realloc(
+                    idBigNum->bigNumAryIOrL,
+                    #ifndef MEM
+                         #if defOSBit == 64
+                            sizeof(int) * idBigNum->lenAllElmChar
+                        #else
+                            sizeof(short) * idBigNum->lenAllElmChar
+                        #endif /*Check if 32 bit or 64 bit*/
+                    #else
+                        sizeof(long) * idBigNum->lenAllElmChar
+                    #endif
+            ); /*Rellocate memory for the array*/
+
+            if(idBigNum == 0)
+            { /*If memory allocation failed*/
+                free(idBigNum->bigNumAryIOrL);
+                free(idBigNum);
+                *lenInputULng = 0; /*Make sure user detects failure*/
+                return 0; 
+            } /*If memory allocation failed*/
+        } /*If need to reallocate memory*/
+
+        /*Graph unsigned long element working on*/
+        elmILPtr =idBigNum->bigNumAryIOrL +idBigNum->lenUsedElmChar;
+        (idBigNum->lenUsedElmChar)++; /*Track number of used longs*/
+        *elmILPtr = 0;
+        charBit = 0;
+
+       /***************************************************************\
+       * Fun-9 Sec-5 Sub-1: Convert characters until long is full
+       \***************************************************************/
+
+        while(charBit < defMaxDigPerLimb)
+        { /*while their are empty bits in the current big number limb*/
+            if(hexTblCharAry[(unsigned char) **endCStr] & 64)
+                break; /*If finshed converting the c-string*/
+
+            if(!(hexTblCharAry[(unsigned char) **endCStr] & 32))
+            { /*If was a hex character*/
+                *elmILPtr = *elmILPtr << defBitsPerChar;
+                *elmILPtr += hexTblCharAry[(unsigned char) **endCStr];
+                ++charBit;
+            } /*If was a hex character*/
+
+            ++(*endCStr);
+        } /*while their are empty bits in the current big number limb*/
+
+        #ifndef MEM
+            /*add up all limbs for faster comparisons with Illumina*/
+            idBigNum->totalL += *elmILPtr;
+        #endif
+    } while((unsigned char) **endCStr > 32);
+    /*While still on the read name part of header*/
+
+    return idBigNum; /*Copied name sucessfully*/
+} /*cnvtIdToBigNum*/
+
 
 /* Ascii table
 Dec  Char                           Dec  Char     Dec  Char     Dec Char

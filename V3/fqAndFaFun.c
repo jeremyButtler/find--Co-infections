@@ -70,7 +70,11 @@ unsigned char fqToFa(
     while(ftell(fqFILE) < lenFqUL)
     { /*While have more file to read in*/
         if(!(readRefFqSeq(fqFILE, samStruct, 0) & 1))
+        { /*If had a memory allocation error*/
+            fclose(fqFILE);
+            fclose(faFILE);
             return 64; /*Report the memory error (may not be)*/
+        } /*If had a memory allocation error*/
 
         *samStruct->samEntryCStr = '>'; /*replace @ with >*/
         tmpCStr = samStruct->qCStr;
@@ -570,7 +574,10 @@ unsigned char filterReads(
         outFILE = fopen(outCStr, "w");
 
     if(outFILE == 0)
+    { /*If I could not open the output file*/
+        fclose(fqFILE);
         return 4;
+    } /*If I could not open the output file*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-6 Sec-3: Filter reads

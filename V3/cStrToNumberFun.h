@@ -78,7 +78,7 @@ char * backwarsCStrToUInt(
 \----------------------------------------------------------------------*/
 char * uCharToCStr(
     char *buffCStr,  /*Buffer to hold output c-string (4 elements)*/
-    char uCharToCnvt /*Chacter to convert to c-string*/
+    unsigned char uCharToCnvt /*Chacter to convert to numeric c-string*/
 ); /*converts unsigned character value to a numeric c-string*/
 
 #endif

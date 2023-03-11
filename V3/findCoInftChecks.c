@@ -104,13 +104,16 @@ uint8_t checkIfKeepRead(
           statements between each calcuation, however this is clearer
       Need * 1.0 to ensure it does not truncate*/
     percSnpFlt =
-        samStruct->numKeptSNPUInt / (samStruct->readLenUInt * 1.0);
+        /*samStruct->numKeptSNPUInt / (samStruct->readLenUInt * 1.0);*/
+        samStruct->numKeptSNPUInt / (samStruct->readAligLenUInt * 1.0);
 
     percInsFlt =
-        samStruct->numKeptInsUInt / (samStruct->readLenUInt * 1.0);
+        /*samStruct->numKeptInsUInt / (samStruct->readLenUInt * 1.0);*/
+        samStruct->numKeptInsUInt / (samStruct->readAligLenUInt * 1.0);
 
     percDelFlt =
-        samStruct->numKeptDelUInt / (samStruct->readLenUInt * 1.0);
+        /*samStruct->numKeptDelUInt / (samStruct->readLenUInt * 1.0);*/
+        samStruct->numKeptDelUInt / (samStruct->readAligLenUInt * 1.0);
 
     if(maxDifference->minSNPsFlt < percSnpFlt) /*percent SNPs to high*/
         return 0;

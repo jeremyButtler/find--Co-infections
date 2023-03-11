@@ -5,37 +5,39 @@
 #      sam file. Aligments without sequences are ignored & not printed
 #      out.
 # Includes:
-#    - "samEntryStruct.h"
-#        - <stdlib.h>
-#        - "cStrToNumberFun.h"
-#            - <stdint.h>
-#        - "printError.h"
-#            - <stdio.h>
+#   - "samEntryStruct.h"
+#   o "cStrToNumberFun.h"
+#   o "printError.h"
+# C standard library includes:
+#   o <stdlib.h>
+#   o <stdint.h>
+#   o <stdio.h>
 ######################################################################*/
 
 #include "trimSam.h"
 
-/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# TOC:
-#    fun-1 trimSamReads: Trims soft mask regions for all reads with
-#                        a sequence in a sam file
-#    fun-2 trimSamEntry: Trim soft mask regions off end of sam entry
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+| SOF: start of trimSam functions
+|    fun-1 trimSamReads: Trims soft mask regions for all reads with
+|                        a sequence in a sam file
+|    fun-2 trimSamEntry: Trim soft mask regions off end of sam entry
+\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-/*######################################################################
-# Output:
-#    Prints: Trimmed sam entries with sequences to outFILE, but ignores
-#            sam entries without sequences
-######################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Prints: Trimmed sam entries with sequences to outFILE, but ignores
+|            sam entries without sequences
+\---------------------------------------------------------------------*/
 void trimSamReads(
     FILE *samFILE,               /*Sam file to convert*/
-    FILE *outFILE                /*File to store output*/
+    FILE *outFILE,               /*File to store output*/
+    char keepUnmappedReadsBl     /*1: keep unmapped reads, 0: do not*/
 ) /*Prints trimmed sam entries with sequences to file*/
 { /*trimSamReads*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-1 Sec-1 Sub-1 TOC: trimSamReads
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-1 Sec-1 Sub-1 TOC: trimSamReads
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     unsigned char
         errorFlagUChar = 0;/*Tells me if memory allocation error*/
@@ -59,8 +61,12 @@ void trimSamReads(
         errorFlagUChar = trimSamEntry(&samStruct);
 
         /*Print out the converted entry*/
-        if(!(errorFlagUChar >> 2)) /*If was header or had sequence*/
+        if(!(errorFlagUChar >> 2))
             printSamEntry(&samStruct, outFILE);
+            /*If was header or had sequence, then print it out*/
+        else if(errorFlagUChar & 4 && keepUnmappedReadsBl & 1)
+            printSamEntry(&samStruct, outFILE);
+            /*Else if printing umapped reads as well as mapped*/
 
         blankSamEntry(&samStruct);
         errorFlagUChar = readSamLine(&samStruct, samFILE);
@@ -70,33 +76,33 @@ void trimSamReads(
     return;
 } /*trimSamReads*/
 
-/*######################################################################
-# Output:
-#    Returns:
-#        - 0 if suceeded
-#        - 2 if header (invalid and ignored)
-#        - 4 if an unmapped read (no reference)
-#        - 8 if no sequence line
-#    Modifies:
-#        - Trims cigar, sequence, & q-score entries in samStruct.
-######################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Returns:
+|        - 0 if suceeded
+|        - 2 if header (invalid and ignored)
+|        - 4 if an unmapped read (no reference)
+|        - 8 if no sequence line
+|    Modifies:
+|        - Trims cigar, sequence, & q-score entries in samStruct.
+\---------------------------------------------------------------------*/
 uint8_t trimSamEntry(
     struct samEntry *samStruct   /*has sam line to trim softmasks*/
 ) /*Trims soft masked regions at start & end of sam entry*/
 { /*trimSamEntry*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 TOC: trimSamEntry
-    #    fun-1 sec-1: Variable declerations
-    #    fun-2 sec-2: Find how much to trim & trim cigar entry
-    #    fun-2 sec-3: Trim the sequence entry
-    #    fun-2 sec-4: Trim the q-score entry
-    #    fun-2 sec-5: Shift characters for other parts of the cigar
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+    /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-2 TOC: trimSamEntry
+    '    fun-1 sec-1: Variable declerations
+    '    fun-2 sec-2: Find how much to trim & trim cigar entry
+    '    fun-2 sec-3: Trim the sequence entry
+    '    fun-2 sec-4: Trim the q-score entry
+    '    fun-2 sec-5: Shift characters for other parts of the cigar
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-1: Variable declerations
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-1: Variable declerations
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     char
         *incSamUCStr = samStruct->cigarCStr,
@@ -109,15 +115,15 @@ uint8_t trimSamEntry(
         lenStartTrimUInt = 0, /*Number of bases soft masked at start*/
         lenEndTrimUInt = 0;   /*Number of bases soft masked at end*/
         
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-2: Find how much to trim & trim cigar entry
-    #    fun-2 sec-2 sub-1: Check start of cigar & trim if needed
-    #    fun-2 sec-2 sub-2: Check end of cigar & trim if needed
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-2: Find how much to trim & trim cigar entry
+    ^    fun-2 sec-2 sub-1: Check start of cigar & trim if needed
+    ^    fun-2 sec-2 sub-2: Check end of cigar & trim if needed
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    /*******************************************************************
-    # Fun-2 Sec-2 Sub-1: Check start of cigar & trim if needed
-    *******************************************************************/
+    /******************************************************************\
+    * Fun-2 Sec-2 Sub-1: Check start of cigar & trim if needed
+    \******************************************************************/
 
     if(*(samStruct->samEntryCStr) == '@')
         return 2;             /*Is a header line, invalid entry*/
@@ -150,9 +156,9 @@ uint8_t trimSamEntry(
         } /*While not at the end of the cigar*/
     } /*Else is a soft mask and need to remove*/
 
-    /*******************************************************************
-    # Fun-2 Sec-2 Sub-2: Check end of cigar & trim if needed
-    *******************************************************************/
+    /******************************************************************\
+    * Fun-2 Sec-2 Sub-2: Check end of cigar & trim if needed
+    \******************************************************************/
 
     --delUCStr;        /*Move back to last cigar entry*/
 
@@ -173,9 +179,9 @@ uint8_t trimSamEntry(
         ++delUCStr;       /*Move off the entry before the soft mask*/
     } /*Else I am trimming bases off the end*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-3: Trim the sequence entry
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-3: Trim the sequence entry
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(uCharTabCnt < 4)
     { /*If need to find the sequence entry*/
@@ -218,9 +224,9 @@ uint8_t trimSamEntry(
     ++delUCStr;                        /*Move past tab*/
     samStruct->qCStr = delUCStr;    /*new start of q-score entry*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-4: Trim the q-score entry
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-4: Trim the q-score entry
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(*(samStruct->qCStr) != '*' || *(samStruct->qCStr + 1) != '\t')
     { /*If their is a Q-score entry to trim*/
@@ -239,9 +245,9 @@ uint8_t trimSamEntry(
         incSamUCStr += lenEndTrimUInt; /*Move off end trim to tab*/
     } /*If their is a Q-score entry to trim*/
 
-    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    # Fun-2 Sec-5: Shift characters for other parts of the cigar
-    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-2 Sec-5: Shift characters for other parts of the cigar
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     while(*incSamUCStr != '\0' && *incSamUCStr != '\n')
     { /*While their are other elements in the q-score entry to shift*/

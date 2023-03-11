@@ -177,4 +177,28 @@ struct readInfo * cnvtIdToBigNum(
     FILE *idFILE          /*Fastq file to get data from*/
 ); /*Converts read id to bigNum read id, will grab new file input*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|   - Modifies:
+|     o endNameCStr to point to '\n', ' ', & '\t' at end of read name
+|     o lenBigNumChar to hold array sized needed to make this big
+|       number. This allows you to re-use this size on future calls.
+|   - Returns:
+|     o 0 if fails
+|     o pointer to struct with bigNum struct having converted read id
+|  - Note:
+|     o This will only read the buffer untile hte first invisible 
+|       character. It is up to you to ensure that you are on the next
+|       read id.
+\---------------------------------------------------------------------*/
+struct bigNum * buffToBigNum(
+    char *idCStr,  /*buffer to hold fread input (can have data)*/
+    char **endCStr, /*Will point to end of read id*/
+    unsigned char *lenBigNumChar
+        /*Holds starting size to make bigNumber. This will be updated
+          each time I have to resize the array.*/
+); /*Converts read id in the input cString to bigNum read id. This 
+    function will not grab new file input, so make sure your entire
+    read id is in idCStr.*/
+
 #endif

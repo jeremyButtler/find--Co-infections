@@ -596,7 +596,8 @@ int main(
     ^ Main Sec-6: Clean up, Print out version numbers, and exit
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    remove(fastqStruct.bestReadCStr); /*Make sure no extra files*/
+    /*remove(fastqStruct.bestReadCStr); *//*Make sure no extra files*/
+        /*buildCon function already did this*/
     remove(fastqStruct.fqPathCStr);
     remove(fastqStruct.bestReadCStr);
 

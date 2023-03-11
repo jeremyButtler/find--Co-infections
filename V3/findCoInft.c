@@ -126,8 +126,8 @@ int main(
     FILE *logFILE = 0;      /*Holds the log*/
     FILE *stdinFILE = stdin;/*Points to piped input from minimap2*/
     FILE *statFILE = 0;     /*File to output stats from score reads to*/
-    FILE *tmpFILE = 0;
-    FILE *fqBinFILE = 0;    /*Points to file adding binned reads to*/
+    /*FILE *tmpFILE = 0;*/
+    /*FILE *fqBinFILE = 0;*/  /*Points to file adding binned reads to*/
 
     /*My structures*/
     struct samEntry samStruct;    /*Holds sam file entry from minimap2*/
@@ -177,13 +177,19 @@ int main(
             \n    -max-reads-per-con:\
             \n        - Max number of reads to use in        [300]\
             \n          a consensus.\
+            \n    -min-con-length:                               [500]\
+            \n        - Minimum length to keep a consensus.\
             \n    -extra-consensus-steps:                    [2]\
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
             \n    -min-read-length:                          [600]\
-            \n       - Discard reads with read lengths under\
-            \n         the input length.\
+            \n       - Discard reads or consensuses built by\
+            \n         the majority consensus step that are\
+            \n         under the input length.\
+            \n       - If you lower this your should also lower\
+            \n         -min-read-read-length &\
+            \n         -min-read-con-length\
             \n    -max-read-length:                          [1000]\
             \n       - Discard reads with read lengths over\
             \n         input setting (0 to ignore)\
@@ -253,11 +259,20 @@ int main(
             \n   consensus building method. It handles SNPs and matches\
             \n   well, provided their is enough read depth, but is weak\
             \n   for indels.\
+            \n    -min-con-length:                               [500]\
+            \n        - Minimum length to keep a consensus.\
             \n    -disable-majority-consensus:                   [Yes]\
             \n        - Build a consensus using a simple\
             \n          majority consensus. This consensus\
             \n          will be polished with Racon or\
             \n          Medaka if Racon and Medaka set.\
+            \n    -max-reads-per-con:\
+            \n        - Max number of reads to use in        [300]\
+            \n          a consensus.\
+            \n    -extra-consensus-steps:                    [2]\
+            \n        - Number of times to rebuild the\
+            \n          consensus using a new set of best\
+            \n          reads.\
             \n    -maj-con-min-bases                         [0.4=40%]\
             \n        - When building the majority consesus\
             \n          make a deletion in positions that\
@@ -389,6 +404,11 @@ int main(
             \n    beneath the quality thresholds. Only the top X\
             \n    (default 300) are kept to build a consensus with.\
             \n\
+            \n     -min-read-read-map-length:                     [500]\
+            \n        - Minimum aligned read length needed\
+            \n          to keep a read to read mapping.\
+            \n        - Values less than this will not be\
+            \n          extracted.\
             \n     -read-read-snps:                       [0.015 = 1.5%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
@@ -472,6 +492,11 @@ int main(
             \n\
             \n     -skip-clust:                                [No]\
             \n        - Skip the clusterin step.\
+            \n     -min-read-con-map-length:                   [500]\
+            \n        - Minimum aligned read length needed to\
+            \n          keep a read to consensus mapping.\
+            \n        - Reads that have an alinged length less\
+            \n          than this will not be extracted.\
             \n     -read-con-snps:                       [0.015 = 1.5%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
@@ -685,7 +710,7 @@ int main(
             strcmp(inutErrCStr, "-V") == 0 ||
             strcmp(inutErrCStr, "-version") == 0
         ) { /*If the user is requesting the version number*/
-            fprintf(stdout, "%f\n", defVersion);
+            fprintf(stdout, "%.8f\n", defVersion);
             exit(0);
         } /*If the user is requesting the version number*/
 
@@ -1773,23 +1798,25 @@ int main(
 
             /**********************************************************\
             * Main Sec-7 Sub-5: Copy best read back to its oringal bin
+            * buildCon already did this
             \**********************************************************/
 
-            ++clustOn->numReadsULng; /*Account for the best read*/
-            tmpFILE = fopen(clustOn->bestReadCStr, "r");
+            /*++clustOn->numReadsULng;*/ /*Account for the best read*/
+            /*tmpFILE = fopen(clustOn->bestReadCStr, "r");
             fqBinFILE = fopen(clustOn->fqPathCStr, "a");
 
             while(fgets(
                     refStruct.samEntryCStr,
                     refStruct.lenBuffULng,
                     tmpFILE
-                ) /*Read in file line*/
-            ) fprintf(tmpFILE, "%s", refStruct.samEntryCStr);
+                )*/ /*Read in file line*/
+            /*) fprintf(tmpFILE, "%s", refStruct.samEntryCStr);
     
             fclose(tmpFILE);
             fclose(fqBinFILE);
 
-            remove(clustOn->bestReadCStr);/*Remove best read consensus*/
+            remove(clustOn->bestReadCStr);*/
+                 /*Remove best read consensus*/
 
             /**********************************************************\
             * Main Sec-7 Sub-6: Bin reads to the consensus
@@ -2156,7 +2183,7 @@ char * getUserInput(
             strcpy(prefCStr, inputCStr);     /*Have prefix to use*/
 
         else if(strcmp(parmCStr, "-threads") == 0)
-            strcpy(conSet->medakaSet.modelCStr, inputCStr);
+            strcpy(threadsCStr, inputCStr);
 
         else if(strcmp(parmCStr, "-skip-bin") == 0)
         { /*Else if skipping the binning step*/
@@ -2193,6 +2220,9 @@ char * getUserInput(
  
         else if(strcmp(parmCStr, "-extra-consensus-steps") == 0)
             cStrToUInt(inputCStr, &conSet->numRndsToPolishUI);
+
+        else if(strcmp(parmCStr, "-min-con-length") == 0)
+            conSet->minConLenUI = strtoul(inputCStr, &tmpCStr, 10);
 
         else if(strcmp(parmCStr, "-disable-majority-consensus") == 0)
         { /*Else if user is ussing the best read instead of consensus*/
@@ -2306,8 +2336,11 @@ char * getUserInput(
             );
 
         else if(strcmp(parmCStr, "-min-read-length") == 0)
+        { /*Else if the user provided a minimum read length*/
             readToRefMinStats->minReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
+            conSet->minMajConLenUI = readToRefMinStats->minReadLenULng;
+        } /*Else if the user provided a minimum read length*/
 
          else if(strcmp(parmCStr, "-max-read-length") == 0)
             readToRefMinStats->maxReadLenULng =
@@ -2340,6 +2373,12 @@ char * getUserInput(
         /**************************************************************\
         * Fun-1 Sec-2 Sub-4: scoreReads read to read settings
         \**************************************************************/
+
+        else if(strcmp(parmCStr, "-min-read-read-map-length") == 0)
+        { /*Else if the user provided a minimum read length*/
+            readToReadMinStats->minReadLenULng =
+                strtoul(inputCStr, &tmpCStr, 10);
+        } /*Else if the user provided a minimum read length*/
 
         else if(strcmp(parmCStr, "-read-read-min-base-q") == 0)
             cStrToUChar(inputCStr, &readToReadMinStats->minQChar);
@@ -2374,6 +2413,12 @@ char * getUserInput(
         /**************************************************************\
         * Fun-1 Sec-2 Sub-5: scoreReads read to consensus settings
         \**************************************************************/
+
+        else if(strcmp(parmCStr, "-min-read-con-map-length") == 0)
+        { /*Else if the user provided a minimum read length*/
+            readToConMinStats->minReadLenULng =
+                strtoul(inputCStr, &tmpCStr, 10);
+        } /*Else if the user provided a minimum read length*/
 
         else if(strcmp(parmCStr, "-read-con-min-base-q") == 0)
             cStrToUChar(inputCStr, &readToConMinStats->minQChar);

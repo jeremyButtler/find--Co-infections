@@ -89,6 +89,8 @@ unsigned char buildCon(
 
     char *tmpCStr = 0;
     char polishBl = 0;      /*Marks if need to build initial con*/
+    char trueBl = 1;        /*So I can pass TRUE (1) to my functions*/
+    char falseBl = 0;       /*So I can pass a FALSE (0) to functions*/
     char tmpBuffCStr[1024];
     unsigned char errUC = 0;
 
@@ -183,7 +185,7 @@ unsigned char buildCon(
             if(!(errUC & 1))
             { /*If had an error*/
                 remove(conData->bestReadCStr);
-                return errUC;/*4, no Fq file, 8 wirte error, 64 memory*/
+                return errUC;/*4, no Fq file, 8 write error, 64 memory*/
             } /*If had an error*/
 
             errUC = 
@@ -191,7 +193,7 @@ unsigned char buildCon(
                     &conSet->maxReadsToBuildConUL,
                     &conSet->numReadsForConUL, /*# of reads extracted*/
                     threadsCStr,      /*Number threads for minimap2*/
-                    &polishBl,        /*Do not using mapping quality*/
+                    &falseBl,        /*Do not using mapping quality*/
                     minReadReadStats, /*Min stats to keep reads*/
                     samStruct,  /*Struct to use for reading sam file*/
                     zeroSam,    /*Do not use reference in scoring*/
@@ -206,6 +208,12 @@ unsigned char buildCon(
 
             /*Build consensus using best read & top reads in conData*/
             errUC =buildSingleCon(threadsCStr,conData,samStruct,conSet);
+
+            if(errUC & 32)
+            { /*If the cosensus is to small*/
+                errUC = 0;
+                break;
+            } /*If the cosensus is to small*/
         } /*if need to find another read*/
 
         /**************************************************************\
@@ -233,6 +241,9 @@ unsigned char buildCon(
                 remove(conData->bestReadCStr);
             } /*If need to remove the best read file*/
 
+            else if(fqFILE != 0)
+                fclose(fqFILE); /*Make sure the file is closes*/
+
             rename(conData->consensusCStr, conData->bestReadCStr);
             conData->consensusCStr[0] = '\0'; /*Remove old name*/
 
@@ -242,8 +253,8 @@ unsigned char buildCon(
                     &conSet->minReadsToBuildConUL,
                     &conSet->numReadsForConUL, /*# of reads extracted*/
                     threadsCStr,     /*Number threads for minimap2*/
-                    &polishBl,       /*will use mapq for reads here*/
-                    minReadReadStats,/*Min stats to keep reads*/
+                    &trueBl,        /*will use mapq for reads here*/
+                    minReadConStats,/*Min stats to keep reads*/
                     samStruct,  /*Struct to use for reading sam file*/
                     zeroSam,    /*Do not use reference in scoring*/
                     conData
@@ -262,11 +273,22 @@ unsigned char buildCon(
             /*Re-build consensus using consensus & top reads*/
             errUC =buildSingleCon(threadsCStr,conData,samStruct,conSet);
 
+            if(errUC & 32)
+            { /*If the cosensus is to small*/
+                errUC = 0;
+                break;
+            } /*If the cosensus is to small*/
+
             if(errUC & 16)
-                break; /*Get a new best read*/
+                break; /*minimap2 failed, Get a new best read*/
 
             if(errUC & 64)
+            { /*If I had a memory allocation error*/
+                if(polishBl == 0)
+                    remove(conData->bestReadCStr);
+
                 return 64; /*Memory allocation error*/
+            } /*If I had a memory allocation error*/
         } /*Loop till have done all the users requested polishing*/
 
         if(!(errUC & 1))    /*If need to do another round*/
@@ -281,7 +303,12 @@ unsigned char buildCon(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(errUC & 16)
+    { /*If I could not build a consensus*/
+        if(polishBl == 0)
+            remove(conData->bestReadCStr);
+
         return 16;  /*Failed to build a consensus*/
+    } /*If I could not build a consensus*/
 
     if(polishBl == 0)
     { /*If had a best read file*/
@@ -290,10 +317,13 @@ unsigned char buildCon(
 
         while(fgets(tmpBuffCStr, 1024, bestReadFILE))
             fprintf(fqFILE, "%s", tmpBuffCStr);
-    } /*If had a best read file*/
 
-    fclose(fqFILE);
-    fclose(bestReadFILE);
+        ++conData->numReadsULng; /*Account for adding back best read*/
+
+        fclose(fqFILE);
+        fclose(bestReadFILE);
+        remove(conData->bestReadCStr);
+    } /*If had a best read file*/
 
     return 1;
 } /*buildCon*/
@@ -308,6 +338,7 @@ unsigned char buildCon(
 |      - 1 for success
 |      - 2 or 4 for file errors
 |      - 16 for minimap2 error
+|      - 32 if the consensus was to small
 |      - 64 for memory allocation error
 \---------------------------------------------------------------------*/
 unsigned char buildSingleCon(
@@ -352,6 +383,11 @@ unsigned char buildSingleCon(
 
         if(!(errUC & 1))
             return errUC;
+
+        conSet->lenConUL = conSet->majConSet.lenConUL;
+
+        if(conSet->lenConUL < minConLenUI)
+            return 32; /*The consensus was to short*/
     } /*If need to build a simple majority consensus first*/
     
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
@@ -359,12 +395,20 @@ unsigned char buildSingleCon(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     if(conSet->raconSet.useRaconBl & 1)
+    { /*If buliding a consensus with racon*/
         buildConWithRacon(
             &conSet->raconSet,      /*Has settings for Racon*/
             &conSet->clustUC,                /*Cluster on*/
             threadsCStr,
             clustOn
         ); /*Builds a consensus using racon*/
+
+        conSet->lenConUL = conSet->raconSet.lenConUL;
+
+        if(conSet->lenConUL < minConLenUI)
+            return 32; /*The consensus was to short*/
+    } /*If buliding a consensus with racon*/
+
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-3 Sec-4: Build consensus with medaka if asked for
@@ -383,6 +427,11 @@ unsigned char buildSingleCon(
 
         if(!(errUC & 1))
             return errUC;
+
+        conSet->lenConUL = conSet->medakaSet.lenConUL;
+
+        if(conSet->lenConUL < minConLenUI)
+            return 32; /*The consensus was to short*/
     } /*If using medaka to polish*/
 
     return 1;
@@ -435,11 +484,11 @@ unsigned char simpleMajCon(
 
     uint32_t cigEntryUInt = 0;  /*Holds number of bases in cigar entry*/
 
-    uint64_t minNumBasesUL = 0; /*Min number of bases to keep a base*/
-    uint64_t minInsUL = 0;      /*Min number of insertions to keep ins*/
-    uint64_t numBasesUL = 0;    /*Number of bases at a position*/
-    uint64_t numSeqUL = 0;      /*Number of mapped sequences*/
-    uint64_t numMisSeqUL = 0;   /*Number of mapped sequences*/
+    unsigned long minNumBasesUL = 0; /*Min read support to keep a base*/
+    unsigned long minInsUL = 0;   /*Min read support to keep insertion*/
+    unsigned long numSupReadsUL = 0; /*NumberOfReads supporting a base*/
+    unsigned long numSeqUL = 0;      /*Number of mapped sequences*/
+    unsigned long numMisSeqUL = 0;   /*Number of mapped sequences*/
 
     struct baseStruct *headBase = 0; /*Head of the list of bases*/
     struct baseStruct *incBase = 0;  /*First base at a position*/
@@ -483,9 +532,16 @@ unsigned char simpleMajCon(
     } /*Else reference is the consensus*/
 
     if(errUChar & 64)
+    { /*if had a memory allocation error*/
+        fclose(stdinFILE);
         return 64; /*Memory allocation error*/
+    } /*if had a memory allocation error*/
+
     if(!(errUChar & 1))
+    { /*If had an issue with the consensus*/
+        fclose(stdinFILE);
         return 2; /*issue with consensus*/
+    } /*If had an issue with the consensus*/
 
     /*Make sure have doube the sequence + q-score size for insertions*/
     if(samStruct->readLenUInt * 2 > samStruct->lenBuffULng)
@@ -497,7 +553,10 @@ unsigned char simpleMajCon(
         ); /*Resize the structs buffer*/
 
         if(samStruct->samEntryCStr == 0)
+        { /*If had a memory allocation wrror*/
+            fclose(stdinFILE);
             return 64;
+        } /*If had a memory allocation wrror*/
     } /*If need to increase the size of the buffer*/
 
     /*Make the consensus array*/
@@ -511,9 +570,9 @@ unsigned char simpleMajCon(
     /*Check if can open the top reads file*/
     stdinFILE = fopen(binStruct->topReadsCStr, "r");
 
-    if(stdinFILE == 0)
+     if(stdinFILE == 0)
         return 4;
-     /*Close file in Fun-4 Sec-4*/
+     fclose(stdinFILE);
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-4 Sec-3: Prepare the minimap2 command
@@ -570,23 +629,20 @@ unsigned char simpleMajCon(
 
         tmpBase->nextBase = 0; /*Only matches at this point*/
         tmpBase->altBase = 0;  /*No inserts at this point*/
+        tmpBase->baseChar = *seqCStr;    /*Record the base*/
+        tmpBase->errTypeChar = 0;        /*match = 0, snp=1, ins=2*/
 
         qScoreUChar = *qCStr - Q_ADJUST; /*Get the Q-score*/
 
         /*qEntryBl ensures if only files if their was a Q-score entry*/
         if(qEntryBl && qScoreUChar < settings->minBaseQUC)
         { /*If base is to low of quality to keep, make a blank struct*/
-            tmpBase->baseChar = 0;     /*Base is beinging discared*/
             tmpBase->errTypeChar = 0;  /*match=0, snp=1, ins=2*/
-            tmpBase->numBasesUL = 0;
+            tmpBase->numSupReadsUL = 0;
         } /*If base is to low of quality to keep, make a blank struct*/
 
         else
-        { /*Else keeping the base*/
-            tmpBase->baseChar = *seqCStr;
-            tmpBase->errTypeChar = 0;       /*match = 0, snp=1, ins=2*/
-            tmpBase->numBasesUL = 1;        /*match = 0, snp=1, ins=2*/
-        } /*Else keeping the base*/
+            tmpBase->numSupReadsUL = 1;        /*match = 0, snp=1, ins=2*/
 
         lastBase = tmpBase;
         ++seqCStr;
@@ -659,7 +715,20 @@ unsigned char simpleMajCon(
             continue;
         } /*If was an unampped read*/
 
+        if(samStruct->flagUSht & 2048)
+        { /*If was an supplemental read*/
+            blankSamEntry(samStruct);
+            errUChar = readSamLine(samStruct, stdinFILE);
+            continue; /*Do not bother with supplemental alignments*/
+            /*My logic is that this is PCR data, so any supplemental
+              alignment is a repeat region, from rolling circle
+              replication (RCR), or is a chimera. For repeats I am just
+              introducing noise, RCR messes me up to much, and chimeras
+              I want to ignore.*/
+        } /*If was an supplemental read*/
+
         /*Get first base in the list*/
+        ++numSeqUL; /*Count the number of non-supplemental reads*/
         incBase = headBase;
         cigEntryUInt = samStruct->posOnRefUInt - 1;
             /*-1 for 1 index for posOnRef, but 0 index fo incBase*/
@@ -715,7 +784,7 @@ unsigned char simpleMajCon(
                             /*Move to the next base in the sam entry*/
                             ++seqCStr;
                             ++qCStr;
-                            continue;
+                            continue; /*No support for position*/
                         } /*If the base is low quality, skip*/
 
                         /**********************************************\
@@ -747,7 +816,7 @@ unsigned char simpleMajCon(
                             tmpBase->nextBase = 0; /*Is an alterantive*/
                             tmpBase->altBase = 0;  /*No alternatives*/
 
-                            tmpBase->numBasesUL = 0;
+                            tmpBase->numSupReadsUL = 0;
                             tmpBase->baseChar = *seqCStr;
                             tmpBase->errTypeChar = 0;
                         } /*If need to create a new base*/
@@ -755,7 +824,7 @@ unsigned char simpleMajCon(
                         else if(tmpBase->baseChar == 0)
                             tmpBase->baseChar = *seqCStr;
 
-                        ++tmpBase->numBasesUL;
+                        ++tmpBase->numSupReadsUL;
 
                         /*Move to the next base*/
                         lastBase = incBase;
@@ -805,7 +874,7 @@ unsigned char simpleMajCon(
                             incBase->altBase = 0;
                             incBase->errTypeChar = 2;
                             incBase->baseChar = 0;
-                            incBase->numBasesUL = 0;
+                            incBase->numSupReadsUL = 0;
                         } /*If next base is not an insertion*/
 
                         /**********************************************\
@@ -838,7 +907,7 @@ unsigned char simpleMajCon(
                                 incBase->altBase = 0;
                                 incBase->errTypeChar = 2;
                                 incBase->baseChar = 0;
-                                incBase->numBasesUL = 0;
+                                incBase->numSupReadsUL = 0;
                             } /*If have other insertions to process*/
     
                             else
@@ -884,13 +953,13 @@ unsigned char simpleMajCon(
     
                             tmpBase->errTypeChar = 2; /*Insertion*/
                             tmpBase->baseChar = *seqCStr;
-                            tmpBase->numBasesUL = 0;
+                            tmpBase->numSupReadsUL = 0;
                         } /*If need to create a new base*/
     
                         else if(tmpBase->baseChar == 0)
                             tmpBase->baseChar = *seqCStr;
     
-                        ++tmpBase->numBasesUL;
+                        ++tmpBase->numSupReadsUL;
     
                         /*This avoids scattered deletions*/
                         if(
@@ -911,7 +980,7 @@ unsigned char simpleMajCon(
                             incBase->altBase = 0;
                             incBase->errTypeChar = 2;
                             incBase->baseChar = 0;
-                            incBase->numBasesUL = 0;
+                            incBase->numSupReadsUL = 0;
                         } /*If have other insertions to process*/
     
                         else /*Can move to the next base*/
@@ -967,7 +1036,6 @@ unsigned char simpleMajCon(
             } /*switch: check the error type & add bases to consensus*/
         } /*While not at the end of the sam alignment sequence*/
 
-        ++numSeqUL;
         blankSamEntry(samStruct);
         errUChar = readSamLine(samStruct, stdinFILE);
     } /*While have alignments to read in from the sam file*/
@@ -989,6 +1057,7 @@ unsigned char simpleMajCon(
     /*Minimum number of bases needed keep an SNP, match, or insterion*/
     minNumBasesUL = numSeqUL * settings->minReadsPercBaseFlt;
     minInsUL = numSeqUL * settings->minReadsPercInsFlt;
+    settings->lenConUL = 0;
 
     seqCStr = samStruct->samEntryCStr;
     samStruct->readLenUInt = 0;
@@ -1002,13 +1071,13 @@ unsigned char simpleMajCon(
     { /*For all positions in the consensus, remove non-majority bases*/
         incBase = headBase;         /*Move to 1st alternative base*/
         tmpBase = headBase->altBase;
-        numBasesUL = incBase->numBasesUL;
+        numSupReadsUL = incBase->numSupReadsUL;
        
         while(tmpBase != 0)
         { /*While have bases to remove*/
-            numBasesUL += tmpBase->numBasesUL;
+            numSupReadsUL += tmpBase->numSupReadsUL;
 
-            if(incBase->numBasesUL < tmpBase->numBasesUL)
+            if(incBase->numSupReadsUL < tmpBase->numSupReadsUL) 
                 headBase = freeBaseStruct(&incBase, lastBase);
                 /*Freeing puts tmpBase were incBase is*/
 
@@ -1029,7 +1098,10 @@ unsigned char simpleMajCon(
 
         if(headBase->errTypeChar & 2)
         { /*If is an insertion*/
-            if(numBasesUL < minInsUL)
+            /*Find the % of reads/supplemental alignments needed to
+              support this position*/
+
+            if(numSupReadsUL < minInsUL)
             { /*If have to few insertions to have support*/
                 headBase = freeBaseStruct(&headBase, lastBase);
                 continue;                /*Move on to the next base*/       
@@ -1038,7 +1110,10 @@ unsigned char simpleMajCon(
 
         else
         { /*If is a match or SNP*/
-            if(numBasesUL < minNumBasesUL)
+            /*Find the % of reads/supplemental alignments needed to
+              support this position*/
+
+            if(numSupReadsUL<minNumBasesUL)
             { /*If have to few SNPs or matches to have support*/
                 headBase = freeBaseStruct(&headBase, lastBase);
                 continue;                /*Move on to the next base*/       
@@ -1052,6 +1127,7 @@ unsigned char simpleMajCon(
         /*Put the base into the sequence*/
         *seqCStr = headBase->baseChar; /*Set the base*/
         ++seqCStr; /*Move to next sequence entry*/
+        ++settings->lenConUL; /*count base in the consensus length*/
 
         /*Free base and move to the next base*/
         headBase = freeBaseStruct(&headBase, lastBase);
@@ -1094,22 +1170,26 @@ void buildConWithRacon(
     '    fun-5 sec-1: Variable declerations
     '    fun-5 sec-2: Set up the consensus name
     '    fun-5 sec-3: Build the consensus using racon
-    '    fun-5 sec-4: Rename the consensus if needed
+    '    fun-5 sec-4: Rename the consensus if needed and find the length
     \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     ^ Fun-5 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    unsigned short lenBuffUS = 2048;
+    unsigned short lenTmpBuffUS = 2048;
     char
         *refFileCStr = conBin->bestReadCStr,
-        minimap2CmdCStr[2048], /*Holds command to run minimap2*/
-        raconCmdCStr[2048],   /*Holds command to run racon*/
-        tmpConCStr[256], /*Hold the consensus name for fq consensus*/
+        minimap2CmdCStr[lenBuffUS], /*Holds command to run minimap2*/
+        raconCmdCStr[lenBuffUS],    /*Holds command to run racon*/
+        tmpConCStr[lenTmpBuffUS],   /*Hold the consensus name*/
         *tmpCStr = 0,
         *tmpFileCStr = 0,    /*For swapping consensus file names*/
         *tmpFastaFileCStr = "tmp-2023-12-01-con-1563577017123412.fasta",
         *tmpSamFileCStr = "tmp-2023-12-01-map-15635770171234122342.sam";
+
+     FILE *conFILE = 0; /*For counting the consensus length*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     ^ Fun-5 Sec-2: Set up the consensus name
@@ -1188,7 +1268,7 @@ void buildConWithRacon(
     } /*Loop until have met user requirment for racon*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    ^ Fun-5 Sec-4: Rename consensus if needed
+    ^ Fun-5 Sec-4: Rename consensus if needed and find the length
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     remove(tmpSamFileCStr); /*No longer need this*/
@@ -1203,6 +1283,37 @@ void buildConWithRacon(
     else                    /*Last consensus saved to consensus file*/
         remove(tmpFastaFileCStr); /*No longer need*/
 
+    settings->lenConUL = 0; /*Reset for counting*/
+    conFILE = fopen(conBin->consensusCStr);
+
+    if(conFILE == 0)
+        return; /*No consensus made*/
+
+    minimap2CmdCStr[lenBuffUS - 1] = '\0';
+    minimap2CmdCStr[lenBuffUS - 2] = '\0';
+
+    while(fgets(minimap2CmdCStr, lenBuffUS, conFILE))
+    { /*While have a header to read in*/
+        if(minimap2CmdCStr[lenBuffUS - 2] == '\0' ||
+           minimap2CmdCStr[lenBuffUS - 2] == '\n'
+        ) break; /*If at the end of the line*/
+    } /*While have a header to read in*/
+
+    numBytesUL = fread(minimap2CmdCStr,sizeof(char),lenBuffUS, conFILE);
+    while(numBytesUL != 0)
+    { /*While have a sequence to read in*/
+        /*Account for reading in a full buffer of data*/
+        settings->lenConUL += numBytesUL;
+
+        numBytesUL = /*Read in the next line*/
+            fread(minimap2CmdCStr, sizeof(char), lenBuffUS, conFILE);
+    } /*While have a sequence to read in*/
+
+    /*Consensuses output by racon have only two lines, one for the
+      header and another for the sequence. So I can get away with a 
+      very simple read function*/
+
+    fclose(conFILE);
     return;
 } /*buildConWithRacon*/
 
@@ -1231,15 +1342,17 @@ unsigned char medakaPolish(
     '    fun-6 sec-3: Build the command to run medaka
     '    fun-6 sec-4: Run medaka & clean up extra files
     '    fun-6 sec-5: rename consensus & delete directory medaka made
+    '    fun-6 sec-6: Find the consensus length
     \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-6 Sec-1: Variable declerations
     \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
+    unsigned short lenBuffUS = 2048;
     char medakaConPathCStr[512];  /*Path to consesnsus medaka made*/
     char medDirCStr[256];         /*For temporary c-string building*/
-    char medakaCmdCStr[2048];     /*Holds command to run medaka*/
+    char medakaCmdCStr[lenBuffUS];/*Holds command to run medaka*/
     char *tmpCStr = medakaCmdCStr;/*Temporary, for manipulating cStrs*/
     unsigned char errUC = 0;      /*Holds errors*/
 
@@ -1260,6 +1373,8 @@ unsigned char medakaPolish(
 
         if(testFILE == 0)
             return 2;     /*Nothing to build a consensus with*/
+
+        fclose(testFILE); /*Was only for checking*/
 
         tmpCStr =
             cStrCpInvsDelm(conBin->consensusCStr, conBin->fqPathCStr);
@@ -1427,9 +1542,45 @@ unsigned char medakaPolish(
     if(fileLenULng < 10)
         return 4;    /*Nothing or little in the file*/
 
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-6 Sec-6: Find the consensus length
+    \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+
     remove(conBin->consensusCStr); /*remove the old consensus*/
     rename(medakaConPathCStr, conBin->consensusCStr);
     remove(medDirCStr); /*Delete directory made by medaka*/
+
+    settings->lenConUL = 0; /*Reset for counting*/
+    testFILE = fopen(conBin->consensusCStr);
+
+    if(testFILE == 0)
+        return; /*No consensus made*/
+
+    /*Add in markers to mark the end of headers*/
+    medakaCmdCStr[lenBuffUS - 1] = '\0';
+    medakaCmdCStr[lenBuffUS - 2] = '\0';
+
+    while(fgets(medakaCmdCStr, lenBuffUS, testFILE))
+    { /*While have a header to read in*/
+        if(medakaCmdCStr[lenBuffUS - 2] == '\0' ||
+           medakaCmdCStr[lenBuffUS - 2] == '\n'
+        ) break; /*If at the end of the line*/
+    } /*While have a header to read in*/
+
+    numBytesUL = fread(medakaCmdCStr,sizeof(char),lenBuffUS,testFILE);
+    while(numBytesUL != 0)
+    { /*While have a sequence to read in*/
+        /*Account for reading in a full buffer of data*/
+        settings->lenConUL += numBytesUL;
+
+        numBytesUL = /*Read in the next line*/
+            fread(medakaCmdCStr, sizeof(char), lenBuffUS, testFILE);
+    } /*While have a sequence to read in*/
+
+    /*Consensuses output by medaka have only two lines, one for the
+      header and another for the sequence. So I can get away with a 
+      very simple read function*/
+
 
     return 1;
 } /*medakaPolish*/
@@ -1558,7 +1709,6 @@ struct readBin * cmpCons(
         if(refStruct->samEntryCStr == 0)
         { /*memory allocation error*/
             fclose(stdinFILE);
-            fclose(stdinFILE);
             return 0;
         } /*Memory allocation error*/
 
@@ -1640,8 +1790,17 @@ struct readBin * cmpCons(
                 errUChar = readSamLine(samStruct, stdinFILE);
 
                 if(*samStruct->samEntryCStr != '@')
+                { /*If off the header entries*/
+                    pclose(stdinFILE);
                     break; /*If not a header*/
+                } /*If off the header entries*/
             } /*While on the haeder lines*/
+
+            if(*samStruct->samEntryCStr == '@')
+            { /*If their was only headers*/
+                pclose(stdinFILE);
+                continue;
+            } /*If their was only headers*/
 
             if(!(samStruct->flagUSht & 4))
             { /*If the reads mapped to each other*/
@@ -1654,13 +1813,10 @@ struct readBin * cmpCons(
                 ); /*Score the alignment*/
 
                 if(checkIfKeepRead(minStats, samStruct) & 1)
-                { /*If the consensus were to similar*/
-                    pclose(stdinFILE); /*Done with this file*/
                     return refBin; /*If consensus look the same*/
-                } /*If the consensus were to similar*/
+                    /*The file is already closed*/
             } /*If the reads mapped to each other*/
 
-            pclose(stdinFILE); /*Done with this file*/
             refBin = refBin->rightChild;
         } /*While have another clusters consensus to compare*/
 
@@ -1820,6 +1976,7 @@ void initConBuildStruct(
     consensusSettings->numRndsToPolishUI = defNumPolish;
     consensusSettings->minReadsToBuildConUL = minReadsPerBin;
     consensusSettings->maxReadsToBuildConUL = defReadsPerCon;
+    consensusSettings->minMajConLenUI = readRefMinReadLen;
     consensusSettings->numReadsForConUL = 0;
 
     initMajConStruct(&consensusSettings->majConSet);

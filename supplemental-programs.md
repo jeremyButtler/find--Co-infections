@@ -1,4 +1,4 @@
-## Purpose
+# Purpose
 
 Find co-infections version three is composed of five smaller programs
   that if desired, can be complied separately. The purpose of this 

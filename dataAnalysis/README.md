@@ -2,7 +2,33 @@
 
 This directory has the data, scripts, reference pairs, and references I
   used to benchmark find co-infections version three. For all tests I
-  simulated reads using Badread v0.2.0.
+  simulated reads using Badread v0.2.0. It also includes the
+  benchmarking scripts and data I used to benchmark fqGetIds.
+
+## fqGetIds benchmarking
+
+All fqGetIds benchmarkings scripts and data are in the
+  fqGetIds-benchmarking directory.
+
+1. The bench-fastqGrep-seqkit.sh bash script contains the commands I
+   used to benchmark fqGetIds against seqkit. The fastq file is provided
+   as the first argument and the number of replicates as the second.
+   For Illumina data you will want to uncomment line 24
+   (`sedCmdStr="p;n;n;n;n;"`) and comment out line 25
+   (`sedCmdStr="p;n;n;n;"`). Otherwise it will look like fqGetIds is
+   getting the wrong read counts (Illumina has six lines per fastq,
+   entry, while Nanopore has four lines per fastq entry).
+   - To run script: `bash bench-fastqGrep-seqkit.sh reads.fastq 10`
+2. fqGetIds-bench-good-and-pi.tsv contains that data I used to benchmark
+   fqGetIds and seqkit.
+   - Note some of read extractions sizes for seqkit are off, due to me
+     not realizing that seqkit converted the six line Illumina
+     entries into four line entries. This was fixed for the Pi run, but
+     not the good/fast IO run.
+3. fqGetIdsSeqkitBench.r contains the commands I used to make the
+   figures I posted for benchmarking. The file and commands are
+   hard coded, so you will have to modify this script for your own uses.
+   This will mainly be in section one (Sec-1) and section two (Sec-2).
 
 ## Read simulation and reference pairs used in read simulation:
 

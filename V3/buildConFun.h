@@ -45,6 +45,7 @@ typedef struct majConStruct
    unsigned char minInsQUC;  /*Min q-score needed to keep an insertion*/ 
    float minReadsPercBaseFlt;/*Min % of supporting reads to keep base*/
    float minReadsPercInsFlt; /*Min % of supporting reads to keep ins*/
+   unsigned long lenConUL;   /*Holds length of ouput consensus*/
 }majConStruct;
 
 /*---------------------------------------------------------------------\
@@ -56,6 +57,7 @@ typedef struct raconStruct
 { /*raconStruct*/
    unsigned char useRaconBl;  /*1: use racon consensus step*/ 
    unsigned char rndsRaconUC;/*Number of rounds to polish with racon*/ 
+   unsigned long lenConUL;   /*Holds length of ouput consensus*/
 }raconStruct;
 
 /*---------------------------------------------------------------------\
@@ -68,6 +70,7 @@ typedef struct medakaStruct
    unsigned char useMedakaBl; /*1: use Medaka consensus step*/ 
    char modelCStr[64];        /*Model to use with medaka*/ 
    char condaBl;              /*1: use conda install, else python env*/
+   unsigned long lenConUL;   /*Holds length of ouput consensus*/
 }medakaStruct;
 
 /*---------------------------------------------------------------------\
@@ -90,6 +93,11 @@ typedef struct conBuildStruct
          /*Max number of reads to build a consensus with*/
     uint64_t numReadsForConUL;
          /*Number of reads deticated to building the consensus*/
+    /*Min length to keep consensus built by majority consensus*/
+    unsigned int minConLenUI;
+
+    unsigned long lenConUL;   /*Holds length of ouput consensus*/
+        /*Here so user does not need to access internal structers*/
 
     /*Settings for the consensus building step*/
     struct majConStruct majConSet;
@@ -108,7 +116,8 @@ typedef struct baseStruct
     char baseChar;     /*What is the base (0 for deletion)*/
     char errTypeChar;  /*0 = match, 1 = SNP, 2 = insertion*/
     
-   unsigned long numBasesUL; /*Number of times this base is repeated*/
+   /*Recored number of reads that supported this base (good quality)*/
+   unsigned long numSupReadsUL;
 
    struct baseStruct *altBase; /*Alternate options for the base*/
    struct baseStruct *nextBase; /*For linked lists*/
