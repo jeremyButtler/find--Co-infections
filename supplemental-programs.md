@@ -102,7 +102,7 @@ fqGetIds combines a hashing table for fast read id access and then an
 ![
   Figure showing fqGetIds is a as fast or faster than seqkit for
   Nanopore data and Illumina data
-](../figures/fqGetIds-seqkit-full-bench--elapsed-time.svg)
+](figures/fqGetIds-seqkit-full-bench--elapsed-time.svg)
 
 The elapsed time figure (first figure) is showing that fqGetIds is 
   taking as much or less time to extract reads from a fastq file with
@@ -112,7 +112,7 @@ The elapsed time figure (first figure) is showing that fqGetIds is
 ![
   Figure showing fqGetIds uses less memory for Nanopore and Illumina
   fastq files
-](../figures/fqGetIds-seqkit-full-bench--memory.svg)
+](figures/fqGetIds-seqkit-full-bench--memory.svg)
 
 The memory figure (second figure) shows that fqGetIds is using less
   memory than seqkit at all read depths to extract reads.
