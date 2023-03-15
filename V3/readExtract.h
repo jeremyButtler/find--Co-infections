@@ -3,6 +3,8 @@
 #    Holds functions for doing read id extractions for find
 #    co-infections
 # Includes:
+#   o "FCIStatsFun.h"
+#   o "minAlnStats.h"
 #   o "cStrFun.h"
 #   o "fqAndFaFun.h"
 #     - "samEntryStruct.h" (See score reads entry)
@@ -103,7 +105,11 @@ uint8_t findBestXReads(
     struct minAlnStats *minStats,/*Min stats to cluster reads together*/
     struct samEntry *samStruct,  /*Struct to use for reading sam file*/
     struct samEntry *refStruct,  /*holds the reference (0 to ignore)*/
-    struct readBin *binTree      /*Bin working on*/
+    struct readBin *binTree,     /*Bin working on*/
+    char noRefBl,                /*Only use fastq file*/
+    char makeNameBl
+       /*1: Make a name for the file using the fastq file; 0 use 
+         binTree->topReadsCStr ('\0' for stdout)*/
 ); /*Extract the top reads that mapped to the selected best read*/
 
 /*----------------------------------------------------------------------

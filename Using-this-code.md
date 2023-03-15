@@ -5,16 +5,19 @@ This document is here to give you an idea of how you could use various
   documentation method and data structures and functions that might be
   of interest. I will not cover everything.
 
-I am slowly working on this, but have some other issues, such as
-  setting up my pipeline so that I can benchmark it with the dataset
-  used to benchmark ASHURE (I need to add in a primer trimming step).
-  So, this will be updated slowly and will likely have some long lags
-  between updates.
+I am slowly working on this, but am also still working on adding things
+  to my code. So, this will be updated slowly and will likely have some
+  long lags between updates.
 
 # Table of functions
 
 To be added
 
+## The defualt settings
+
+Most of the default settings, include the commands that run Minimap2,
+  Racon, and Medaka can be found in defaultSettings.h.
+  
 ## The samEntry structer and its functions
 
 The samEntry structure is a structure you will often seen throughout my
@@ -97,6 +100,61 @@ Some useful functions include:
     - Finds median and mean Q-scores for the sam file entry in a
       samEntry structure.
     - Input: pointer to a samEntry structure
+- 
+
+## fqGetIds
+
+This is not a detailed list and more can be found by browsing the files,
+  however, this should give you a vague if of how to interface with
+  this.
+
+- fqGetIdsSearch.c has the driver functions for fqGetIds
+- fqGetIdsFqFun.c and fqAndFaFun.c have the fastq functions for fqGetIds
+- fqGetIdsAVLTree.c has the functions for managing the tree
+- fqGetIdsStructs.c has the functions for interacting with the
+  structures.
+
+fqGetIds is a bit more difficult to work with and involves keeping track
+  of several smaller variables. These include the number used in hashing
+  (majicNumULng), the array size as a power of two (digPerKeyUChar),
+  a hash table, the size of the hash table, and a stack of readInfo
+  structures (used with readNodeStack). It uses a structure called
+  readInfo, which has a bigNum structure with the read id and the
+  pointers to turn it into an AVL tree.
+
+The first step is to build a linked list of readInfo nodes that are only
+  connected by the readInfo->rightChild pointer. Each readInfo structure
+  can be made by calling makeReadInfoStruct(read Id, length). This will
+  make a readInfo structure with the input read id as a big number. This
+  structure can be freed by calling freeReadInfoStruct(&readInfo).
+
+Your readInfo stack can be created by the commands bellow. Once created
+  you only need to pass the stack around, but do not need to deal with
+  it (including freeing). I am using it in this fashion to avoid speed
+  issues of creating it each time.
+
+```
+struct readNodeStack stack[256];
+stack[0].readNode = 0;
+stack[255].readNode = 0;
+```
+
+You can also write new read ids to an existing bigNum structure by
+  calling  strToBackwardsBigNum(bigNum pointer, new ID, &lenght of ID).
+  This structure can then be freed with
+  freeBigNumStruct(&bigNum pointer).
+
+After you list is built you can then build the hash table using
+  readListToHash (See fun-6 in fqGetIdsHash.c). To search the hash table
+  call
+  findReadInHashTbl(bigNum pointer, &majic number, digPerKeyUChar, hash table).
+  To free the hash table call
+  freeHashTbl(& hash table, size of table, stack)
+
+  For examples of using fqGetIds on a fastq file see the extractReads
+  function (fun-3 fqGetIdsSearch.c). The fastq file functions are
+  located in fqGetIdsFqFun.c and fun-7 in (moveToNextFastqEntyr) in
+  fqAndFqFun.c
 
 ## Misc. Functions
 

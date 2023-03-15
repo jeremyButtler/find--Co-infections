@@ -489,7 +489,11 @@ uint8_t findBestXReads(
     struct minAlnStats *minStats,/*Min stats to cluster reads together*/
     struct samEntry *samStruct,  /*Struct to use for reading sam file*/
     struct samEntry *refStruct,  /*holds the reference (0 to ignore)*/
-    struct readBin *binTree      /*Bin working on*/
+    struct readBin *binTree,     /*Bin working on*/
+    char noRefBl,                /*Only use fastq file*/
+    char makeNameBl
+       /*1: Make a name for the file using the fastq file; 0 use 
+         binTree->topReadsCStr ('\0' for stdout)*/
 ) /*Extract the top reads that mapped to the selected best read*/
 { /*findBestXReads*/
 
@@ -560,27 +564,29 @@ uint8_t findBestXReads(
     if(binTree == 0)
         return 2;    /*The structure has nothing*/
 
-    /*Open the temporary file to hold the best read*/
-    testFILE = fopen(binTree->bestReadCStr,"r");
+    /*Open reference file for read scoring*/
+    if(!(noRefBl & 1))
+    { /*If doing a mapping*/
+        testFILE = fopen(binTree->bestReadCStr,"r");
+        if(testFILE == 0) return 4;
 
-    if(testFILE == 0)
-        return 4;
+        if(refStruct != 0)
+        { /*If using the reference for deletion scoring*/
+            blankSamEntry(refStruct);
 
-    if(refStruct != 0)
-    { /*If using the reference for deletion scoring*/
-        blankSamEntry(refStruct);
+            /*Read in the reference sequence*/
+            errUC = readRefFqSeq(testFILE, refStruct, 0);
 
-        /*Read in the reference sequence*/
-        errUC = readRefFqSeq(testFILE, refStruct, 0);
+            if(!(errUC & 1))
+            { /*If failed to read in the reference*/
+                fclose(testFILE); /*No longer need open*/
+                return 4;
+            } /*If failed to read in the reference*/
+        } /*If using the reference for deletion scoring*/
 
-        if(!(errUC & 1))
-        { /*If failed to read in the reference*/
-            fclose(testFILE); /*No longer need open*/
-            return 4;
-        } /*If failed to read in the reference*/
-    } /*If using the reference for deletion scoring*/
-
-    fclose(testFILE); /*No longer need open*/
+        fclose(testFILE); /*No longer need open*/
+        testFILE = 0;
+    } /*If doing a mapping*/
 
     /*See if the fastq file can be opened*/
     testFILE = fopen(binTree->fqPathCStr, "r");
@@ -589,6 +595,7 @@ uint8_t findBestXReads(
         return 8;     /*Can not open the fastq file*/
 
     fclose(testFILE); /*Do not need open right know*/
+    testFILE = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-3 Sec-3: Map reads to best read & select top x              v
@@ -596,24 +603,38 @@ uint8_t findBestXReads(
 
     *numReadsKeptULng = 0; /*Make sure start at 0 reads*/
 
-    /*Build the command to run minimap2*/
-    tmpCStr = cStrCpInvsDelm(minimapCmdCStr, minimap2CMD);
-    tmpCStr = cpParmAndArg(tmpCStr, "-t", threadsCStr);
-    tmpCStr =
-       cpParmAndArg(tmpCStr,binTree->bestReadCStr, binTree->fqPathCStr);
-    
-    stdinFILE = popen(minimapCmdCStr, "r"); /*Get the minimap2 results*/
+    if(!(noRefBl & 1))
+    { /*If using a reference*/
+        /*Build the command to run minimap2*/
+        tmpCStr = cStrCpInvsDelm(minimapCmdCStr, minimap2CMD);
+        tmpCStr = cpParmAndArg(tmpCStr, "-t", threadsCStr);
+        tmpCStr =
+           cpParmAndArg(
+               tmpCStr,
+               binTree->bestReadCStr,
+               binTree->fqPathCStr
+        ); /*Finsh off the minimap2 command*/
+        
+        /*Run minimap2 results*/
+        stdinFILE = popen(minimapCmdCStr, "r");
 
-    blankSamEntry(samStruct); /*Make sure start with blank*/
+        blankSamEntry(samStruct); /*Make sure start with blank*/
 
-    /*Read in a single sam file line to check if valid (header)*/
-    errUC = readSamLine(samStruct, stdinFILE);
+        /*Read in a single sam file line to check if valid (header)*/
+        errUC = readSamLine(samStruct, stdinFILE);
 
-    if(!(errUC & 1))
-    { /*If an error occured*/
-        pclose(stdinFILE);
-        return 16;
-    } /*If an error occured*/
+        if(!(errUC & 1))
+        { /*If an error occured*/
+            pclose(stdinFILE);
+            return 16;
+        } /*If an error occured*/
+    } /*If using a reference*/
+
+    else
+    { /*Else just using the fastq file*/
+        stdinFILE = fopen(binTree->fqPathCStr, "r");
+        errUC = readRefFqSeq(stdinFILE, samStruct, 0);
+    } /*Else just using the fastq file*/
 
     for(unsigned int IUElm = 0; IUElm < topScoreUSht; ++IUElm)
         scoresArray[IUElm] = 0; /*Intalize the scoring array*/
@@ -635,29 +656,32 @@ uint8_t findBestXReads(
 
     while(errUC & 1)
     { /*While their is a samfile entry to read in*/
-        if(*samStruct->samEntryCStr == '@')
-        { /*If was a header*/
-            blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUC = readSamLine(samStruct, stdinFILE);
-            continue; /*Is a header line, move to next line in file*/
-        } /*If was a header*/
+        if(!(noRefBl & 1))
+        { /*If using minimap2 input*/
+            if(*samStruct->samEntryCStr == '@')
+            { /*If was a header*/
+                blankSamEntry(samStruct); /*Make sure start with blank*/
+                errUC = readSamLine(samStruct,stdinFILE);
+                continue; /*Is a header line, move to next line in file*/
+            } /*If was a header*/
 
-        if(samStruct->flagUSht & (2048 | 256 | 4))
-        { /*If was a suplemental, secondary, or unmapped alignment*/
-            blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUC = readSamLine(samStruct, stdinFILE);
-            continue; /*Is a header line, move to next line in file*/
-        } /*If was a suplemental, secondary, or unmapped alignment*/
+            if(samStruct->flagUSht & (2048 | 256 | 4))
+            { /*If was a suplemental, secondary, or unmapped alignment*/
+                blankSamEntry(samStruct); /*Make sure start with blank*/
+                errUC = readSamLine(samStruct,stdinFILE);
+                continue; /*Is a header line, move to next line*/
+            } /*If was a suplemental, secondary, or unmapped alignment*/
 
-        /*Convert & print out sam file entry*/
-        errUC = trimSamEntry(samStruct);
+            /*Convert & print out sam file entry*/
+            errUC = trimSamEntry(samStruct);
 
-        if(errUC >> 2)
-        { /*If entry did not have a sequence, discard*/
-            blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUC = readSamLine(samStruct, stdinFILE);
-            continue;
-        } /*If entry did not have a sequence, discard*/
+            if(errUC >> 2)
+            { /*If entry did not have a sequence, discard*/
+                blankSamEntry(samStruct); /*Make sure start with blank*/
+                errUC = readSamLine(samStruct, stdinFILE);
+                continue;
+            } /*If entry did not have a sequence, discard*/
+        } /*If using minimap2 input*/
 
         /**************************************************************\
         * Fun-3 Sec-4 Sub-2: Score read
@@ -665,27 +689,46 @@ uint8_t findBestXReads(
 
         findQScores(samStruct); /*Find the Q-scores*/
 
-        scoreAln(
-            minStats,
-            samStruct,
-            refStruct,   /*Reference struct to score deletions with*/ 
-            &oneUChar,   /*Mapped read has Q-score*/
-            &oneUChar    /*Make sure set to one if using reference*/
-        ); /*Score the alignment*/
+        if(!(noRefBl & 1))
+        { /*If readning from minimap2*/
+            scoreAln(
+                minStats,
+                samStruct,
+                refStruct,   /*Reference struct to score deletions with*/ 
+                &oneUChar,   /*Mapped read has Q-score*/
+                &oneUChar    /*Make sure set to one if using reference*/
+            ); /*Score the alignment*/
 
-        /**************************************************************\
-        * Fun-3 Sec-4 Sub-3: Check if Score meets requirements
-        \**************************************************************/
+            /**************************************************************\
+            * Fun-3 Sec-4 Sub-3: Check if Score meets requirements
+            \**************************************************************/
 
-        if(samStruct->mapqUChar < minStats->minMapqUInt ||
-           !(checkIfKeepRead(minStats, samStruct) & 1) ||
-          samStruct->readAligLenUInt < minStats->minReadLenULng
-        ) { /*If the read Is to different from the reference*/
-            /*Move to the next entry*/
-            blankSamEntry(samStruct); /*Make sure start with blank*/
-            errUC = readSamLine(samStruct, stdinFILE);
-            continue;
-        } /*If the read Is to different from the reference*/
+            if(samStruct->mapqUChar < minStats->minMapqUInt ||
+               !(checkIfKeepRead(minStats, samStruct) & 1) ||
+               samStruct->readAligLenUInt < minStats->minReadLenULng
+            ) { /*If the read Is to different from the reference*/
+                /*Move to the next entry*/
+                blankSamEntry(samStruct); /*Make sure start with blank*/
+                errUC = readSamLine(samStruct,stdinFILE);
+                continue;
+            } /*If the read Is to different from the reference*/
+        } /*If readning from minimap2*/
+
+        else
+        { /*Else just reading a fastq file*/
+            if(samStruct->medianQFlt < minStats->minMedianQFlt ||
+               samStruct->meanQFlt < minStats->minMeanQFlt ||
+               samStruct->readLenUInt < minStats->minReadLenULng ||
+               (
+                   samStruct->readLenUInt > minStats->maxReadLenULng &&
+                   minStats->maxReadLenULng != 0
+               )
+            ) { /*If discarding the read*/
+                blankSamEntry(samStruct); /*Make sure start with blank*/
+                errUC = readRefFqSeq(stdinFILE, samStruct, 0);
+                continue;
+            } /*If discarding the read*/
+        } /*Else just reading a fastq file*/
 
         /**************************************************************\
         * Fun-3 Sec-4 Sub-4: Check if at max number of reads to keep
@@ -781,11 +824,15 @@ uint8_t findBestXReads(
         } /*Else if only keeping better reads*/
 
         /*Move to the next read*/
-        blankSamEntry(samStruct); /*Make sure start with blank*/
-        errUC = readSamLine(samStruct, stdinFILE);
+        if(!(noRefBl & 1)) errUC = readSamLine(samStruct,stdinFILE);
+        else errUC = readRefFqSeq(stdinFILE, samStruct, 0);
     } /*While their is a samfile entry to read in*/
 
-    pclose(stdinFILE);
+    /*check which file close method I need to use*/
+    if(!(errUC & 1)) pclose(stdinFILE);
+    else             fclose(stdinFILE);
+
+    stdinFILE = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-3 Sec-5: Set up the best x read file name                   v
@@ -795,14 +842,17 @@ uint8_t findBestXReads(
     if(*numReadsKeptULng == 0)
         return 1;
 
-    strcpy(binTree->topReadsCStr, binTree->fqPathCStr);
-    tmpCStr = binTree->topReadsCStr;
+    if(makeNameBl & 1)
+    { /*If I need to make a name for the output file*/
+        strcpy(binTree->topReadsCStr, binTree->fqPathCStr);
+        tmpCStr = binTree->topReadsCStr;
 
-    while(*tmpCStr != '\0')
-        ++tmpCStr;
+        while(*tmpCStr != '\0')
+            ++tmpCStr;
 
-    tmpCStr -= 6; /*Get to . in .fastq*/
-    strcpy(tmpCStr, "--top-reads.fastq"); /*Copy in top read ending*/
+        tmpCStr -= 6; /*Get to . in .fastq*/
+        strcpy(tmpCStr, "--top-reads.fastq"); /*Copy top read ending*/
+    } /*If I need to make a name for the output file*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-3 Sec-6: Set up hash table to extract reads                 v
@@ -835,7 +885,11 @@ uint8_t findBestXReads(
 
     /*Open fastq file and file to store the best reads in*/
     testFILE = fopen(binTree->fqPathCStr, "r");
-    bestReadsFILE = fopen(binTree->topReadsCStr, "w");
+
+    if(binTree->topReadsCStr[0] != '\0')
+        bestReadsFILE = fopen(binTree->topReadsCStr, "w");
+    else
+        bestReadsFILE = stdout;
 
     tmpRead = 0; /*So extract reads knows not doing AVL tree search*/
  

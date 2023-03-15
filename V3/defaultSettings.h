@@ -43,14 +43,14 @@
 #define medCondCMDEnd "; conda deactivate"
 
 /*Command for mapping reads to primers*/
-#define defMinimap2PrimCMD "minimap2 -k5 -w1 -s 20 -p"
+#define defMinimap2PrimCMD "minimap2 -k5 -w1 -s 20 -P"
 
 /**********************************************************************\
 * Sec-3: General settings
 \**********************************************************************/
 
 /*Gereral find co-infections settings*/
-#define defVersion 3.20230310  /*The Version number of this program*/
+#define defVersion 3.20230313  /*The Version number of this program*/
     /*Format is version.yearMonthDay*/
 #define defPrefix "out"      /*Default prefix to use*/
 #define defThreads "3"       /*Default number of threads to use*/
@@ -63,17 +63,21 @@
 #define defMinPercReads 0.003 /*(0.3% of all clustered reads)*/
   /*Minimum percentage of all clustered reads needed to keep a cluster*/
 
-#define defNumPolish 2      /*Number of times to rebuild the consensus*/
 #define defSkipBinBl 0      /*Do not skip binning step*/
 #define defSkipClustBl 0    /*Do not skip clustering step*/
+
+#define defNumPolish 2      /*Number of times to rebuild the consensus*/
+#define defMinConLen 500     /*consusens must be at least 500bp*/
 
 /**********************************************************************\
 * Sec-4: Specific settings for separate consensus building steps
 \**********************************************************************/
 
 #define defUseMajCon 1    /*1: Use majority in consnesus building*/
-#define majConMinBaseQ 10 /*Min Q-score to keep base in majority con*/
-#define percBasesPerPos 0.4 /*majority consensus (-maj-con-min-bases)*/
+/*#define majConMinBaseQ 10  Min Q-score to keep base in majority con*/
+#define majConMinBaseQ 7 /*Min Q-score to keep base in majority con*/
+/*#define percBasesPerPos 0.4 majority consensus (-maj-con-min-bases)*/
+#define percBasesPerPos 0.35 /*majority consensus (-maj-con-min-bases)*/
 #define majConMinInsQ 5   /*Min Q-score to keep insertion in majority*/
 #define percInsPerPos 0.3 /*% of supporting reads to keep insertion*/
 
@@ -103,7 +107,7 @@
 #define readRefMinAlnMedQ 10
 #define readRefMinAlnMeanQ 10
 
-#define readRefMinReadLen 600   /*Min length to keep a read*/
+#define readRefMinReadLen 500   /*Min length to keep a read*/
     /*Also the mininum length to keep a consensus length*/
 #define readRefMaxReadLen 1000  /*Maximum length to keep a read*/
 

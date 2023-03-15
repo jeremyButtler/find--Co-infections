@@ -8,8 +8,9 @@
 # Internal Requirments:
 #    - Every *.c file that has a *.h file in this directory
 #      o buildCon.c, binReads.c, scoreReads.c, trimSamFile.c,
-#        fqGetIds.c, and fqGetIdsThread.c are not needed, but do allow
-#        for building some internal commands as stand alone programs.
+#        fqGetIds.c, trimPrimers.c, and fqGetIdsThread.c are not needed,
+#        but do allow for building some internal commands as stand alone
+#        programs.
 # Libraries used (in various files):
 #     - <stdlib.h>
 #     - <sdtint.h>
@@ -34,6 +35,7 @@
 /*My includes*/
 #include "buildConFun.h" /*Various dependencies through readExtract.h*/
 #include "binReadsFun.h" /*Functions for binning reads*/
+#include "trimPrimersSearch.h" /*For trimming reads with primers*/
 
 /*---------------------------------------------------------------------\
 | Output:
@@ -48,6 +50,7 @@ char * getUserInput(
     char *prefCStr,  /*Holds user supplied prefix*/
     char **fqPathCStr, /*Holds path to fastq file*/
     char **refsPathCStr, /*Holds path to references*/
+    char **primPathCStr,/*Holds path to primer fasta file for trimming*/
     char *threadsCStr, /*Number threads for minimap2 & racon*/
     char *rmSupAlnBl,  /*1: Remove reads with supplemental alignments*/
     char *skipBinBl,   /*1: Skip the binning step, 0 do not*/
@@ -108,11 +111,13 @@ int main(
 
     char *fqPathCStr = 0;      /*Holds fastq file to process*/
     char *refsPathCStr = 0;    /*Holds references for binning*/
+    char *primPathCStr = 0;    /*Holds primers for read trimming*/
     char logFileCStr[256];    /*Holds the name of the log file*/
     char readCntFileCStr[256]; /*Holds Number of reads per bin/cluster*/
 
     /*C-strings that hold commands*/
     char tmpCmdCStr[1024];      /*Holds a quick system command*/
+    char primOutFqCStr[256];    /*output trimmed fastq file*/
     char *tmpCStr = 0;          /*For string manipulation*/
 
     /*Miscalanious variables*/
@@ -124,7 +129,7 @@ int main(
 
     /*FILES opened*/
     FILE *logFILE = 0;      /*Holds the log*/
-    FILE *stdinFILE = stdin;/*Points to piped input from minimap2*/
+    FILE *stdinFILE = 0;    /*Points to piped input from minimap2*/
     FILE *statFILE = 0;     /*File to output stats from score reads to*/
     /*FILE *tmpFILE = 0;*/
     /*FILE *fqBinFILE = 0;*/  /*Points to file adding binned reads to*/
@@ -166,6 +171,9 @@ int main(
             \n        - Prefix to add to file names          [Out]\
             \n    -threads:\
             \n        - Number of threads to use             [3]\
+            \n    -primers:                                  [None]\
+            \n        - Fasta file with primers to trim\
+            \n          reads with.\
             \n    -min-per-reads:                          [0.003=0.3%]\
             \n        - Minimum percentage of reads expected\
             \n          to keep a cluster.\
@@ -178,18 +186,16 @@ int main(
             \n        - Max number of reads to use in        [300]\
             \n          a consensus.\
             \n    -min-con-length:                               [500]\
-            \n        - Minimum length to keep a consensus.\
+            \n       - Discard consensuses that are under the\
+            \n         input length.\
+            \n       - If you lower this your should also lower\
+            \n         -min-read-read-map-length &\
+            \n         -min-read-con-map-length\
             \n    -extra-consensus-steps:                    [2]\
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
             \n    -min-read-length:                          [600]\
-            \n       - Discard reads or consensuses built by\
-            \n         the majority consensus step that are\
-            \n         under the input length.\
-            \n       - If you lower this your should also lower\
-            \n         -min-read-read-length &\
-            \n         -min-read-con-length\
             \n    -max-read-length:                          [1000]\
             \n       - Discard reads with read lengths over\
             \n         input setting (0 to ignore)\
@@ -680,6 +686,7 @@ int main(
             prefCStr,
             &fqPathCStr,
             &refsPathCStr,
+            &primPathCStr,
             threadsCStr,
             &rmSupAlnBl,
             &skipBinBl,   /*1: Skip the binning step, 0 do not*/
@@ -705,10 +712,14 @@ int main(
             exit(1);
         } /*If no user input was supplied*/
 
-        if(
-            strcmp(inutErrCStr, "-v") == 0 ||
+        if( strcmp(inutErrCStr, "-v") == 0 ||
             strcmp(inutErrCStr, "-V") == 0 ||
-            strcmp(inutErrCStr, "-version") == 0
+            strcmp(inutErrCStr, "--v") == 0 ||
+            strcmp(inutErrCStr, "--V") == 0 ||
+            strcmp(inutErrCStr, "-version") == 0 ||
+            strcmp(inutErrCStr, "-Version") == 0 ||
+            strcmp(inutErrCStr, "--version") == 0 ||
+            strcmp(inutErrCStr, "--Version") == 0
         ) { /*If the user is requesting the version number*/
             fprintf(stdout, "%.8f\n", defVersion);
             exit(0);
@@ -801,6 +812,7 @@ int main(
     ^    main sec-4 sub-4: Check if medaka exists
     ^    main sec-4 sub-5: Check if the fastq file of reads exists
     ^    main sec-4 sub-6: Check if the reference fasta file extists
+    ^    main sec-4 sub-7: Check if the primer fasta file extists
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     /*******************************************************************
@@ -978,9 +990,9 @@ int main(
     /*Print out file used for user*/
     fprintf(logFILE, "    -fastq %s \\\n", fqPathCStr);
 
-    /*******************************************************************
-    # Main Sec-4 Sub-5: Check if the reference fasta file extists
-    *******************************************************************/
+    /******************************************************************\
+    * Main Sec-4 Sub-6: Check if the reference fasta file extists
+    \******************************************************************/
 
     if(!(skipBinBl & 1))
     { /*If binning reads*/
@@ -1010,13 +1022,45 @@ int main(
         fprintf(logFILE, "    -ref %s \\\n", refsPathCStr);
     } /*If binning reads*/
 
+    /******************************************************************\
+    * Main Sec-4 Sub-7: Check if the primer fasta file extists
+    \******************************************************************/
+
+    if(primPathCStr != 0)
+    { /*If binning reads*/
+        stdinFILE = fopen(primPathCStr, "r"); /*Open reference file*/
+
+        if(stdinFILE == 0)
+        { /*If no fastq file was provided*/
+            fprintf(
+                stderr,
+                "The provided primer fasta file (%s) does not exist\n",
+                primPathCStr
+            ); /*Let user know the fastq file does not exist*/
+
+            fprintf(
+                logFILE,
+                "Primer fasta file (-primers %s) does not exist\n",
+                primPathCStr
+            ); /*Print error to log*/
+
+            fclose(logFILE);
+            exit(1);
+        } /*If no fastq file was provided*/
+
+        fclose(stdinFILE); /*No longer need open*/
+
+        /*Print out file used for user*/
+        fprintf(logFILE, "    -primers %s \\\n", primPathCStr);
+    } /*If binning reads*/
+
+
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Main Sec-5: Put non-required input into log for user
     ^     main sec-5 sub-1: Print out general settings
-    ^     main sec-5 sub-2: Print out Comparision settings for binning
+    ^     main sec-5 sub-2: Print binning settings
     ^     main sec-5 sub-3: Print Comparision settings for read mapping
     ^     main sec-5 sub-4: Print comparision setting, consensus compare
-    ^     main sec-5 sub-5: Print our scoring settings for binning
     ^     main sec-5 sub-6: Print out scoring settings for read mapping
     ^     main sec-5 sub-7: Print out scoring settings for clustering
     ^     main sec-5 sub-8: Print scoring settings for consensus compare
@@ -1051,9 +1095,6 @@ int main(
     );
 
     fprintf(logFILE, "    -min-perc-reads %f \\\n", minReadsDbl);
-
-    if(skipBinBl & 1)
-        fprintf(logFILE, "    -skip-bin \\\n");
 
     if(skipClustBl & 1)
         fprintf(logFILE, "    -skip-clust \\\n");
@@ -1116,44 +1157,171 @@ int main(
        fprintf(logFILE,"    -model %s \\\n",conSet.medakaSet.modelCStr);
     } /*If using medaka*/
 
+     fprintf(
+         logFILE,
+         "    -min-read-length %u \\\n",
+         readToRefMinStats.minReadLenULng
+     );
+
+     fprintf(
+         logFILE,
+         "    -max-read-length %u \\\n",
+         readToRefMinStats.maxReadLenULng
+     );
+
+     fprintf(
+         logFILE,
+         "    -min-median-q %f \\\n",
+         readToRefMinStats.minMedianQFlt
+     );
+
+     fprintf(
+         logFILE,
+         "    -min-mean-q %f \\\n",
+         readToRefMinStats.minMeanQFlt
+     );
+
+     fprintf(
+         logFILE,
+         "    -min-con-length: %u \\\n",
+         conSet.minConLenUI
+     ); /*Print out the minimum consensus length*/
+
+     fprintf(
+         logFILE,
+         "    -min-read-read-map-length: %u \\\n",
+         readToReadMinStats.minReadLenULng
+     ); /*Print out the min read to read mapping length*/
+
+     fprintf(
+         logFILE,
+         "    -min-read-read-map-length: %u \\\n",
+         readToReadMinStats.minReadLenULng
+     ); /*Print out the min read to read mapping length*/
+
+     fprintf(
+         logFILE,
+         "    -min-read-con-map-length: %u \\\n",
+         readToConMinStats.minReadLenULng
+     ); /*Print out the min read to read mapping length*/
+
     /******************************************************************\
     * Main Sec-5 Sub-2: Print out Comparision settings for binning
     \******************************************************************/
 
-    fprintf(
-        logFILE,
-        "    -read-ref-snps %f \\\n",
-        
-        readToRefMinStats.minSNPsFlt
-    );
+    if(skipBinBl & 1)
+        fprintf(logFILE, "    -skip-bin \\\n");
 
-    fprintf(
-        logFILE,
-        "    -read-ref-diff %f \\\n",
-        
-        readToRefMinStats.minDiffFlt
-    );
+    if(!(skipBinBl & 1))
+    { /*If the user is using the binning step*/
+        fprintf(
+            logFILE,
+            "    -read-ref-snps %f \\\n",
+            
+            readToRefMinStats.minSNPsFlt
+        );
 
-    fprintf(
-        logFILE,
-        "    -read-ref-dels %f \\\n",
-        
-        readToRefMinStats.minDelsFlt
-    );
+        fprintf(
+            logFILE,
+            "    -read-ref-diff %f \\\n",
+            
+            readToRefMinStats.minDiffFlt
+        );
 
-    fprintf(
-        logFILE,
-        "    -read-ref-inss %f \\\n",
-        
-        readToRefMinStats.minInssFlt
-    );
+        fprintf(
+            logFILE,
+            "    -read-ref-dels %f \\\n",
+            
+            readToRefMinStats.minDelsFlt
+        );
 
-    fprintf(
-        logFILE,
-        "    -read-ref-indels %f \\\n",
-        
-        readToRefMinStats.minIndelsFlt
-    );
+        fprintf(
+            logFILE,
+            "    -read-ref-inss %f \\\n",
+            
+            readToRefMinStats.minInssFlt
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-indels %f \\\n",
+            
+            readToRefMinStats.minIndelsFlt
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-min-base-q %u \\\n",
+            readToRefMinStats.minQChar
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-min-mapq %u \\\n",
+            readToRefMinStats.minMapqUInt
+        );
+
+
+        fprintf(
+            logFILE,
+            "    -read-ref-min-aligned-median-q %f \\\n",
+            readToRefMinStats.minAlignedMedianQFlt
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-min-aligned-mean-q %f \\\n",
+            readToRefMinStats.minAlignedMedianQFlt
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-a-ins-homo %u \\\n",
+            readToRefMinStats.maxHomoInsAry[0]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-t-ins-homo %u \\\n",
+            readToRefMinStats.maxHomoInsAry[10]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-c-ins-homo %u \\\n",
+            readToRefMinStats.maxHomoInsAry[1]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-g-ins-homo %u \\\n",
+            readToRefMinStats.maxHomoInsAry[3]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-a-del-homo %u \\\n",
+            readToRefMinStats.maxHomoDelAry[0]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-t-del-homo %u \\\n",
+            readToRefMinStats.maxHomoDelAry[10]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-c-del-homo %u \\\n",
+            readToRefMinStats.maxHomoDelAry[1]
+        );
+
+        fprintf(
+            logFILE,
+            "    -read-ref-max-g-del-homo %u \\\n",
+            readToRefMinStats.maxHomoDelAry[3]
+        );
+     } /*If the user is using the binning step*/
 
     /******************************************************************\
     * Main Sec-5 Sub-3: Print out Comparision settings for read mapping
@@ -1271,106 +1439,6 @@ int main(
         
         conToConMinStats.minIndelsFlt
     );
-
-    /******************************************************************\
-    * Main Sec-5 Sub-5: Print our scoring settings for binning
-    \******************************************************************/
-
-     fprintf(
-         logFILE,
-         "    -read-ref-min-base-q %u \\\n",
-         readToRefMinStats.minQChar
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-min-mapq %u \\\n",
-         readToRefMinStats.minMapqUInt
-     );
-
-     fprintf(
-         logFILE,
-         "    -min-median-q %f \\\n",
-         readToRefMinStats.minMedianQFlt
-     );
-
-     fprintf(
-         logFILE,
-         "    -min-mean-q %f \\\n",
-         readToRefMinStats.minMeanQFlt
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-min-aligned-median-q %f \\\n",
-         readToRefMinStats.minAlignedMedianQFlt
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-min-aligned-mean-q %f \\\n",
-         readToRefMinStats.minAlignedMedianQFlt
-     );
-
-     fprintf(
-         logFILE,
-         "    -min-read-length %u \\\n",
-         readToRefMinStats.minReadLenULng
-     );
-
-     fprintf(
-         logFILE,
-         "    -max-read-length %u \\\n",
-         readToRefMinStats.maxReadLenULng
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-a-ins-homo %u \\\n",
-         readToRefMinStats.maxHomoInsAry[0]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-t-ins-homo %u \\\n",
-         readToRefMinStats.maxHomoInsAry[10]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-c-ins-homo %u \\\n",
-         readToRefMinStats.maxHomoInsAry[1]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-g-ins-homo %u \\\n",
-         readToRefMinStats.maxHomoInsAry[3]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-a-del-homo %u \\\n",
-         readToRefMinStats.maxHomoDelAry[0]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-t-del-homo %u \\\n",
-         readToRefMinStats.maxHomoDelAry[10]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-c-del-homo %u \\\n",
-         readToRefMinStats.maxHomoDelAry[1]
-     );
-
-     fprintf(
-         logFILE,
-         "    -read-ref-max-g-del-homo %u \\\n",
-         readToRefMinStats.maxHomoDelAry[3]
-     );
 
     /******************************************************************\
     * Main Sec-5 Sub-6: Print out scoring settings for read mapping
@@ -1559,6 +1627,23 @@ int main(
     ^ Main Sec-6: Find initial bins with references
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+    if(primPathCStr != 0)
+    { /*If trimming reads with primers*/
+        tmpCStr = cStrCpInvsDelm(primOutFqCStr, prefCStr);
+        tmpCStr = cStrCpInvsDelm(tmpCStr, "--trim.fastq");
+        trimPrimers(
+            primPathCStr,   /*Primers to trim with*/
+            0,              /*Not using a paf file*/
+            0,              /*Not using paf file from stdin*/
+            fqPathCStr,     /*reads to trim*/
+            primOutFqCStr,  /*Output file*/
+            threadsCStr,
+            1               /*Using the hashing algorithm*/
+        ); /*Trim the reads*/
+
+        fqPathCStr = primOutFqCStr; /*Set this as the default fastq*/
+    } /*If trimming reads with primers*/
+
     if(!(skipBinBl & 1))
     { /*If binning reads*/
         binTree =
@@ -1574,6 +1659,9 @@ int main(
                 &readToRefMinStats,
                 &errUC              /*Reports any errors*/
         );
+
+        if(primPathCStr != 0)
+            remove(fqPathCStr); /*Not the original file*/
 
         if(binTree == 0)
         { /*If had an error*/
@@ -1657,6 +1745,9 @@ int main(
             &samStruct,
             &readToRefMinStats
         ); /*Remove low quality reads*/
+
+        if(primPathCStr != 0)
+            remove(fqPathCStr); /*Not the original file*/
 
         /*Get the number of reads in the copied fastq file*/
         binTree->numReadsULng = getNumReadsInFq(binTree->fqPathCStr);
@@ -2124,6 +2215,7 @@ char * getUserInput(
     char *prefCStr,  /*Holds user supplied prefix*/
     char **fqPathCStr, /*Holds path to fastq file*/
     char **refsPathCStr, /*Holds path to references*/
+    char **primPathCStr,/*Holds path to primer fasta file for trimming*/
     char *threadsCStr, /*Number threads for minimap2 & racon*/
     char *rmSupAlnBl,  /*1: Remove reads with supplemental alignments*/
     char *skipBinBl,   /*1: Skip the binning step, 0 do not*/
@@ -2178,6 +2270,9 @@ char * getUserInput(
 
         else if(strcmp(parmCStr, "-ref") == 0)
             *refsPathCStr = inputCStr;  /*references*/
+
+        else if(strcmp(parmCStr, "-primers") == 0)
+            *primPathCStr = inputCStr;  /*references*/
 
         else if(strcmp(parmCStr, "-prefix") == 0)
             strcpy(prefCStr, inputCStr);     /*Have prefix to use*/
@@ -2336,11 +2431,8 @@ char * getUserInput(
             );
 
         else if(strcmp(parmCStr, "-min-read-length") == 0)
-        { /*Else if the user provided a minimum read length*/
             readToRefMinStats->minReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
-            conSet->minMajConLenUI = readToRefMinStats->minReadLenULng;
-        } /*Else if the user provided a minimum read length*/
 
          else if(strcmp(parmCStr, "-max-read-length") == 0)
             readToRefMinStats->maxReadLenULng =

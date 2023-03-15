@@ -3,8 +3,8 @@
 #   o Holds functions for manipulating fastq and fasta files.
 # Non c-standard includes:
 #   - "minAlnStatsStruct.h"
-#   - "fqGetIdsFqFun.h"      (For moving through a fastq file)
 #   - "FCIStatsFun.h"
+#   o "defaultSettings.h"
 #   o "samEntryStruct.h"
 #   o "cStrToNumberFun.h"
 #   o "printError.h"
@@ -125,19 +125,19 @@ unsigned char filterReads(
         /*Has min/max lengths & mean/median Q-score*/
 ); /*Filters reads in a fastq file by length and mean/median Q-score*/
 
-/*##############################################################################
-# Output:
-#    Modifies: bufferCStr to have the next buffer if empty
-#    Modifies: incurments pointInBufferCStr to start of next read
-#    Returns:
-#        4: If the end of the file
-#        2: if nothing went wrong
-#        0: If ran out of file
-##############################################################################*/
+/*---------------------------------------------------------------------\
+| Output:
+|    Modifies: bufferCStr to have the next buffer if empty
+|    Modifies: incurments pointInBufferCStr to start of next read
+|    Returns:
+|        4: If the end of the file
+|        2: if nothing went wrong
+|        0: If ran out of file
+\---------------------------------------------------------------------*/
 uint8_t moveToNextFastqEntry(
     char *bufferCStr,     /*buffer to hold fread input (can have data)*/
-    char **pointInBufferCStr, /*position working on in buffer*/
-    uint32_t buffSizeInt,              /*Size of buffer to work on*/
+    char **pointInBufferCStr,     /*position working on in buffer*/
+    uint32_t buffSizeInt,     /*Size of buffer to work on*/
     uint64_t *lenInputULng,  /*Length of input from fread*/
     FILE *fastqFile               /*Fastq file to get data from*/
 ); /*Moves to next fastq read, without printing out*/

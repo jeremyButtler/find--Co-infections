@@ -197,7 +197,9 @@ unsigned char buildCon(
                     minReadReadStats, /*Min stats to keep reads*/
                     samStruct,  /*Struct to use for reading sam file*/
                     zeroSam,    /*Do not use reference in scoring*/
-                    conData
+                    conData,
+                    0,          /*Use the reference*/
+                    1           /*Make a name using the input fastq*/
             );  /*Extract top reads that mapped to selected best read*/
 
             if(conSet->numReadsForConUL < conSet->minReadsToBuildConUL)
@@ -250,14 +252,16 @@ unsigned char buildCon(
             /*Extract the reads for the next rebuild*/
             errUC = 
                 findBestXReads(
-                    &conSet->minReadsToBuildConUL,
+                    &conSet->maxReadsToBuildConUL,
                     &conSet->numReadsForConUL, /*# of reads extracted*/
                     threadsCStr,     /*Number threads for minimap2*/
                     &trueBl,        /*will use mapq for reads here*/
                     minReadConStats,/*Min stats to keep reads*/
                     samStruct,  /*Struct to use for reading sam file*/
                     zeroSam,    /*Do not use reference in scoring*/
-                    conData
+                    conData,
+                    0,          /*Use the reference*/
+                    1           /*Make a name using the input fastq*/
             );  /*Extract top reads that mapped to selected best read*/
 
             if(conSet->numReadsForConUL < conSet->minReadsToBuildConUL)
@@ -302,12 +306,12 @@ unsigned char buildCon(
     ^ Fun-1 Sec-6: Copy the best read back into the fastq file
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    if(errUC & 16)
+    if(!(errUC & 1))
     { /*If I could not build a consensus*/
         if(polishBl == 0)
             remove(conData->bestReadCStr);
 
-        return 16;  /*Failed to build a consensus*/
+        return errUC;  /*Failed to build a consensus*/
     } /*If I could not build a consensus*/
 
     if(polishBl == 0)
@@ -386,7 +390,7 @@ unsigned char buildSingleCon(
 
         conSet->lenConUL = conSet->majConSet.lenConUL;
 
-        if(conSet->lenConUL < minConLenUI)
+        if(conSet->lenConUL < conSet->minConLenUI)
             return 32; /*The consensus was to short*/
     } /*If need to build a simple majority consensus first*/
     
@@ -405,7 +409,7 @@ unsigned char buildSingleCon(
 
         conSet->lenConUL = conSet->raconSet.lenConUL;
 
-        if(conSet->lenConUL < minConLenUI)
+        if(conSet->lenConUL < conSet->minConLenUI)
             return 32; /*The consensus was to short*/
     } /*If buliding a consensus with racon*/
 
@@ -430,7 +434,7 @@ unsigned char buildSingleCon(
 
         conSet->lenConUL = conSet->medakaSet.lenConUL;
 
-        if(conSet->lenConUL < minConLenUI)
+        if(conSet->lenConUL < conSet->minConLenUI)
             return 32; /*The consensus was to short*/
     } /*If using medaka to polish*/
 
@@ -1189,6 +1193,7 @@ void buildConWithRacon(
         *tmpFastaFileCStr = "tmp-2023-12-01-con-1563577017123412.fasta",
         *tmpSamFileCStr = "tmp-2023-12-01-map-15635770171234122342.sam";
 
+     unsigned long numBytesUL = 0; /*Number bytes read in by fread*/
      FILE *conFILE = 0; /*For counting the consensus length*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1284,7 +1289,7 @@ void buildConWithRacon(
         remove(tmpFastaFileCStr); /*No longer need*/
 
     settings->lenConUL = 0; /*Reset for counting*/
-    conFILE = fopen(conBin->consensusCStr);
+    conFILE = fopen(conBin->consensusCStr, "r");
 
     if(conFILE == 0)
         return; /*No consensus made*/
@@ -1357,6 +1362,7 @@ unsigned char medakaPolish(
     unsigned char errUC = 0;      /*Holds errors*/
 
     unsigned long fileLenULng = 0; /*See if files have something*/
+    unsigned long numBytesUL = 0;  /*Hold in bytes read by fread*/
 
     FILE *testFILE = 0; /*Test if files exist*/
 
@@ -1551,10 +1557,10 @@ unsigned char medakaPolish(
     remove(medDirCStr); /*Delete directory made by medaka*/
 
     settings->lenConUL = 0; /*Reset for counting*/
-    testFILE = fopen(conBin->consensusCStr);
+    testFILE = fopen(conBin->consensusCStr, "r");
 
     if(testFILE == 0)
-        return; /*No consensus made*/
+        return 4; /*No consensus made*/
 
     /*Add in markers to mark the end of headers*/
     medakaCmdCStr[lenBuffUS - 1] = '\0';
@@ -1568,6 +1574,7 @@ unsigned char medakaPolish(
     } /*While have a header to read in*/
 
     numBytesUL = fread(medakaCmdCStr,sizeof(char),lenBuffUS,testFILE);
+
     while(numBytesUL != 0)
     { /*While have a sequence to read in*/
         /*Account for reading in a full buffer of data*/
@@ -1580,7 +1587,6 @@ unsigned char medakaPolish(
     /*Consensuses output by medaka have only two lines, one for the
       header and another for the sequence. So I can get away with a 
       very simple read function*/
-
 
     return 1;
 } /*medakaPolish*/
@@ -1916,6 +1922,8 @@ void initMajConStruct(
     majConSettings->minReadsPercBaseFlt = percBasesPerPos;
     majConSettings->minReadsPercInsFlt = percInsPerPos;
 
+    majConSettings->lenConUL = 0; /*counter*/
+
     return;
 } /*initMajConStruct*/
 
@@ -1934,6 +1942,7 @@ void initRaconStruct(
 
     raconSettings->useRaconBl = defUseRaconCon;
     raconSettings->rndsRaconUC = defRoundsRacon;
+    raconSettings->lenConUL = 0;
 
     return;
 } /*initRaconStruct*/
@@ -1954,6 +1963,7 @@ void initMedakaStruct(
     medakaSettings->useMedakaBl = defUseMedakaCon;
     strcpy(medakaSettings->modelCStr, defMedakaModel);
     medakaSettings->condaBl = defCondaBl;
+    medakaSettings->lenConUL = 0;
 
     return;
 } /*initMedakaStruct*/
@@ -1973,10 +1983,11 @@ void initConBuildStruct(
 
     consensusSettings->useStatBl = 0;
     consensusSettings->clustUC = 0;
-    consensusSettings->numRndsToPolishUI = defNumPolish;
     consensusSettings->minReadsToBuildConUL = minReadsPerBin;
+    consensusSettings->numRndsToPolishUI = defNumPolish;
     consensusSettings->maxReadsToBuildConUL = defReadsPerCon;
-    consensusSettings->minMajConLenUI = readRefMinReadLen;
+    consensusSettings->minConLenUI = defMinConLen;
+    consensusSettings->lenConUL = 0;
     consensusSettings->numReadsForConUL = 0;
 
     initMajConStruct(&consensusSettings->majConSet);

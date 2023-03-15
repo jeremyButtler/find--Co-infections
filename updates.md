@@ -1,7 +1,7 @@
 # Use
 
 Holds the change log of all updates I have have applied to find
-  co-infections since March 9th, 2023.
+  co-infections since March 2023.
 
 The version number for find co-infections V3 now includes the date it
   was last updated. The pattern in the version number is 3.yearMonthDay.
@@ -10,41 +10,47 @@ The version number for find co-infections V3 now includes the date it
 
 # Changes
 
-## 2023-03-10:
+## 2023-03-14:
 
 1. Changed version number to reflect the version number and the date
    of when it was last pushed to git hub.
    - Pattern is 3.yearMonthDay.
    - For example: 3.20230309 would mean that this version of find
      co-infections was last updated on March 29th, 2023.
-2. Fixed an issue were the best read could be added back in to the 
+2. Added in a primer trimming step to find co-infections
+   - Trims any primer mappings in reads.
+   - It will print out multiple entries when removing the primer splits
+     the read. Each entry will be taged with "--D1_19-number", were
+     the number is an integer value that represents the number of times
+     this read was split.
+3. Allowed my filtering of reads by length and mean/median quality
+   score, primer trimming step, and selecting the top reads steps to 
+   be compiled as separate programs (see supplemental-programs.md for
+   more details).
+   - These may not be very useful, but are here if you want them.
+4. Fixed an issue were the best read could be added back in to the 
    fastq file twice (created an infinite loop).
-3. Fixed an issue were the read to read mapping settings were being
+5. Fixed an issue were the read to read mapping settings were being
    given to the read to consensus subsampling step. This did result in
    an infinite loop when the consensus could not bin all reads.
-4. Fixed an issue with cluster counts over 9 being backwards (01 instead
+6. Fixed an issue with cluster counts over 9 being backwards (01 instead
    of 10).
-5. -keep-unmapped-reads setting has been added to trimSamFile to allow
+7. -keep-unmapped-reads setting has been added to trimSamFile to allow
    the user to keep unmapped reads.
    - This is not very useful in general, but I had some issues with
      trimSam removing unmapped reads when I was trimming the reads in 
      the rolling circle replication dataset used to benchmark the
-     ASHURE pipeline (this data set should give me a good idea of how
-     accuratly I can build a consensus).
-6. Found that the majority consensuses steps did truncate some
-   consensuses by 200 to 400 base pairs in the ASHURE data set.
-   - It looks like in this case it was due to supplemental alignments
-     being counted as separate reads. I was able to mostly get around
-     for trimmed datasets this by ignoring all supplemental alignments.
-     Their still some truncation, but it is know under 80 base pairs.
-   - This problem has not been fixed for running the untrimmed reads 
-     from the ASHURE dataset through find co-infections. I am working to
-     add in a primer trimming step to reduce this.
-7. Added in additional settings to set a minimum consensus length
+     ASHURE pipeline.
+9. Found that the majority consensuses step truncated some consensuses
+   by 200 to 400 base pairs in the ASHURE data set.
+   - It looks like it was due to supplemental alignments being counted
+     as separate reads. I was able to mostly get around this by trimming
+     reads by primers and ignoring supplemental alignments.
+10. Added in additional settings to set a minimum consensus length
    (-min-con-length), the minimum aligned length to keep reads during
    subsampling (-min-read-read-map-length & -min-read-con-map-length).
-   - These settings are currently not being output to the log. I will
-     try to get around to this after I have made some more progress.
+11. Binning parameters are no longer printed to the log when the binning
+    step is skipped.
 
 ## 2023-03-05:
 
@@ -59,4 +65,10 @@ The version number for find co-infections V3 now includes the date it
    - Changed the limb size from an long to an integer, so that the 
      sum of the big number could be stored in a long and used for
      hashing and comparisions.
-
+2. Unresolved issues with fqGetIds:
+   - fqGetIds does not know the difference between 186:235 and 18:6235.
+     This could be fixed by setting ":" to 17, but will increase the 
+     memory usage for Illumina data and may increase time.
+   - fqGetIds may have a hard time handling Illumina fastq files that
+     are merged together (one file containing multiple fastq files from
+     different sequencers).

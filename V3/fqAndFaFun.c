@@ -1,6 +1,18 @@
 /*######################################################################
 # Use:
 #   o Holds functions for manipulating fastq and fasta files.
+# Non c-standard includes:
+#   - "minAlnStatsStruct.h"
+#   - "fqGetIdsFqFun.h"      (For moving through a fastq file)
+#   - "FCIStatsFun.h"
+#   o "defaultSettings.h"
+#   o "samEntryStruct.h"
+#   o "cStrToNumberFun.h"
+#   o "printError.h"
+# C standard Includes (all though non c-standard includes):
+#   o <stdlib.h>
+#   o <sdtint.h>
+#   o <stdio.h>
 ######################################################################*/
 
 #include "fqAndFaFun.h"
@@ -241,6 +253,7 @@ uint8_t readRefFqSeq(
     * Fun-2 Sec-5 Sub-1: Set header pointers and get off header
     \******************************************************************/
 
+    refStruct->readLenUInt = 0;
     fqIterCStr = refStruct->samEntryCStr;
     refStruct->refCStr = fqIterCStr + 1;
     refStruct->queryCStr = fqIterCStr + 1;
@@ -267,6 +280,14 @@ uint8_t readRefFqSeq(
         ++fqIterCStr;
     } /*While still on the sequence entry*/
 
+    /******************************************************************\
+    * Fun-2 Sec-5 Sub-3: Set Q-score pointer & remove extra new lines
+    \******************************************************************/
+
+    /*Get off the spacer entry*/
+    while(*fqIterCStr != '\n') ++fqIterCStr;
+    ++fqIterCStr; /*Get off the new line*/
+
     /*Copy over space, but make sure no funny stuff from user in it*/
     *oldIterCStr = '\n';
     ++oldIterCStr;
@@ -275,19 +296,7 @@ uint8_t readRefFqSeq(
     *oldIterCStr = '\n';
     ++oldIterCStr;
 
-    ++fqIterCStr; /*Get off the new line*/
-
-    /******************************************************************\
-    * Fun-2 Sec-5 Sub-3: Set Q-score pointer & remove extra new lines
-    \******************************************************************/
-
     refStruct->qCStr = oldIterCStr;
-
-    /*Get off the spacer entry*/
-    while(*fqIterCStr != '\n')
-        ++fqIterCStr;
-
-    ++fqIterCStr; /*Get off the new line*/
 
     /*Gov over the Q-score entry and remove new lines*/
     while(*fqIterCStr != '\0')
@@ -568,7 +577,7 @@ unsigned char filterReads(
     if(fqFILE == 0)
         return 2;
 
-    if(*outCStr == 0)
+    if(outCStr == 0)
         outFILE = stdout;
     else
         outFILE = fopen(outCStr, "w");
@@ -639,8 +648,8 @@ unsigned char filterReads(
 uint8_t moveToNextFastqEntry(
     char *bufferCStr,  /*buffer to hold fread input (can have data)*/
     char **pointInBufferCStr, /*position working on in buffer*/
-    uint32_t buffSizeInt,        /*Size of buffer to work on*/
-    uint64_t *lenInputULng,      /*Length of input from fread*/
+    uint32_t buffSizeInt,    /*Size of buffer to work on*/
+    uint64_t *lenInputULng, /*Length of input from fread*/
     FILE *fastqFile              /*Fastq file to get data from*/
 ) /*Moves to next fastq read, without printing out*/
 { /*moveToNextFastqEntry*/
@@ -658,7 +667,7 @@ uint8_t moveToNextFastqEntry(
     ^ Fun-7 Sec-1: Variable declerations
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    uint64_t numSeqlinesULng = 0;  /*Record number of '\n' in sequence*/
+    unsigned long numSeqlinesULng = 0;  /*number of '\n' in sequence*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-7 Sec-2: Move past header

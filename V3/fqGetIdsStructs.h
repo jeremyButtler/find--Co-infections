@@ -201,4 +201,21 @@ struct bigNum * buffToBigNum(
     function will not grab new file input, so make sure your entire
     read id is in idCStr.*/
 
+/*---------------------------------------------------------------------\
+| Output:
+|  - Modifies: newNum to have numToCopys contents    
+|  - Returns:
+|    - 1 for success
+|    - 64 for memory allocation error
+\---------------------------------------------------------------------*/
+unsigned char cpBigNums(
+    struct bigNum *numToCopy, /*Big number to copy*/
+    struct bigNum *newNum  /*Subject to compare to*/
+); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-8 TOC: cpBigNums
+   '  - Copys one big number structure to another
+   '  o fun-8 sec-1: Check if need to resize the new duplicate array
+   '  o fun-8 sec-2: Copy the big number structure
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
 #endif

@@ -242,8 +242,8 @@ struct bigNum * makeBigNumStruct(
 |        - Sets idBigNum->lenUsedULng to 0 if memory reallocation failed
 \---------------------------------------------------------------------*/
 void strToBackwardsBigNum(
-    struct bigNum *idBigNum,     /*Holds the output big number*/
-    char *cnvtCStr,              /*C-string to convert to large number*/
+    struct bigNum *idBigNum,         /*Holds the output big number*/
+    char *cnvtCStr,       /*C-string to convert to large number*/
     const int32_t *lenCStrUInt
 ) /*Flips c-string & converts to big number*/
 { /*strToBackwardsBigNum*/
@@ -682,7 +682,7 @@ struct bigNum * buffToBigNum(
     { /*If memory allocation failed*/
         if(idBigNum != 0) free(idBigNum);
 
-        *lenInputULng = 0; /*Make sure user detects failure*/
+        *lenBigNumChar = 0; /*Make sure user detects failure*/
         return 0; 
     } /*If memory allocation failed*/
 
@@ -704,7 +704,7 @@ struct bigNum * buffToBigNum(
 
     if(idBigNum->bigNumAryIOrL == 0)
     { /*If memory reallocation failed*/
-        *lenInputULng = 0; /*Make sure user detects failure*/
+        *lenBigNumChar = 0; /*Make sure user detects failure*/
         free(idBigNum);
         return 0;
     } /*If memory reallocation failed*/
@@ -745,7 +745,7 @@ struct bigNum * buffToBigNum(
             { /*If memory allocation failed*/
                 free(idBigNum->bigNumAryIOrL);
                 free(idBigNum);
-                *lenInputULng = 0; /*Make sure user detects failure*/
+                *lenBigNumChar = 0;
                 return 0; 
             } /*If memory allocation failed*/
         } /*If need to reallocate memory*/
@@ -784,6 +784,69 @@ struct bigNum * buffToBigNum(
 
     return idBigNum; /*Copied name sucessfully*/
 } /*cnvtIdToBigNum*/
+
+/*---------------------------------------------------------------------\
+| Output:
+|  - Modifies: newNum to have numToCopys contents    
+|  - Returns:
+|    - 1 for success
+|    - 64 for memory allocation error
+\---------------------------------------------------------------------*/
+unsigned char cpBigNums(
+    struct bigNum *numToCopy, /*Big number to copy*/
+    struct bigNum *newNum  /*Subject to compare to*/
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-8 TOC: cpBigNums
+   '  - Copys one big number structure to another
+   '  o fun-8 sec-1: Check if need to resize the new duplicate array
+   '  o fun-8 sec-2: Copy the big number structure
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-8 Sec-1: Check if need to resize the new duplicate array
+   \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+
+    if(newNum->lenAllElmChar < numToCopy->lenUsedElmChar)
+    { /*If need to resize the array*/
+        newNum->bigNumAryIOrL =
+            realloc(
+               newNum->bigNumAryIOrL,
+               #ifndef MEM
+                    #if defOSBit == 64
+                       sizeof(int) * numToCopy->lenAllElmChar
+                   #else
+                       sizeof(short) * numToCopy->lenAllElmChar
+                   #endif /*Check if 32 bit or 64 bit*/
+               #else
+                   sizeof(long) * numToCopy->lenAllElmChar
+               #endif
+        ); /*Rellocate memory for the array*/
+
+       if(newNum->bigNumAryIOrL == 0)
+           return 64; /*Memory allocation error*/
+
+       /*Reset pointer sizes for later*/
+       newNum->lenAllElmChar = numToCopy->lenAllElmChar;
+       newNum->lenUsedElmChar = numToCopy->lenUsedElmChar;
+    } /*If need to resize the array*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-8 Sec-2: Copy the big number structure
+   \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
+
+    /*A speed setting*/ 
+    #ifndef MEM
+        newNum->totalL = numToCopy->totalL;
+    #endif
+
+    for(short sElm = numToCopy->lenUsedElmChar - 1; sElm > -1; --sElm)
+    { /*For all unsinged longs in the big number*/
+        *(newNum->bigNumAryIOrL + sElm) =
+            *(numToCopy->bigNumAryIOrL + sElm);
+    } /*For all unsinged longs in the big number*/
+
+    return 1;
+} /*cmpBigNums*/
 
 
 /* Ascii table

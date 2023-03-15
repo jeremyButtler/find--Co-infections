@@ -82,8 +82,6 @@ struct readInfo ** makeReadHash(
        *readTree = 0,                 /*Singe node in hash table or tree*/
        *tmpRead = 0;
 
-   struct bigNum *bigNumST = 0;
-
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
    # Fun-1 Sec-2: Read in the file
    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
@@ -108,7 +106,6 @@ struct readInfo ** makeReadHash(
        { /*If was a falied read*/
            if(lenInputULng == 0)
            { /*If was a memory allocation error (message already printed)*/
-               fclose(fileFILE);
                freeReadTree(&readTree, readStackAry);
                return 0;
            } /*If was a memory allocation error (message already printed)*/
