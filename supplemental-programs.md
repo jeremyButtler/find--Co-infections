@@ -143,7 +143,7 @@ FqGetIds was first seen as fastqGrep in find co-infections. It is mainly
 
 The help message is called with -h.
 
-#### How to build fqGetIds without multithreading
+#### How to build fqGetIds
 
 ```
 cd V3
