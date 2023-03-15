@@ -99,6 +99,14 @@ fqGetIds combines a hashing table for fast read id access and then an
   sum. For comparisons the sum is first compared and then each element
   in the big number is compared.
 
+For benchmarking I used the Illumina data set originally used to
+  benchmark seqkit (dataset_C.fastq) and a data set with 6 million 
+  Nanopore PCR reads (around 600 to 700 base pairs). The testes were 
+  run on a raspberry pi 1B with a 32 bit Debian linux instal (slow IO)
+  and a computer with a solid state harddrive (fast IO) running a 64 bit
+  Debian OS. For the raspberry pi I had to reduce read depths to around
+  800000 reads to avoid memory issues (max of 1Gb).
+
 ![
   Figure showing fqGetIds is a as fast or faster than seqkit for
   Nanopore data and Illumina data
