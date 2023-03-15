@@ -174,7 +174,7 @@ int main(
             \n    -primers:                                  [None]\
             \n        - Fasta file with primers to trim\
             \n          reads with.\
-            \n    -min-per-reads:                          [0.003=0.3%]\
+            \n    -min-perc-reads:                         [0.003=0.3%]\
             \n        - Minimum percentage of reads expected\
             \n          to keep a cluster.\
             \n        - Is the percentage of all reads that\
