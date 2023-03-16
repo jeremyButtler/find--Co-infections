@@ -50,7 +50,7 @@
 \**********************************************************************/
 
 /*Gereral find co-infections settings*/
-#define defVersion 3.20230313  /*The Version number of this program*/
+#define defVersion 3.20230315  /*The Version number of this program*/
     /*Format is version.yearMonthDay*/
 #define defPrefix "out"      /*Default prefix to use*/
 #define defThreads "3"       /*Default number of threads to use*/

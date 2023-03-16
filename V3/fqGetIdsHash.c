@@ -391,6 +391,7 @@ struct readInfo ** readListToHash(
    ^ Fun-6 Sec-1: variable declerations                                v
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
+   int DELETEI = 0;
    struct readInfo
        *tmpRead = 0,
        **hashTbl = 0;
@@ -432,6 +433,7 @@ struct readInfo ** readListToHash(
 
    while(readList != 0)
    { /*While their are reads to put in hash table*/
+       ++DELETEI;
        tmpRead = readList->rightChild;
        readList->rightChild = 0;
 

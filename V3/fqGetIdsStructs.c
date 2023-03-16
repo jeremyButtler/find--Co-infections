@@ -23,6 +23,8 @@
 '      o Compare two big numbers
 '    fun-9 cnvtIdToBigNum:
 '      o Read in read id line & convert to big num
+'    fun-9 TOC: Sec-1 Sub-1: makeBlankReadInfoStruct
+'      o Makes a readInfo struct on the heap and sets variables to 0
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #include "fqGetIdsStructs.h"
@@ -103,18 +105,9 @@ struct readInfo * makeReadInfoStruct(
     ^ Fun-1 Sec-1: Variable declerations
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    struct readInfo
-        *readInfoStruct = malloc(sizeof(readInfo));
+    struct readInfo *readInfoStruct = malloc(sizeof(readInfo));
 
-    if(readInfoStruct == 0)
-    { /*If mallac failed to allocate memory*/
-        fprintf(
-            stderr,
-            "Failed to allocate memory: Fun-1 makeReadInfoStruct %s",
-            "fastqGrepStructs.c Line 40\n"
-        ); /*Let user know that memory allocation failed*/
-        return 0;
-    } /*If mallac failed to allocate memory*/
+    if(readInfoStruct == 0) return 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-1 Sec-2: Get numeric id of intput string
@@ -123,16 +116,7 @@ struct readInfo * makeReadInfoStruct(
     /*Convert hex elements in read id to big number*/
     readInfoStruct->idBigNum = makeBigNumStruct(readIdCStr,lenCStrUInt);
 
-    if(readInfoStruct->idBigNum == 0)
-    { /*If mallac failed to allocate memory*/
-        fprintf(
-            stderr,
-            "Failed to allocate memory for big number: Fun-1 %s",
-            "makeReadInfoStruct fastqGrepStructs.c Line 57\n"
-        ); /*Let user know that memory allocation failed*/
-        return 0;
-    } /*If mallac failed to allocate memory*/
-
+    if(readInfoStruct->idBigNum == 0) return 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-1 Sec-3: Set other variables to 0
@@ -158,7 +142,9 @@ void freeReadInfoStruct(
     ^ Fun-2 Sec-1 TOC: free readInfoStruct
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    freeBigNumStruct(&((*readInfoStruct)->idBigNum));
+    if((*readInfoStruct)->idBigNum != 0)
+        freeBigNumStruct(&((*readInfoStruct)->idBigNum));
+
     free(*readInfoStruct);               /*User handles nodeInGraph*/
     *readInfoStruct = 0;
 
@@ -847,6 +833,28 @@ unsigned char cpBigNums(
 
     return 1;
 } /*cmpBigNums*/
+
+/*---------------------------------------------------------------------\
+| Output: Returns a readInfo struct (0 for memory allocation errors)
+\---------------------------------------------------------------------*/
+struct readInfo * makeBlankReadInfoStruct(
+) { /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-9 TOC: Sec-1 Sub-1: makeBlankReadInfoStruct
+    '  - Makes a readInfo struct on the heap and sets variables to 0
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    struct readInfo *readInfoStruct = malloc(sizeof(readInfo));
+
+    if(readInfoStruct == 0) return 0;
+
+    readInfoStruct->idBigNum = 0;
+    readInfoStruct->balanceChar = 0;
+    readInfoStruct->leftChild = 0;
+    readInfoStruct->rightChild = 0;
+
+    return readInfoStruct;
+} /*makeBlankReadInfoStruct*/
+
 
 
 /* Ascii table

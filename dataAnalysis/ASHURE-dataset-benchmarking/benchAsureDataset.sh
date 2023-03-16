@@ -35,8 +35,8 @@ majMinBaseQI="7";
 majMinBaseSupportI="0.35";
 majMinInsQ="5";
 majMinInsSupportI="0.30";
-maxReadLen="750";
-minPercReadsFlt="0.3"; # min percentage of reads to keep a bin
+maxReadLen="750";        # 0 is no limit
+minPercReadsFlt="0.003"; # min percentage of reads to keep a bin
 
 # script variables
 statsFileStr="";
@@ -98,7 +98,7 @@ if [[ "$medakaBl" == "TRUE" ]]; then
    altConCmd="$altConCmd -enable-medaka";
 fi
 
-if [[ "$primPathStr" != "" ]]; then
+if [[ "$primPathStr" != "NA" ]]; then
     altConCmd="$altConCmd -primers $primPathStr";
 fi # if need to add in the primers command
 

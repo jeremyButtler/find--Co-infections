@@ -10,6 +10,16 @@ The version number for find co-infections V3 now includes the date it
 
 # Changes
 
+## 2023-03-15:
+
+1. Fixed an issue with find co-infections V3 crashing on ASHURE dataset
+   A when -skip-bin was combined with -pimers ASHURE-primers.fasta.
+   - This was an issue with findXReads balance not being reset and
+     freeing bigNum structs.
+   - Fixed by changing the stack declarations of readInfo structures
+     in findXBestReads (function used with extractTopReads) with heap
+     declarations.
+
 ## 2023-03-14:
 
 1. Changed version number to reflect the version number and the date

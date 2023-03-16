@@ -487,7 +487,7 @@ uint8_t findBestXReads(
     char *threadsCStr,           /*Number threads to use with minimap2*/
     const char *useMapqBl,       /*1: use mapping quality in selection*/
     struct minAlnStats *minStats,/*Min stats to cluster reads together*/
-    struct samEntry *samStruct,  /*Struct to use for reading sam file*/
+    struct samEntry *samST,  /*Struct to use for reading sam file*/
     struct samEntry *refStruct,  /*holds the reference (0 to ignore)*/
     struct readBin *binTree,     /*Bin working on*/
     char noRefBl,                /*Only use fastq file*/
@@ -514,48 +514,40 @@ uint8_t findBestXReads(
     ^ Fun-3 Sec-1: variable declerations                              v
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    int32_t 
-        lenBuffUInt = 1 << 15; /*wil make a 65536 byte array*/
+    int32_t lenBuffUInt = 1 << 15; /*wil make a 65536 byte array*/
 
-    uint8_t
-        errUC = 0, /*Holds error output*/
-        oneUChar = 1,
-        digPerKeyUChar = 0,
-        zeroUChar = 0;
+    uint8_t errUC = 0; /*Holds error output*/
+    uint8_t oneUChar = 1;
+    uint8_t zeroUChar = 0;
+    unsigned char lenStackUC = 128;
+    unsigned char lenBigNum = 0;
 
-    char
-        minimapCmdCStr[2048],
-        *tmpCStr = 0,
-        buffCStr[lenBuffUInt];  /*Buffer to extract reads with*/
+    char minimapCmdCStr[2048];
+    char *tmpCStr = 0;
+    char buffCStr[lenBuffUInt];  /*Buffer to extract reads with*/
 
-    int32_t
-        lenIdUInt = 100;  /*number of characters allowed for read id*/
+    int32_t lenIdUInt = 100;/*number of characters allowed for read id*/
 
-    uint16_t
-        topScoreUSht = 128 + (2020 * *useMapqBl), /*Max score*/
-        lowScoreUSht = topScoreUSht, /*Lowest scoring kept read*/
-        scoreUSht = 0;    /*Score of a single read*/
+    uint16_t topScoreUSht = 128 + (2020 * *useMapqBl); /*Max score*/
+    uint16_t lowScoreUS = topScoreUSht; /*Lowest scoring kept read*/
+    uint16_t scoreUS = 0;    /*Score of a single read*/
 
-    uint64_t
-        hashSizeULng = 0;     /*Size of hash table for read extraction*/
+    uint64_t hashSizeULng = 0;/*Size of hash table for read extraction*/
+    unsigned long majicNumULng = 0;     /*Number to use with hashing*/
+    uint8_t digPerKeyUChar = 0;     /*(int) log2(hashSizeULng)*/
 
-    unsigned long 
-        majicNumULng = 0;     /*Number to use with hashing*/
+    struct readInfo **hashTbl = 0; /*Hash table for extraction*/
+    struct readInfo *tmpRead = 0;
+    struct readInfo *readOn = 0;
+    struct readInfo *swapRead = 0;
+    struct readInfo *scoresAry[topScoreUSht];
+        /*look up table for scores*/
 
-    struct readInfo
-        **hashTbl = 0,     /*Hash table of read ids for extraction*/
-        *tmpRead = 0,
-        readScoreAry[*numReadConsULng], /*Stack for easer work*/
-        *readOn = readScoreAry,
-        *scoresArray[topScoreUSht]; /*look up table for scores*/
+    struct readNodeStack searchStack[lenStackUC];  /*Used for fqGetIds*/
 
-    struct readNodeStack
-        searchStack[200];  /*Used for fqGetIds*/
-
-    FILE 
-        *testFILE = 0,
-        *bestReadsFILE = 0,  /*Holds the read to polish with*/
-        *stdinFILE = 0;
+    FILE *testFILE = 0;
+    FILE *bestReadsFILE = 0;  /*Holds the read to polish with*/
+    FILE *stdinFILE = 0;
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-3 Sec-2: Check if can open files and copy reference
@@ -618,10 +610,10 @@ uint8_t findBestXReads(
         /*Run minimap2 results*/
         stdinFILE = popen(minimapCmdCStr, "r");
 
-        blankSamEntry(samStruct); /*Make sure start with blank*/
+        blankSamEntry(samST); /*Make sure start with blank*/
 
         /*Read in a single sam file line to check if valid (header)*/
-        errUC = readSamLine(samStruct, stdinFILE);
+        errUC = readSamLine(samST, stdinFILE);
 
         if(!(errUC & 1))
         { /*If an error occured*/
@@ -633,11 +625,15 @@ uint8_t findBestXReads(
     else
     { /*Else just using the fastq file*/
         stdinFILE = fopen(binTree->fqPathCStr, "r");
-        errUC = readRefFqSeq(stdinFILE, samStruct, 0);
+        errUC = readRefFqSeq(stdinFILE, samST, 0);
     } /*Else just using the fastq file*/
 
+    /*Initalize my stack*/
+    searchStack[0].readNode = 0;
+    searchStack[lenStackUC - 1].readNode = 0;
+
     for(unsigned int IUElm = 0; IUElm < topScoreUSht; ++IUElm)
-        scoresArray[IUElm] = 0; /*Intalize the scoring array*/
+        scoresAry[IUElm] = 0; /*Intalize the scoring array*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-3 Sec-4: Trim, score, & select best mapped reads            v
@@ -658,27 +654,27 @@ uint8_t findBestXReads(
     { /*While their is a samfile entry to read in*/
         if(!(noRefBl & 1))
         { /*If using minimap2 input*/
-            if(*samStruct->samEntryCStr == '@')
+            if(*samST->samEntryCStr == '@')
             { /*If was a header*/
-                blankSamEntry(samStruct); /*Make sure start with blank*/
-                errUC = readSamLine(samStruct,stdinFILE);
+                blankSamEntry(samST); /*Make sure start with blank*/
+                errUC = readSamLine(samST,stdinFILE);
                 continue; /*Is a header line, move to next line in file*/
             } /*If was a header*/
 
-            if(samStruct->flagUSht & (2048 | 256 | 4))
+            if(samST->flagUSht & (2048 | 256 | 4))
             { /*If was a suplemental, secondary, or unmapped alignment*/
-                blankSamEntry(samStruct); /*Make sure start with blank*/
-                errUC = readSamLine(samStruct,stdinFILE);
+                blankSamEntry(samST); /*Make sure start with blank*/
+                errUC = readSamLine(samST,stdinFILE);
                 continue; /*Is a header line, move to next line*/
             } /*If was a suplemental, secondary, or unmapped alignment*/
 
             /*Convert & print out sam file entry*/
-            errUC = trimSamEntry(samStruct);
+            errUC = trimSamEntry(samST);
 
             if(errUC >> 2)
             { /*If entry did not have a sequence, discard*/
-                blankSamEntry(samStruct); /*Make sure start with blank*/
-                errUC = readSamLine(samStruct, stdinFILE);
+                blankSamEntry(samST); /*Make sure start with blank*/
+                errUC = readSamLine(samST, stdinFILE);
                 continue;
             } /*If entry did not have a sequence, discard*/
         } /*If using minimap2 input*/
@@ -687,13 +683,13 @@ uint8_t findBestXReads(
         * Fun-3 Sec-4 Sub-2: Score read
         \**************************************************************/
 
-        findQScores(samStruct); /*Find the Q-scores*/
+        findQScores(samST); /*Find the Q-scores*/
 
         if(!(noRefBl & 1))
         { /*If readning from minimap2*/
             scoreAln(
                 minStats,
-                samStruct,
+                samST,
                 refStruct,   /*Reference struct to score deletions with*/ 
                 &oneUChar,   /*Mapped read has Q-score*/
                 &oneUChar    /*Make sure set to one if using reference*/
@@ -703,29 +699,29 @@ uint8_t findBestXReads(
             * Fun-3 Sec-4 Sub-3: Check if Score meets requirements
             \**************************************************************/
 
-            if(samStruct->mapqUChar < minStats->minMapqUInt ||
-               !(checkIfKeepRead(minStats, samStruct) & 1) ||
-               samStruct->readAligLenUInt < minStats->minReadLenULng
+            if(samST->mapqUChar < minStats->minMapqUInt ||
+               !(checkIfKeepRead(minStats, samST) & 1) ||
+               samST->readAligLenUInt < minStats->minReadLenULng
             ) { /*If the read Is to different from the reference*/
                 /*Move to the next entry*/
-                blankSamEntry(samStruct); /*Make sure start with blank*/
-                errUC = readSamLine(samStruct,stdinFILE);
+                blankSamEntry(samST); /*Make sure start with blank*/
+                errUC = readSamLine(samST,stdinFILE);
                 continue;
             } /*If the read Is to different from the reference*/
         } /*If readning from minimap2*/
 
         else
         { /*Else just reading a fastq file*/
-            if(samStruct->medianQFlt < minStats->minMedianQFlt ||
-               samStruct->meanQFlt < minStats->minMeanQFlt ||
-               samStruct->readLenUInt < minStats->minReadLenULng ||
+            if(samST->medianQFlt < minStats->minMedianQFlt ||
+               samST->meanQFlt < minStats->minMeanQFlt ||
+               samST->readLenUInt < minStats->minReadLenULng ||
                (
-                   samStruct->readLenUInt > minStats->maxReadLenULng &&
+                   samST->readLenUInt > minStats->maxReadLenULng &&
                    minStats->maxReadLenULng != 0
                )
             ) { /*If discarding the read*/
-                blankSamEntry(samStruct); /*Make sure start with blank*/
-                errUC = readRefFqSeq(stdinFILE, samStruct, 0);
+                blankSamEntry(samST); /*Make sure start with blank*/
+                errUC = readRefFqSeq(stdinFILE, samST, 0);
                 continue;
             } /*If discarding the read*/
         } /*Else just reading a fastq file*/
@@ -737,10 +733,10 @@ uint8_t findBestXReads(
         tmpRead = 0;
 
         /*Discard decimal part of the Q-score*/
-        scoreUSht =
-           (((uint16_t) samStruct->mapqUChar << 2)
+        scoreUS =
+           (((uint16_t) samST->mapqUChar << 2)
               & (uint16_t) *useMapqBl
-           ) + (uint16_t) samStruct->medianQFlt;
+           ) + (uint16_t) samST->medianQFlt;
         /*Logic:
             mapping quality goes to 0 (ignored) if useMapqBl is 0.
             mapqUChar is 8 bits (1111 1111), mapqUChar << 2 max is 2027.
@@ -760,29 +756,23 @@ uint8_t findBestXReads(
 
         if(*numReadsKeptULng < *numReadConsULng)
         { /*If still accepting new reads*/
-            readOn->leftChild = 0;
-            readOn->balanceChar = 0;
+            readOn = makeBlankReadInfoStruct();
+            readOn->idBigNum =
+               buffToBigNum(samST->queryCStr, &tmpCStr, &lenBigNum);
+               /*read id, pointer to id end, Number ints in big number*/
 
-            if(scoreUSht < lowScoreUSht) /*Check if new lowest score*/
-                lowScoreUSht = scoreUSht;
+            /*Check if new lowest score*/
+            if(scoreUS < lowScoreUS) lowScoreUS = scoreUS;
 
-            if(scoresArray[lowScoreUSht] == 0)
-            { /*If this is the first time I got this score*/
-                scoresArray[lowScoreUSht] = readOn;
-                readOn->rightChild = 0; /*Mark end of lifo*/
-            } /*If this is the first time I got this score*/
+            if(scoresAry[scoreUS] == 0) scoresAry[scoreUS] = readOn;
 
             else
             { /*Else I already have reads with the same score*/
-                tmpRead = scoresArray[lowScoreUSht];
-                scoresArray[lowScoreUSht] = readOn;
+                tmpRead = scoresAry[scoreUS];
+                scoresAry[scoreUS] = readOn;
                 readOn->rightChild = tmpRead;
             } /*Else I already have reads with the same score*/
 
-            readOn->idBigNum =
-                    makeBigNumStruct(samStruct->queryCStr, &lenIdUInt);
-
-            ++readOn; /*Move to next open read*/
             ++(*numReadsKeptULng);
         } /*If still accepting new reads*/
 
@@ -790,42 +780,42 @@ uint8_t findBestXReads(
         | Fun-3 Sec-4 Sub-5: Check if read beets lowest kept read score|
         \**************************************************************/
 
-        else if(scoreUSht > lowScoreUSht)
+        else if(scoreUS > lowScoreUS)
         { /*Else if only keeping better reads*/
 
-            tmpRead = scoresArray[lowScoreUSht];
+            tmpRead = scoresAry[lowScoreUS];
 
             /*Check if still have other reads at the low score*/
             if(tmpRead->rightChild != 0)
-                scoresArray[lowScoreUSht] = tmpRead->rightChild;
+                scoresAry[lowScoreUS] = tmpRead->rightChild;
                      /*Mark remove the first low scoring read*/
             else
             { /*else need to find the next lowest score*/
-                scoresArray[lowScoreUSht] = 0;
-                ++lowScoreUSht; /*Move to the next score*/
+                scoresAry[lowScoreUS] = 0;
+                ++lowScoreUS; /*Move to the next score*/
 
-                while(scoresArray[lowScoreUSht] == 0)
-                    ++lowScoreUSht;  /*Move to read with higher score*/
+                while(scoresAry[lowScoreUS] == 0)
+                    ++lowScoreUS;  /*Move to read with higher score*/
             } /*else need to find the next lowest score*/
 
             /*Check if need to build the stack*/
-            if(scoresArray[scoreUSht] != 0)
-                tmpRead->rightChild = scoresArray[scoreUSht];
+            if(scoresAry[scoreUS] != 0)
+                tmpRead->rightChild = scoresAry[scoreUS];
             else
                 tmpRead->rightChild = 0;
 
             strToBackwardsBigNum(
                 tmpRead->idBigNum,
-                samStruct->queryCStr,
+                samST->queryCStr,
                 &lenIdUInt
             ); /*Convert query id to a big number*/
 
-            scoresArray[scoreUSht] = tmpRead;
+            scoresAry[scoreUS] = tmpRead;
         } /*Else if only keeping better reads*/
 
         /*Move to the next read*/
-        if(!(noRefBl & 1)) errUC = readSamLine(samStruct,stdinFILE);
-        else errUC = readRefFqSeq(stdinFILE, samStruct, 0);
+        if(!(noRefBl & 1)) errUC = readSamLine(samST,stdinFILE);
+        else errUC = readRefFqSeq(stdinFILE, samST, 0);
     } /*While their is a samfile entry to read in*/
 
     /*check which file close method I need to use*/
@@ -858,20 +848,28 @@ uint8_t findBestXReads(
     ^ Fun-3 Sec-6: Set up hash table to extract reads                 v
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    tmpRead = readScoreAry;
-    tmpRead->rightChild = 0; /*Ensure no circular lists*/
-    readOn = tmpRead + 1;
+    readOn = scoresAry[lowScoreUS];
 
-    for(uint32_t intRead = 1; intRead < *numReadsKeptULng; ++intRead)
+    for(uint32_t iRead = lowScoreUS + 1; iRead < topScoreUSht; ++iRead)
     { /*For all kept reads, set built the list for the hash table*/
-       readOn->rightChild = tmpRead;
-       tmpRead = readOn;
-       ++readOn; /*move to the next read in the array*/
+       tmpRead = scoresAry[iRead];
+
+       if(tmpRead != 0)
+       { /*If I do not have a blank read*/
+           swapRead = tmpRead;
+
+           /*Move to the end of the list*/
+           while(tmpRead->rightChild != 0)
+               tmpRead = tmpRead->rightChild;
+
+           tmpRead->rightChild = readOn;
+           readOn = swapRead;
+       } /*If I do not have a blank read*/
     } /*For all kept reads, set built the list for the hash table*/
 
     hashTbl = 
         readListToHash(
-            tmpRead,
+            readOn,
             numReadsKeptULng,
             searchStack,        /*Used for searching the hash table*/
             &hashSizeULng,      /*Will hold Size of hash table*/
@@ -909,10 +907,7 @@ uint8_t findBestXReads(
     ^ Fun-3 Sec-8: Clean up
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    for(uint64_t uLngCnt = 0; uLngCnt < *numReadsKeptULng; ++uLngCnt)
-        freeBigNumStruct(&readScoreAry[uLngCnt].idBigNum);
-
-    free(hashTbl); /*Free the hash table pointers*/
+    freeHashTbl(&hashTbl, &hashSizeULng, searchStack);
 
     fclose(testFILE);
     fclose(bestReadsFILE);
@@ -935,7 +930,7 @@ uint8_t findBestXReads(
 ----------------------------------------------------------------------*/
 uint8_t fqGetBestReadByMedQ(
     struct readBin *clustOn,    /*Has fastq file to extract from*/
-    struct samEntry *samStruct, /*Sam struct to use for extraction*/
+    struct samEntry *samST, /*Sam struct to use for extraction*/
     struct samEntry *bestRead   /*Holds best read till end*/
 ) /*Extracts read with best medain Q-score from file.
     It also considers length if integer Q-scores are the same.*/
@@ -1003,13 +998,13 @@ uint8_t fqGetBestReadByMedQ(
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
     errUC = 1; /*So I fire the loop*/
-    blankSamEntry(samStruct);
+    blankSamEntry(samST);
     blankSamEntry(bestRead);
 
     while(errUC & 1)
     { /*While have a line to read in*/
-        blankSamEntry(samStruct);
-        errUC = readRefFqSeq(fqFILE, samStruct, 1);
+        blankSamEntry(samST);
+        errUC = readRefFqSeq(fqFILE, samST, 1);
             /*1 means to ignore new lines. In this case I am not worried
               about new lines, since all reads will have the samen number
               of new lines in their sequences. So, this will not affect
@@ -1019,31 +1014,31 @@ uint8_t fqGetBestReadByMedQ(
         if(!(errUC & 1) || errUC == 0)
             continue; /*No more reads in file or other error*/
 
-        findQScores(samStruct);
+        findQScores(samST);
 
         flagUC =
             (int16_t) bestRead->medianQFlt <
-            (int16_t) samStruct->medianQFlt;
-            /*Set to 1 if samStruct->medianQFlt is better*/
+            (int16_t) samST->medianQFlt;
+            /*Set to 1 if samST->medianQFlt is better*/
 
         flagUC |=
            (
-               (bestRead->readLenUInt < samStruct->readLenUInt) & 
+               (bestRead->readLenUInt < samST->readLenUInt) & 
                ((int16_t) bestRead->medianQFlt ==
-               (int16_t) samStruct->medianQFlt)
+               (int16_t) samST->medianQFlt)
            ); /*Set to 1 if flagUC is 1 or if new read length is better
                 when median Q-scores are equal*/
 
         switch(flagUC)
         { /*switch, check if have a better read*/
             case 1: /*Have a better read & need to swap structures*/
-                swapStruct = samStruct;
-                samStruct = bestRead;
+                swapStruct = samST;
+                samST = bestRead;
                 bestRead = swapStruct;
         } /*switch, check if have a better read*/
             
-        if(samStruct->seqCStr != 0) /*If have have something to print*/
-            samToFq(samStruct, tmpFqFILE);
+        if(samST->seqCStr != 0) /*If have have something to print*/
+            samToFq(samST, tmpFqFILE);
     } /*While have a line to read in*/ 
 
     fclose(fqFILE);

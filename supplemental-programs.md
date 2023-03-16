@@ -258,11 +258,6 @@ ExtractTopReads extracts the highest scoring top X (default 300) reads
   quality scores. When a reference is used it will also extract the top
   reads by using mapping qualities.
 
-One warning is that the structures used with fqGetIds are predeclared
-  and stored on the stack instead of the heap, which means that their is
-  less memory to use. So this program may error out (not enough memory)
-  if you are extracting to many reads (probably over 10000).
-
 The help message can be called with -h.
 
 #### How to build and use extractTopReads

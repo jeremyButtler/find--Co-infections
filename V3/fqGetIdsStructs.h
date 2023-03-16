@@ -218,4 +218,13 @@ unsigned char cpBigNums(
    '  o fun-8 sec-2: Copy the big number structure
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
+/*---------------------------------------------------------------------\
+| Output: Returns a readInfo struct (0 for memory allocation errors)
+\---------------------------------------------------------------------*/
+struct readInfo * makeBlankReadInfoStruct(
+);  /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-9 TOC: Sec-1 Sub-1: makeBlankReadInfoStruct
+    '  - Makes a readInfo struct on the heap and sets variables to 0
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
 #endif
