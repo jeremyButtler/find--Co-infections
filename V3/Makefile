@@ -152,6 +152,12 @@ extractReadsGcc=-Wall \
     extractTopReads.c \
     -o extractTopReads
 
+alignSeqGcc=-Wall\
+    sequenceFun.c \
+    alignmentsFun.c \
+    alignSeq.c \
+    -o alignSeq
+
 # To find the compiler I am using || to default to different names for
 # gcc when the default gcc does not exist or failes. || is universal
 # across all unix OS's and is valid in the bsd make and gnu make, unlike
@@ -195,6 +201,10 @@ filterReads:
 
 extractReads:
 	$(CC) -O3 $(extractReadsGcc) || gcc -O3 $(extractReadsGcc) || egcc -O3 $(extractReadsGcc) || cc -O3 $(extractReadsGcc)
+
+# For my Needleman Wunsch alignment (May add some more stuff later)
+alignSeqGcc:
+	$(CC) -Ofast $(alignSeqGcc) || gcc -Ofast $(alignSeqGcc) || egcc -Ofast $(alignSeqGcc) || cc -Ofast $(alignSeqGcc)
 
 # commands for indvidual compilers
 openbsd:

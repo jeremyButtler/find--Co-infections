@@ -71,7 +71,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         -fastq) fqPathStr="$2"; shift;;
         -prefix) prefixStr="$2"; shift;;
-	-primers) primPathStr="$2"; shift;;
+        -primers) primPathStr="$2"; shift;;
         -refs) refsStr="$2"; shift;;
         -max-read-len) maxReadLen="$2"; shift;;
         -min-perc-reads) minPercReadsFlt="$2"; shift;;

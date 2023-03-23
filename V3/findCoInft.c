@@ -174,7 +174,7 @@ int main(
             \n    -primers:                                  [None]\
             \n        - Fasta file with primers to trim\
             \n          reads with.\
-            \n    -min-perc-reads:                         [0.003=0.3%]\
+            \n    -min-perc-reads:                         [0.01=1%]\
             \n        - Minimum percentage of reads expected\
             \n          to keep a cluster.\
             \n        - Is the percentage of all reads that\
@@ -196,6 +196,11 @@ int main(
             \n          consensus using a new set of best\
             \n          reads.\
             \n    -min-read-length:                          [600]\
+            \n       - Minimum read length to keep a read.\
+            \n         Discard reads with read lengths under this\
+            \n         setting  during the binning step.\
+            \n       - Minimum read length to keep a read when binning.\
+            \n       - Length is compared after the trimming step.\
             \n    -max-read-length:                          [1000]\
             \n       - Discard reads with read lengths over\
             \n         input setting (0 to ignore)\
@@ -213,6 +218,12 @@ int main(
             \n    -min-mean-q:                               [10]\
             \n       - Minimum read mean quality score\
             \n         needed to keep a read when binning.\
+            \n    -enable-racon: [No]\
+            \n       - Use Racon in building consensuses.\
+            \n    -enable-medaka: [No]\
+            \n       - Use Medaka in building consensuses.\
+            \n    -model: [r941_min_high_g351]\
+            \n       - Model to use with Medaka_consensus\
             \n Additional Help messages:\
             \n    -h-build-consensus:\
             \n        - Print paramaters for building the consensus\

@@ -8,7 +8,41 @@ The version number for find co-infections V3 now includes the date it
   So, the version number 3.20230309 would mean that find co-infections
   was last updated on March 29th, 2023.
 
+# Standing problems:
+
+1. Racon (-enable-racon) errors out on occasion (planning on looking at
+   after I finsh the alignment step for the majority consensus step).
+2. fqGetIds and Illumina reads (see bottom of page, less likely to be
+   resolved).
+
 # Changes
+
+## 2023-03-22:
+
+1. This is mainly an updated for adding new figures and the results of
+   my benchmarking with the dataset used to benchmark the ASHURE
+   pipeline.
+2. Changed the required 0.3% of reads to keep a cluster to 1%.
+2. Also added in alignSeq.c and its supporting code in V3. This code
+   is not complete, but is here as a back up.
+   - Its goal is to add a Needleman Wunsch aligner that I can use in the
+     majority consensus step. This step will use the best read to start
+     a consensus and then align the next read to the consensus and add
+     in all insertions. This re-alignment step will repeat until a
+     consensus is built. I am hoping this will reduce the number of
+     deletion errors the majority consensus step has.
+   - Currently this aligner is overrunning the memory bounds on large
+     alignments and needs some
+     more work.
+   - It also is having a problem flagging mismatches.
+   - It only keeps two rows of scores (the previous scores and the 
+     current row) and a matrix of two bit elements having on direction
+     for each score (including discarded scores). This reduces the
+     memory usage by a good amount but selects results in only a single
+     path being selected (like the Hirschbergs (a divide and conquer
+     Needleman Wunsch algorithm with even less memory usage). This could
+     store all four possible directions (match, mismatch, indel,
+     deletion) by using a matrix of four bit elements.
 
 ## 2023-03-15:
 

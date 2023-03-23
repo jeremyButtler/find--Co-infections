@@ -5,6 +5,85 @@ This directory has the data, scripts, reference pairs, and references I
   simulated reads using Badread v0.2.0. It also includes the
   benchmarking scripts and data I used to benchmark fqGetIds.
 
+## ASHURE dataset benchmarking
+
+The ASHURE dataset I used to benchmark find co-infections was an mock
+  community I download from NCBI's SRA. It was originally used to
+  benchmark how well the ASHURE pipeline could detect OTUs in Nanopore
+  sequenced, PCR amplified reads. It was created and submitted to the
+  SRA by Baloglu et al. (2021). The dataset has two separate sequencing
+  runs (A and B) that contain the same 50 OUTs, but were prepared
+  differently. Both datasets were amplified with rolling circle
+  replication and were basecalled with guppy version 3.2.2
+  (See Baloglu et al. (2021) for further details). The rolling circle 
+  replication did make analysis more tricky for my pipeline.
+
+My ASHURE dataset benchmarking scrips and results can be found in
+  ASHURE-dataset-benchmarking.
+
+Baloglu, B., Chen, Z., Elbrecht, V., Braukmann, T., MacDonald, S. and
+  Steinke, D. (2021). A workflow for accurate metabarcoding using
+  nanopore MinION sequencing. Methods Ecol Evol. 2021;12:794-804.
+  https://doi.org/10.1111/2041-210X.13561
+
+### Files in ASHURE-dataset-benchmarking
+
+1. ASHURE-SRA-accensions-for-dataset-A.txt
+    - Accession numbers to download dataset A with NCBI prefetch
+    - ```while IFS= read -r lineStr; do prefetch "$lineStr"; fastq-dump "$lineStr"; done < ASHURE-SRA-accensions-for-dataset-A.txt```
+2. ASHURE-SRA-accensions-for-dataset-B.txt
+    - Accession numbers to download dataset A with NCBI prefetch
+    - ```while IFS= read -r lineStr; do prefetch "$lineStr"; fastq-dump "$lineStr"; done < ASHURE-SRA-accensions-for-dataset-B.txt```
+3. ASHURE-dataset-primers.fasta
+    - Primers to use with find co-infections for benchmarking the ASHURE
+      pipeline (from Baloglu et al. 2021).
+4. ASHURE-dataset-references.fasta
+    - References for the 50 OTUs in ASURE (from Baloglu et al. 2021).
+    - Each reference is marked by the haplotype ASHURE Detected, not
+      the accession numbers.
+5. ASHURE-graphs.r
+    - Makes graphs (in ../figures) used in this repository.
+    - Is hardcoded for ASHURE-full-20230314-trim--duplicate-marked.tsv
+    - Run: Rscript ASHURE-graphs.r
+6. ASHURE-full-20230314-trim--duplicate-marked.tsv
+    - File with benchmarking results with failed runs removed and
+      duplicates marked
+7. ASHURE-full-20230314-trim--stats.tsv
+    - File output by benchASHUREDataset.sh
+8. benchASHUREDataset.sh
+    - Runs find co-infections for a single benchmark
+    - Run: ```benchASHUREDataset.sh -fastq reads.fastq -ref refs.fasta -prefix output-name```
+        - Needs trimSamFile (cd V3; make trimSam; mv trimSamFile ../)
+        - Needs trimPrimers (cd V3; make trimPrimers; mv trimPrimers ../)
+        - Needs findCoInft (cd V3; make findCoInft; mv findCoInft ../)
+        - Needs scoreReads (cd V3; make scoreReads; mv scoreReads ../)
+        - Needs GNU time (/usr/bin/time)
+    - Commands:
+        - -primers file.fasta: primers to trim with
+        - -fastq file.fastq: Reads to find co-infections in
+        - -refs ref.fasta: References to trim (no primers) and score
+          clusters with
+        - -max-read-len: Maximum read length to keep a read
+        - -min-read-len: Minimum read length to keep a read
+        - -min-perc-reads: Minimum percentage of clustered reads needed
+          to keep a cluster
+        - -enable-racon: Use racon
+        - -enable-medaka: Use medaka
+        - -disable-maj: Disable the majority consensus step
+        - -rnds-polish: Number of times to rebuild the consensus
+        - -keep-files: Keep fastq and fasta files when done
+            - (discard)
+9. extra-OTU--majority-consensus-only.fasta
+    - An extra OTU my pipeline detected in the ASHURE data set.
+    - It was 98% similarity to *Leptolegina* sp. (BOLD:AAX5717, seq id.
+      HQ708212, file: ASHURE-Extra-OTU.fasta).
+    - Supplemental table 1. in Baloglu et al. 2021 had 18 Illumina reads
+      map to this reference with 98% similarity. The Illumina reads 
+      only coverd half of this reference.
+    - This support does not prove this extra OTU is reall, but does
+      raise the possiblity.
+
+
 ## fqGetIds benchmarking
 
 All fqGetIds benchmarkings scripts and data are in the

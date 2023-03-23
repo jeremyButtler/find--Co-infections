@@ -57,7 +57,7 @@ findCoInft -fastq reads.fastq -ref refferences.fasta [other options...]
   - -min-mean-q:                                               [10]
     - Minimum read mean quality score needed to keep a read
       in inital filtering steps.
-  - -min-per-reads:                                        [0.003=0.3%]
+  - -min-per-reads:                                        [0.01=1%]
     - Minimum percentage of total clustered reads needed
       to keep a cluster.
   - -enable-racon:                                               [No]
@@ -158,7 +158,77 @@ Also in the UP9 dataset, I found that find co-infections V3 detected
   at deeper read depths. I would advise removing any co-infections that
   have less than 1% of read support
   (See dataAnalaysis/all-kept-read-counts.tsv for my counts).
-  
+
+### Real data testing methods
+
+find co-infections version three was run on datasets A, B, and A and B
+  combined that Baloglu et al. (2021) used to benchmark the ASHURE
+  pipeline (see dataAnalysis/README.md for more details). To avoid
+  building a reference database I trimmed the reads down that mapped to
+  one of the references for the 50 OTUs in the datasets. Supplemental
+  mappings were discarded, but unmapped reads were kept
+  (trimSamFile -keep-unmapped-reads). I also ran a set of separate tests
+  were the reads were trimmed based on the input primers and not by the
+  references. Scores were found by mapping the reads to their refrences
+  and scoreReads. Any scores discared by scoreReads were marked NA.
+
+Find co-infections was used with various combinations of Racon
+  (-enable-racon), Medaka (-enable-medaka) -model r941_min_high_g303,
+  and the the majority consensus step
+  (disabled by -disable-majority-consensus). Primers were added with
+  -primers primers.fasta when reference trimming was not done. In all
+  cases the binning step was skipped with -skip-bin. The maximum read
+  length was set to 750 base pairs (-max-read-len 750) and a cluster
+  needed at least 0.3% of all clustered reads to be kept
+  (-min-per-reads 0.003).
+
+Baloglu, B., Chen, Z., Elbrecht, V., Braukmann, T., MacDonald, S. and
+  Steinke, D. (2021). A workflow for accurate metabarcoding using
+  nanopore MinION sequencing. Methods Ecol Evol. 2021;12:794-804.
+  https://doi.org/10.1111/2041-210X.13561
+
+### Real data testing results
+
+![Stacked bar chart showing that Racon detected the most false positive
+  consensus, had the most innacurate consensus for SNPs. Medaka
+  improved the results from both Racon and the majority consensus step.
+  Finally it also shows that the reference trimming reduced the number
+  of false positives](figures/ASHURE-bench--snps.svg)
+
+The chart above shows the number of false positive and correctly
+  detected consensus find co-infections detected. The solid line
+  indicates the total number of OTUs, while the dashed line indicates
+  the number of OTUs that have over 100 reads without supplemental
+  mappings. In each name maj standrs for majority consensus, rac stands
+  for Racon, med sntads for Medaka, Ref stands for reference trimming 
+  and Primer stands for primer trimming.
+
+We can see that Racon detected the most false positives and had a higher
+  number of SNP errors than either medaka or the majority consensus.
+  Medaka did well alone, but had even better results when it was
+  combined with the majority consensus step.
+
+We also see a reduced chance of detecting false positives for Medaka and
+  the majority consensus steps when the reads were trimmed by the
+  reference. In all cases we found at least one consensus that did not
+  map to a reference. However at least one of these NAs does have some
+  support for being a real consensus (see dataAnaylsis/README.md for
+  my evidence).
+
+For indels we found that Medaka performed the best and that Racon
+  performed the worst, with the majority consensus being a close second
+  to Racon (see figures/ASHURE-bench--indels).
+
+![Dot plot showing that few false positives detected by Medaka and the
+  majority consensus step could be removed by requiring 1% of reads
+  be present](figures/ASHURE-bench--perReads.svg)
+
+We found that by requiring 1% of reads instead of 0.3% of reads would
+  reduce the number of false positives detected for Medaka and majority
+  consensus down to one unmapped consensus, which is likely the one
+  consensus that might be a genuine OTU. However, this reduction does
+  come with a large decrease in the number of detected OUTs.
+
 ### Take away:
 
 We have shown that find co-infections V3 is better than find
@@ -175,6 +245,21 @@ We also found that find co-infections did have similar results to
   depths. One problem is that this is not a ground truth dataset and
   thus, we have no idea what the real answer is for any of these
   samples.
+
+We have tested find co-infections version three on a real
+  dataset that was basecalled with guppy version 3.2.2 and found that 
+  with the right settings it could produce reliable results. However,
+  the sensitivity is reduced compared to other pipelines like ASHURE. 
+  One weakness is that this dataset as OTUs that are 15% different and
+  so it did not test find co-infections ability to detect similar
+  co-infections.
+
+We can also say from the real dataset that Medaka is the best option 
+  and that the majority consensus step could provide some improvement
+  in consensus accuracy. However, it does reduce the consensus length
+  down a bit (see figures/ASHURE-bench--lenDiff.svg). Also not mentioned
+  previously is that the primer trimming step does sometimes add some
+  bases at the end (see figures/ASHURE-bench--extraConLen.svg).
  
 ## Weaknesses:
 
