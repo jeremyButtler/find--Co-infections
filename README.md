@@ -221,7 +221,7 @@ For indels we found that Medaka performed the best and that Racon
 
 ![Dot plot showing that few false positives detected by Medaka and the
   majority consensus step could be removed by requiring 1% of reads
-  be present](figures/ASHURE-bench--perReads.svg)
+  be present](figures/ASHURE-bench--percReads.svg)
 
 We found that by requiring 1% of reads instead of 0.3% of reads would
   reduce the number of false positives detected for Medaka and majority
@@ -443,7 +443,8 @@ Their are many people who made this project possible.
     for the binning step.
   - Devin Drown: Who was one of my mentors through graduate school and
     is still a mentor. He helped in the development my graphs, helped in
-    the benchmarking for my pipeline, and gave me advice.
+    the benchmarking for my pipeline, and gave me advice. One big thing
+    that helped was introducing me to the ASHURE data set.
   - Matthew Redlinger: Who is a skilled bioinformation and was always
     willing to give advise.
   - Eric Bortz: Who was one of my mentors in graduate school and still
@@ -474,6 +475,15 @@ Their are many people who made this project possible.
     of find co-infections.
   - To Ryan Wick, who I again never met or interacted with, but made
     the read simulation software I used to test find co-infections with. 
+  - To Baloglu et al. (2021), who I again never meant, but were willing
+    to post their mock community on the SRA, which allowed me to test
+    find co-infections on real data.
+  - To the people (never met) who coded baba
+    (https://baba.sourceforge.net/). It gave me a great visual on how
+    the Needleman Wunsch algorithim worked. Their were many other
+    sources, but this was the one that was the most useful to me.
+  - I should also should thank the people how coded Minimap2, Racon,
+    and Medaka, since these are integrated into find co-infections.
   - Finally the Universities of Fairbanks and Anchorage Alaska, who 
     provided me with TA ships while I was in graduate school. During
     this time I wrote and tested version one and two of find
