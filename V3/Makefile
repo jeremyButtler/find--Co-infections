@@ -154,6 +154,7 @@ extractReadsGcc=-Wall \
 
 alignSeqGcc=-Wall\
     sequenceFun.c \
+    cStrToNumberFun.c \
     alignmentsFun.c \
     alignSeq.c \
     -o alignSeq
@@ -203,7 +204,7 @@ extractReads:
 	$(CC) -O3 $(extractReadsGcc) || gcc -O3 $(extractReadsGcc) || egcc -O3 $(extractReadsGcc) || cc -O3 $(extractReadsGcc)
 
 # For my Needleman Wunsch alignment (May add some more stuff later)
-alignSeqGcc:
+alignSeq:
 	$(CC) -Ofast $(alignSeqGcc) || gcc -Ofast $(alignSeqGcc) || egcc -Ofast $(alignSeqGcc) || cc -Ofast $(alignSeqGcc)
 
 # commands for indvidual compilers

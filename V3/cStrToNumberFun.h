@@ -81,4 +81,15 @@ char * uCharToCStr(
     unsigned char uCharToCnvt /*Chacter to convert to numeric c-string*/
 ); /*converts unsigned character value to a numeric c-string*/
 
+/*---------------------------------------------------------------------\
+| Output: Returns last character & puts the converted number into numS
+\---------------------------------------------------------------------*/
+char * cStrToInt16(
+    char *cStrToCnvt, // CString with number short
+    int16_t *numS     // Will hold the new short
+); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-6 TOC: Sec-1 Sub-1: cStrToInt16
+   '  - Convert a c-string to an int16_t (short)
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
 #endif

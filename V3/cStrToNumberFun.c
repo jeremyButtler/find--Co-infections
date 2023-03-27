@@ -361,3 +361,73 @@ char * uCharToCStr(
     *buffCStr = '\0';
     return buffCStr;
 } /*uCharToCStr*/
+
+/*---------------------------------------------------------------------\
+| Output: Returns last character & puts the converted number into numS
+\---------------------------------------------------------------------*/
+char * cStrToInt16(
+    char *cStrToCnvt, // CString with number short
+    int16_t *numS     // Will hold the new short
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-6 TOC: Sec-1 Sub-1: cStrToInt16
+   '  - Convert a c-string to an int16_t (short)
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    *numS = 0;
+
+    // Check if it is a negative number
+    if(*cStrToCnvt == '-')
+    { // If have a negative symbol
+        ++cStrToCnvt; // Move of the negative symbol
+
+        if(*(cStrToCnvt) - 58 < 0 && *(cStrToCnvt) - 47 > 0)
+            *numS = -1 * (*cStrToCnvt - 48);
+
+        else return (cStrToCnvt - 1); // - alone is not a numeric value
+    } // If have a negative symbol
+
+    else if(*cStrToCnvt - 58 < 0 && *cStrToCnvt - 47 > 0)
+        *numS = *cStrToCnvt - 48;
+
+    else return cStrToCnvt;
+
+    ++cStrToCnvt;    // Move to the next character
+
+    // convert the next two digits (no overflow risk
+    for(uint32_t intCnt = 0; intCnt < 2; ++intCnt)
+    { /*Convert digits with no overflow concern*/
+        if(*cStrToCnvt - 58 < 0 && *cStrToCnvt - 47 > 0)
+            *numS = *numS * 10 + *cStrToCnvt - 48;
+
+        else return cStrToCnvt;
+
+        ++cStrToCnvt;
+    } /*Convert digits with no overflow concern*/
+
+    /*Convert last two digits, which could overflow*/
+    if(*cStrToCnvt - 58 < 0 && *cStrToCnvt - 47 > 0)    /*4th digit*/
+    { /*If have one or tow more numbers*/
+        if(10 * (*numS & (~(1 << 15))) + *cStrToCnvt - 48 > 1000)
+        { /*If can fit in one more number*/
+            *numS = *numS * 10 + *cStrToCnvt - 48;
+            ++cStrToCnvt;
+        } /*If can fit in one more number*/
+
+        else
+            return cStrToCnvt;
+    } /*If have one or tow more numbers*/
+    else
+        return cStrToCnvt;
+
+    if(*cStrToCnvt - 58 < 0 && *cStrToCnvt - 47 > 0)    /*5th digit*/
+    { /*If have one more number*/
+        if(10 * (*numS & (~(1 << 15))) + *cStrToCnvt - 48 > 1000)
+        { /*If would not cause an overflow*/
+            /*Need to use > 1000 because will keep value as int*/
+            *numS = *numS * 10 + *cStrToCnvt - 48;
+            ++cStrToCnvt;
+        } /*If would not cause an overflow*/
+    } /*If have one more number*/
+
+    return cStrToCnvt;
+} // cStrToInt16

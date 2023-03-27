@@ -122,7 +122,7 @@ uint8_t * NeedleManWunschAln(
     int32_t refEndI,        // Ending reference coordinate for alignment
     struct alnSet *settings,// Settings for the alignment
     uint32_t *lenErrAryUI,  // Will hold the return arrays length
-    int32_t *scoreI        // Score for the alignment (bottom right)
+    long *scoreL        // Score for the alignment (bottom right)
     // *startI and *endI paramaters should be index 1
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
    ' Fun-05 TOC: NeedleManWunschAln
@@ -152,20 +152,18 @@ uint8_t * NeedleManWunschAln(
    unsigned long lenQueryUL = queryEndI - queryStartI + 1;
        // +1 to convert back to 1 index (subtraction makes 0)
    unsigned long lenRefUL = refEndI - refStartI + 1;
-   unsigned long lenMatrixUL = 1+(((lenRefUL+1) * (lenQueryUL+1)) >> 2);
+   unsigned long lenMatrixUL = 0;
 
        // +1 to convert back to 1 index (subtraction makes 0)
 
-   int32_t snpScoreI = 0;     // Score for single base pair
-   int32_t scoreTopI = 0;     // Score when using the top cell
-   int32_t scoreDiagnolI = 0; // Score when using the diagnol cell
-   int32_t scoreLeftI = 0;    // Score when using the left cell
+   long snpScoreI = 0;     // Score for single base pair
+   long scoreTopI = 0;     // Score when using the top cell
+   long scoreDiagnolI = 0; // Score when using the diagnol cell
+   long scoreLeftI = 0;    // Score when using the left cell
 
    long *scoreMatrixL = 0; // matrix to use in alignment
    long *scoreOnLPtr = 0;  // Score I am currently working on
    long *lastBaseLPtr = 0; // Pointer to cell with last base
-
-   uint32_t shiftByI = 0;      // How much to shift back when aliging
 
    uint8_t *dirMatrixUC = 0;  // Directions for each score cell
    uint8_t bitElmUC = 0;      // The value of a single bit element
@@ -199,6 +197,7 @@ uint8_t * NeedleManWunschAln(
 
    // This gives me an array of 0's (so no extra clearing)
    // This array is used for finding the directions
+   lenMatrixUL = 1 + (((lenRefUL + 1) * (lenQueryUL + 1)) >> 2);
    dirMatrixUC = calloc(lenMatrixUL, sizeof(uint8_t));
        // Make the direction array for the scoring array
        // 1 + is to make sure have enough chars
@@ -295,7 +294,9 @@ uint8_t * NeedleManWunschAln(
              firstRoundBl = 0; // Never will be reset
              break;
 
-           case 0: *scoreOnLPtr = settings->gapExtendPenaltyI;
+           case 0:
+             *scoreOnLPtr = *lastBaseLPtr + settings->gapExtendPenaltyI;
+             break;
            // Else is the first indel for the indel column
        } // Switch, check if on the 1st cell of the 2nd row
  
@@ -339,26 +340,45 @@ uint8_t * NeedleManWunschAln(
 
            else
            { // else the bases do not match
+               // Check if this is the first indel or not
+               switch(getTwoBitAryElm(topDirUCPtr, &topBitUC))
+               { // Switch; check if this is the first indel
+                 case defMoveMatch:    // Top base was a match
+                 case defMoveDiagnol:  // Top base was a SNP
+                     scoreTopI =
+                         *lastBaseLPtr + settings->gapStartPenaltyI;
+                   // Top base was not an indel, so this is an new indel
+                     break;
 
-               // Find the score for the top cell (insertion)
-               //bitElmUC = getTwoBitAryElm(topDirUCPtr, &topBitUC);
-
-               if(bitElmUC & 1)     // If is the first indel
-                 scoreTopI = *lastBaseLPtr + settings->gapStartPenaltyI;
-               else                 // Else is part of a larger indel
-                 scoreTopI = *lastBaseLPtr +settings->gapExtendPenaltyI;
+                 case defMoveUp:   // Top base was an insertion
+                 case defMoveLeft: // Top base was an deletion
+                     scoreTopI =
+                         *lastBaseLPtr + settings->gapExtendPenaltyI;
+                     // Top base was an indel, so this is an extended
+                     break;
+               } // Switch; check if this is the first indel
 
                // find the score for the left cell (deletion)
                if(bitUC > 0) bitElmUC = (*dirOnUCPtr & (4 | 8)) >> 2;
                else bitElmUC = getTwoBitAryElm(leftDirUCPtr,&leftBitUC);
                   // If handles when have an incomplete element
 
-               if(bitElmUC & 1)     // If is the first indel
-                 scoreLeftI =
-                     *(scoreOnLPtr - 1) + settings->gapStartPenaltyI;
-               else                 // Else is part of a larger indel
-                 scoreLeftI =
-                     *(scoreOnLPtr - 1) + settings->gapExtendPenaltyI;
+               switch(bitElmUC)
+               { // Switch; check if this is the first indel
+                 case defMoveMatch:    // left base was a match
+                 case defMoveDiagnol:  // Left base was a SNP
+                     scoreLeftI =
+                        *(scoreOnLPtr - 1) + settings->gapStartPenaltyI;
+                   // Left base was not an indel, so this is an new indel
+                     break;
+
+                 case defMoveUp:   // Left base was an insertion
+                 case defMoveLeft: // Left base was an deletion
+                     scoreLeftI =
+                         *(scoreOnLPtr - 1)+settings->gapExtendPenaltyI;
+                     // Left base was an indel, so this is an extended
+                     break;
+               } // Switch; check if this is the first indel
 
                /********************************************************\
                * Fun-05 Sec-4 Sub-3: Find direction (best score)
@@ -415,7 +435,7 @@ uint8_t * NeedleManWunschAln(
        } // loop; compare one query to one reference base
 
        // Will end on the corrnor cell
-       *scoreI = *(scoreOnLPtr - 1);
+       *scoreL = *(scoreOnLPtr - 1);
 
        if(swapBuffBl & 1)
        { // If need to swap the buffers
@@ -442,20 +462,9 @@ uint8_t * NeedleManWunschAln(
    * Fun-05 Sec-5 Sub-1: Get to the very last score (bottom right)
    \*******************************************************************/
 
+   twoBitAryMoveBackOneElm(&dirOnUCPtr, &bitUC);
+   bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitUC);
    // Move to bottom right base to trace back the path
-   switch(bitUC)
-   { // Switch; check if need to move to new direction element
-       case 0: // moved to new char, so last score is 1st & 2nd bits
-          --dirOnUCPtr;  // Move back to the char for the last score
-          bitElmUC = *dirOnUCPtr & (1 | 2);
-          break;
-       case 1:           // Is the last bit 
-       case 2:
-       case 3:                                // The first two bitsk
-          bitElmUC = *dirOnUCPtr >> 2; //Get off score after final score
-          bitElmUC = *dirOnUCPtr & (1 | 2);
-          break;
-   } // Switch; check if need to move to new direction element
 
    /*******************************************************************\
    * Fun-05 Sec-5 Sub-2: Find the best path
@@ -508,11 +517,11 @@ uint8_t * NeedleManWunschAln(
    free(dirMatrixUC);
 
    // flag the end of the error array
-   *(alnErrAryUC + numErrUI - 1) = 0;
+   *(alnErrAryUC + numErrUI) = 0;
        // Not the last direction (last score) is the starting 0 cell
 
    startUCPtr = alnErrAryUC;
-   endUCPtr = (alnErrAryUC + numErrUI - 2);
+   endUCPtr = (alnErrAryUC + numErrUI - 1);
 
    while(startUCPtr < endUCPtr)
    { // While I have elements to inver
@@ -775,7 +784,7 @@ struct alnSet * makeAlnSetST(
 /*---------------------------------------------------------------------\
 | Output: Returns score of a single pair of bases
 \---------------------------------------------------------------------*/
-int8_t getBasePairScore(
+int16_t getBasePairScore(
     const char *queryBaseC, // Query base of pair to get score for
     const char *refBaseC,   // Reference base of pair to get score for
     struct alnSet *alnSetST // structure with scoring matrix to change
@@ -1146,7 +1155,7 @@ void initAlnSet(
 void setBasePairScore(
     const char *queryBaseC,   // Query base to change score for
     const char *refBaseC,     // Reference base to change score for
-    char newScoreC,         // New value for [query][ref] combination
+    int16_t newScoreC,        // New value for [query][ref] combination
     struct alnSet *alnSetST   // structure with scoring matrix to change
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
    ' Fun-14 TOC: Sec-1 Sub-1: setBasePairScore
@@ -1469,393 +1478,80 @@ void cnvtAlnErrAryToLetter(
     return;
 } // cnvtAlnErryAryToLetter
 
-/*---------------------------------------------------------------------\
-| Output:
-|  - Returns:
-|    o array with flags for snp/match, insertion, and deletions at each
-|      position. (1 = snp/match, 2 = insertion, 4 = deletion)
-|    o 0 for memory allocation errors
-|  - Modifies:
-|    o lenErrAryUI to hold the length of the returned array
-\---------------------------------------------------------------------*/
-uint8_t * NeedleManWunschAlnCostly(
-    char *queryCStr,        // Full query sequence as c-string
-    int32_t queryStartI,    // Starting query coordinate for alignment
-    int32_t queryEndI,      // Ending query coordinate for alignment
-    char *refCStr,          // Full reference sequence as c-string
-    int32_t refStartI,      // Starting reference coordinate for aln
-    int32_t refEndI,        // Ending reference coordinate for alignment
-    struct alnSet *settings,// Settings for the alignment
-    uint32_t *lenErrAryUI,  // Will hold the return arrays length
-    int32_t *scoreI        // Score for the alignment (bottom right)
-    // *startI and *endI paramaters should be index 1
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-0? TOC: NeedleManWunschAlnCostly
-   '  - Perform a Needleman-Wunsch alignment on input sequences
-   '    this variation uses a scoring array and direction array
-   '  o fun-0? sec-1: Variable declerations
-   '  o fun-0? sec-2: Allocate memory for alignment
-   '  o fun-0? sec-3: Fill in the initial negatives for the reference
-   '  o fun-0? sec-4: Fill the matrix with scores
-   '  o fun-0? sec-5: Find the best path
-   '  o fun-0? sec-6: Clean up and invert error array
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-1: Variable declerations
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   char *tmpRefCStr = refCStr;
-   char *tmpQueryCStr = queryCStr;
-
-   // Find the length of the reference and query
-   int32_t lenQueryI = queryEndI - queryStartI + 1;
-       // +1 to convert back to 1 index (subtraction makes 0)
-   int32_t lenRefI = refEndI - refStartI + 1;
-       // +1 to convert back to 1 index (subtraction makes 0)
-
-   int32_t snpScoreI = 0;     // Score for single base pair
-   int32_t scoreTopI = 0;     // Score when using the top cell
-   int32_t scoreDiagnolI = 0; // Score when using the diagnol cell
-   int32_t scoreLeftI = 0;    // Score when using the left cell
-
-   int32_t *scoreMatrixI = 0; // matrix to use in alignment
-   int32_t *scoreOnIPtr = 0;  // Score I am currently working on
-   int32_t *lastBaseIPtr = 0; // Pointer to cell with last base
-   int32_t shiftByI = 0;      // How much to shift back when aliging
-
-   uint8_t *dirMatrixUC = 0;  // Directions for each score cell
-   uint8_t bitElmUC = 0;      // The value of a single bit element
-   uint8_t *dirOnUCPtr = 0;   // Score working on
-   uint8_t bitUC = 0;  // Keep track of if need to change direction elm
-
-   uint8_t *topDirUCPtr = 0; // Direction of last score in the matrix
-   uint8_t topBitUC = 0;     // Element on for last direction
-
-   uint8_t *leftDirUCPtr = 0;
-   uint8_t leftBitUC = 0;
-     // Every 2 bits tells were to move next 11=top,10=diagnol,01=left
-     // Find next cell: top: scoreOnIPtr - lenRefI;
-     // Find next cell: diagnol: scoreOnIPtr - lenRefI - 1;
-     // Find next cell: left: --scoreOnIPtr;
-
-   uint8_t *alnErrAryUC = 0;   // Error type array (match/snp, ins, del)
-   uint32_t numErrUI = 0;      // Number of error detected
-   uint8_t *startUCPtr = 0;    // For inverting the alignment array
-   uint8_t *endUCPtr = 0;     // For inverting the alignment array
-   uint8_t swapUC = 0;         // For swaping elements in the array
-
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-2: Allocate memory for alignment
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   scoreMatrixI =
-       malloc(sizeof(int32_t) * ((lenRefI + 1) * (lenQueryI + 1)));
-       // lenRefI + 1 is to account for the insertion  reference row
-       // lenQeurI + 1 is to account for insertion zero query column
-   if(scoreMatrixI == 0) return 0;
-
-   // This gives me an array of 0's (so no extra clearing)
-   dirMatrixUC =
-       calloc((
-           1 + (((lenRefI + 1) * (lenQueryI + 1)) >> 2)),
-           sizeof(uint8_t)
-   ); // Make the direction array for the scoring array
-       // 1 + is to make sure have enough chars
-       // lenRefI + 1 is to account for the insertion  reference row
-       // lenQeurI + 1 is to account for insertion zero query column
-       // x >> 2 = x / 4 & accounts for taking 2 bits (char = 8 bits)
-          // per cell
-
-   if(dirMatrixUC == 0)
-   { // If I do not have a direction matrix for each cell
-       free(scoreMatrixI);
-       return 0;
-   } // If I do not have a direction matrix for each cell
-
-   // Longest path in an n^2 matrix is query + reference
-   if(*lenErrAryUI == 0) *lenErrAryUI = lenQueryI + lenRefI;
-   alnErrAryUC = malloc(sizeof(int8_t) * *lenErrAryUI);
-
-   if(alnErrAryUC == 0) 
-   { /*If I had a memory allocation error*/
-       free(scoreMatrixI);
-       free(dirMatrixUC);
-       return 0;
-   } /*If I had a memory allocation error*/
-
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-3: Fill in the initial negatives for the reference
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   // Build up the indels for the reference row
-   scoreOnIPtr = scoreMatrixI;
-   *scoreOnIPtr = 0;         // Top left cell
-   ++scoreOnIPtr;            // Move to first reference base cell
-   *scoreOnIPtr = settings->gapStartPenaltyI;
-       // Second column of the first row holds the first indel
-   ++scoreOnIPtr;            // Move to first reference base cell
-
-   // Get direction matrix in sync with scoring matrix
-   dirOnUCPtr = dirMatrixUC; // Move left
-   *dirOnUCPtr |= defMoveLeft;
-   *dirOnUCPtr = *dirOnUCPtr << 2;
-
-   *dirOnUCPtr |= defMoveLeft;
-   *dirOnUCPtr = *dirOnUCPtr << 2;
-   bitUC = 2;                 // Have one value in the two bit array
-
-   // <= to deal with extra blank column with indel penalty
-   for(int32_t iCol = 2; iCol <= lenRefI; ++iCol)
-   { // loop; till have initalized the first row
-       *scoreOnIPtr = *(scoreOnIPtr - 1) +settings->gapExtendPenaltyI;
-       *dirOnUCPtr |= defMoveLeft;
-
-       ++scoreOnIPtr; // Move to the next element
-       // Move past elements in the bit array
-       // Not worried about specifiying left shift (0), since calloc
-       // already set everything to 0.
-
-       twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
-   } // loop; till have initalized the first row
-
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-4: Fill the matrix with scores
-   ^  o fun-0? sec-4 sub-1: Fill in the indel column
-   ^  o fun-0? sec-4 sub-2: Get scores for insertion, deletion, match
-   ^  o fun-0? sec-4 sub-3: Find direction from scores (best score)
-   ^  o fun-0? sec-4 sub-4: Move to the next refernce/query base
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   /*******************************************************************\
-   * Fun-0? Sec-4 Sub-1: Fill in the indel column
-   \*******************************************************************/
-
-   lastBaseIPtr = scoreMatrixI; // Starting on the 0 cell
-
-   // Direction of the upper cell
-   topDirUCPtr = dirMatrixUC;
-   topBitUC = 0;
-
-   // Starting on the first sequence row
-   for(int32_t iRow = 0; iRow < lenQueryI; ++iRow)
-   { // loop; compare one query base against all reference bases
-
-       // Set up the indel column
-       if(lastBaseIPtr != scoreMatrixI)
-           *scoreOnIPtr = *lastBaseIPtr + settings->gapExtendPenaltyI;
-       else
-           *scoreOnIPtr = settings->gapStartPenaltyI;
-           // Else is the first indel for the indel column
- 
-       *dirOnUCPtr |= defMoveUp; // Set to move to top
-       leftDirUCPtr = dirOnUCPtr; // Previous direction
-       leftBitUC = bitUC;         // bit of previous direction
-
-       // Move to the first base comparison
-       ++scoreOnIPtr;  // Get of negative column for the new query base
-       ++lastBaseIPtr; // Get of negative column for last query base
-
-       twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
-       twoBitAryMoveToNextElm(&topDirUCPtr, &topBitUC);
-
-       tmpRefCStr = refCStr; // Start at the beging of the reference
-
-       /***************************************************************\
-       * Fun-0? Sec-4 Sub-2: Get scores for insertion, deletion, match
-       \***************************************************************/
-
-       // First reference bases column (indel column already handled)
-       for(int32_t iCol = 0; iCol < lenRefI; ++iCol)
-       { // loop; compare one query to one reference base
-
-           snpScoreI =
-              getBasePairScore(
-                  tmpQueryCStr,
-                  tmpRefCStr,
-                  settings
-           ); // Find the score for the two base pairs
-
-           // Find the score for the diagnol cell (snp/match)
-           scoreDiagnolI = *(lastBaseIPtr - 1) + snpScoreI;
-
-           // Check if I need to find the other scores
-           if(checkIfBasesMatch(tmpQueryCStr, tmpRefCStr) & 1)
-           { //If I have a match
-               *dirOnUCPtr |= defMoveMatch;
-               *scoreOnIPtr = scoreDiagnolI;
-           } //If I have a match
-
-           else
-           { // else the bases do not match
-
-               // Find the score for the top cell (insertion)
-               bitElmUC = getTwoBitAryElm(topDirUCPtr, &topBitUC);
-
-               if(bitElmUC & 1)     // If is the first indel
-                 scoreTopI = *lastBaseIPtr + settings->gapStartPenaltyI;
-               else                 // Else is part of a larger indel
-                 scoreTopI = *lastBaseIPtr +settings->gapExtendPenaltyI;
-
-               // find the score for the left cell (deletion)
-               if(bitUC > 0) bitElmUC = (*dirOnUCPtr & (4 | 8)) >> 2;
-               else bitElmUC = getTwoBitAryElm(leftDirUCPtr,&leftBitUC);
-                  // If handles when have an incomplete element
-
-               if(bitElmUC & 1)     // If is the first indel
-                 scoreLeftI =
-                     *(scoreOnIPtr - 1) + settings->gapStartPenaltyI;
-               else                 // Else is part of a larger indel
-                 scoreLeftI =
-                     *(scoreOnIPtr - 1) + settings->gapExtendPenaltyI;
-
-               /********************************************************\
-               * Fun-0? Sec-4 Sub-3: Find direction (best score)
-               \********************************************************/
-               
-               // The logic here is that I decide the best path as I
-               // score, since the best of equal alternatives will
-               // always follow an arbitary decision or report all
-               // possible paths (I only care about 1). This allows me
-               // to use a smaller direction matrix, but does add in
-               // some more time.
-               if(scoreTopI > scoreDiagnolI)
-               { // If top score is better than the diagnol (or as good)
-                   if(scoreTopI >= scoreLeftI)
-                   { // If have a better top score
-                       *dirOnUCPtr |= defMoveUp;
-                       *scoreOnIPtr = scoreTopI;
-                   } // If have a better top score
-
-                   else
-                   { // Else if have a better left score
-                       *dirOnUCPtr |= defMoveLeft;
-                       *scoreOnIPtr = scoreLeftI;
-                   } // Else if have a better left score
-               } // If top score is better than the diagnol (or as good)
-
-               else if(scoreLeftI <= scoreDiagnolI)
-               { //else if have a better or as good diagnol score
-                   *dirOnUCPtr |= defMoveDiagnol;
-                   *scoreOnIPtr = scoreDiagnolI;
-               } //else if have a better or as good diagnol score
-
-               else
-               { //Else have a better left score
-                   *dirOnUCPtr |= defMoveLeft;
-                   *scoreOnIPtr = scoreLeftI;
-               } //Else have a better left score
-           } // If the bases do not match
-
-           /************************************************************\
-           * Fun-0? Sec-4 Sub-4: Move to the next refernce/query base
-           \************************************************************/
-       
-           // Move to the next cell to score
-           ++scoreOnIPtr; // Move to next comparison for this query base
-           ++lastBaseIPtr; // Move to next element
-           ++tmpRefCStr;   // Move to the next reference base
-
-           leftDirUCPtr = dirOnUCPtr; // Previous direction
-           leftBitUC = bitUC;         // bit of previous direction
-
-           twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
-           twoBitAryMoveToNextElm(&topDirUCPtr, &topBitUC);
-       } // loop; compare one query to one reference base
-
-       ++tmpQueryCStr; // Move to the next query base
-   } // loop; compare one query base against all reference bases
-
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-5: Find the best path
-   ^   o fun-0? sec-5 sub-1: Get to the very last score (bottom right)
-   ^   o fun-0? sec-5 sub-2: Find the best path
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   /*******************************************************************\
-   * Fun-0? Sec-5 Sub-1: Get to the very last score (bottom right)
-   \*******************************************************************/
-
-   // Move to the bottom right base
-   --scoreOnIPtr;
-   *scoreI = *scoreOnIPtr;           // Get the socre for the alignment
-
-   switch(bitUC)
-   { // Switch; check if need to move to new direction element
-       case 0: // moved to new char, so last score is 1st & 2nd bits
-          --dirOnUCPtr;  // Move back to the char for the last score
-          bitElmUC = *dirOnUCPtr & (1 | 2);
-          break;
-       case 1:           // Is the last bit 
-       case 2:
-       case 3:                                // The first two bitsk
-          bitElmUC = *dirOnUCPtr >> 2; //Get off score after final score
-          bitElmUC = *dirOnUCPtr & (1 | 2);
-          break;
-   } // Switch; check if need to move to new direction element
-
-   /*******************************************************************\
-   * Fun-0? Sec-5 Sub-2: Find the best path
-   \*******************************************************************/
-
-   while(scoreOnIPtr > scoreMatrixI)
-   { // While I have more bases to add to the path
-       switch(bitElmUC)
-       { // Switch: check what the next base is in the sequence
-           case defMoveUp:                    // Move to top (insertion)
-               shiftByI = (scoreOnIPtr - scoreMatrixI) - lenRefI - 1;
-               *(alnErrAryUC + numErrUI) = defInsFlag;  // flag for ins
-               break;
-
-           case defMoveMatch:
-               *(alnErrAryUC + numErrUI) = defMatchFlag; // match
-               shiftByI = (scoreOnIPtr - scoreMatrixI) - lenRefI - 2;
-               break;
-
-           case defMoveDiagnol:           // Move to diagnol (match/snp)
-               *(alnErrAryUC + numErrUI) = defBaseFlag; // snp
-               shiftByI = (scoreOnIPtr - scoreMatrixI) - lenRefI - 2;
-               break;
-
-           case defMoveLeft:              // Move to left (deletion)
-               shiftByI = (scoreOnIPtr - scoreMatrixI) - 1;
-               *(alnErrAryUC + numErrUI) = defDelFlag;  // flag for del
-               break;
-       } // Switch: check what the next base is in the sequence
-
-       scoreOnIPtr = scoreMatrixI + shiftByI;
-
-       // Get the next direction
-       dirOnUCPtr = dirMatrixUC + (shiftByI >> 2);
-         // >> 2 accounts for having 4 scores per char
-       bitElmUC = shiftByI & (1 | 2); // Get the bit on
-       bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitElmUC);
-           // Gives the new direction
-
-       ++numErrUI; // Account for the added error
-   } // While I have more bases to add to the path
-
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-0? Sec-6: Clean up and invert error array
-   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
-
-   free(scoreMatrixI);
-   free(dirMatrixUC);
-
-   *(alnErrAryUC + numErrUI) = 0;    // flag the end of the error array
-
-   startUCPtr = alnErrAryUC;
-   endUCPtr = (alnErrAryUC + numErrUI - 1);
-
-   while(startUCPtr < endUCPtr)
-   { // While I have elements to inver
-       swapUC = *endUCPtr;
-       *endUCPtr = *startUCPtr;
-       *startUCPtr = swapUC;
-       ++startUCPtr;
-       --endUCPtr;
-   } // While I have elements to inver
-
-   return alnErrAryUC;
-} // NeeldeManWunschAln
-
+unsigned long readInScoreFile(
+    struct alnSet *alnSetST,  // structure with scoring matrix to change
+    FILE *scoreFILE           // File of scores for a scoring matrix
+) { /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-18 TOC: readInScoreFile
+    '  - Reads in a file of scores for a scoring matrix
+    '  o fun-18 sec-1: Variable declerations and buffer set up
+    '  o fun-18 sec-2: Read in line and check if comment
+    '  o fun-18 sec-3: Get score, update matrix, & move to next line
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-18 Sec-1: Variable declerations and buffer set up
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    uint16_t lenBuffUS = 1024;
+    char buffCStr[lenBuffUS];
+    char *tmpCStr = 0;
+    int16_t scoreS = 0;
+
+    buffCStr[lenBuffUS - 1] = '\0';
+    buffCStr[lenBuffUS - 2] = '\0';
+
+    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+    ^ Fun-18 Sec-2: Read in line and check if comment
+    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+    while(fgets(buffCStr, 1024, scoreFILE))
+    { // While I have scores to read in
+        
+        if(buffCStr[0] == '/' && buffCStr[1] == '/')
+        { // On a comment, move onto the next line
+            while(
+                buffCStr[lenBuffUS - 2] != '\0' &&
+                buffCStr[lenBuffUS - 2] != '\n'
+            ) { // While have more buffer to read in
+                buffCStr[lenBuffUS - 2] = '\0';
+                fgets(buffCStr, 1024, scoreFILE);
+            } // While have more buffer to read in
+
+            // Reset the buffer
+            buffCStr[lenBuffUS - 2] = '\0';
+
+            continue;
+        } // On a comment, move onto the next line
+
+        /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+        ^ Fun-18 Sec-3: Get score, update matrix, & move to next line
+        \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+        if(buffCStr[0] == '\n')
+            continue;                        // Blank line
+
+        if(buffCStr[0] < 64 && buffCStr[2] < 64)
+            return ftell(scoreFILE);         // Invalid character
+        
+        tmpCStr = cStrToInt16(&buffCStr[4], &scoreS);
+        setBasePairScore(&buffCStr[0], &buffCStr[2], scoreS, alnSetST);
+
+        if(tmpCStr == &buffCStr[3])
+            return ftell(scoreFILE);         // No score
+
+        while(
+            buffCStr[lenBuffUS - 2] != '\0' &&
+            buffCStr[lenBuffUS - 2] != '\n'
+        ) { // While have more buffer to read in
+            buffCStr[lenBuffUS - 2] = '\0';
+            fgets(buffCStr, 1024, scoreFILE);
+        } // While have more buffer to read in
+
+        // Reset the buffer
+        buffCStr[lenBuffUS - 2] = '\0';
+    } // While I have scores to read in
+
+    return 0;
+} // readInScoreFile

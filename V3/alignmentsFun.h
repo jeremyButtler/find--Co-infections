@@ -2,6 +2,7 @@
 #define ALIGNMENTSFUN_H
 
 #include "defaultSettings.h"
+#include "cStrToNumberFun.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -69,7 +70,7 @@ typedef struct alnSet
    double minPercKmerD;   // Min % of shared kmers to keep a chunk map
 
    // Needleman-Wunsch variables
-   int8_t snpPenaltyC[26][26];   // Penalty for mismatches (in matrix)
+   int16_t snpPenaltyC[26][26];   // Penalty for mismatches (in matrix)
      // Size is due to wanting a look up table that can handle
      // anonymous bases. Most cells will be set to 0.
      // value = snpPenaltyC[(uint8_t) (base1 & defClearNonAlph) - 1 ]
@@ -112,7 +113,7 @@ uint8_t * NeedleManWunschAln(
     int32_t refEndI,        // Ending reference coordinate for alignment
     struct alnSet *settings,// Settings for the alignment
     uint32_t *lenErrAryUI,  // Will hold the return arrays length
-    int32_t *scoreI        // Score for the alignment (bottom right)
+    long *scoreL            // Score for the alignment (bottom right)
     // *startI and *endI paramaters should be index 1
 ); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
    ' Fun-05 TOC: NeedleManWunschAln
@@ -223,7 +224,7 @@ struct alnSet * makeAlnSetST(
 /*---------------------------------------------------------------------\
 | Output: Returns score of a single pair of bases
 \---------------------------------------------------------------------*/
-int8_t getBasePairScore(
+int16_t getBasePairScore(
     const char *queryBaseC, // Query base of pair to get score for
     const char *refBaseC,   // Reference base of pair to get score for
     struct alnSet *alnSetST // structure with scoring matrix to change
@@ -248,8 +249,8 @@ void initAlnSet(
 void setBasePairScore(
     const char *queryBaseC, // Query base to change score for
     const char *refBaseC,   // Reference base to change score for
-    char newScoreC,         // New value for [query][ref] combination
-    struct alnSet *alnSetST   // structure with scoring matrix to change
+    int16_t newScoreC,      // New value for [query][ref] combination
+    struct alnSet *alnSetST // structure with scoring matrix to change
 ); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
    ' Fun-14 TOC: Sec-1 Sub-1: setBasePairScore
    '  - Changes SNP/Match penalty for one query/reference combination
@@ -290,38 +291,15 @@ void cnvtAlnErrAryToLetter(
    '    = = match, X = snp) [These codes are from the eqx cigar entry]
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-
-/*---------------------------------------------------------------------\
-| Output:
-|  - Returns:
-|    o array with flags for snp/match, insertion, and deletions at each
-|      position. (1 = snp/match, 2 = insertion, 4 = deletion)
-|    o 0 for memory allocation errors
-|  - Modifies:
-|    o lenErrAryUI to hold the length of the returned array
-\---------------------------------------------------------------------*/
-uint8_t * NeedleManWunschAlnCostly(
-    char *queryCStr,        // Full query sequence as c-string
-    int32_t queryStartI,    // Starting query coordinate for alignment
-    int32_t queryEndI,      // Ending query coordinate for alignment
-    char *refCStr,          // Full reference sequence as c-string
-    int32_t refStartI,      // Starting reference coordinate for aln
-    int32_t refEndI,        // Ending reference coordinate for alignment
-    struct alnSet *settings,// Settings for the alignment
-    uint32_t *lenErrAryUI,  // Will hold the return arrays length
-    int32_t *scoreI        // Score for the alignment (bottom right)
-    // *startI and *endI paramaters should be index 1
-); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-0? TOC: NeedleManWunschAlnCostly
-   '  - Perform a Needleman-Wunsch alignment on input sequences
-   '    this variation uses a scoring array and direction array
-   '  o fun-0? sec-1: Variable declerations
-   '  o fun-0? sec-2: Allocate memory for alignment
-   '  o fun-0? sec-3: Fill in the initial negatives for the reference
-   '  o fun-0? sec-4: Fill the matrix with scores
-   '  o fun-0? sec-5: Find the best path
-   '  o fun-0? sec-6: Clean up and invert error array
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
+unsigned long readInScoreFile(
+    struct alnSet *alnSetST,  // structure with scoring matrix to change
+    FILE *scoreFILE           // File of scores for a scoring matrix
+);  /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+    ' Fun-18 TOC: readInScoreFile
+    '  - Reads in a file of scores for a scoring matrix
+    '  o fun-18 sec-1: Variable declerations and buffer set up
+    '  o fun-18 sec-2: Read in line and check if comment
+    '  o fun-18 sec-3: Get score, update matrix, & move to next line
+    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 #endif

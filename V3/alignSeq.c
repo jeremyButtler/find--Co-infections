@@ -27,6 +27,8 @@
 |  - Returns:
 |     o 0: If no errors
 |     o Pointer to parameter that was an issue
+|     o Pointer to -score-matrix if the scoring matrix is invalid
+|  - Prints to stdout when the scoring file is invalid
 \---------------------------------------------------------------------*/
 char * checkInput(
     int *lenArgsInt,               /*Number arguments user input*/
@@ -93,7 +95,7 @@ int main(
    uint8_t *alnErrUCAry = 0;
    uint32_t lenErrAryUI = 0;
    uint8_t *tmpUCPtr = 0;    // For iterating through alnErrUCAry
-   int32_t alnScoreI = 0;
+   long alnScoreL = 0;
 
    char *refPtrCStr = 0;
    char *queryPtrCStr = 0;
@@ -124,6 +126,14 @@ int main(
        \n     o Cost of extending an indel.\
        \n     o A negative value is a penalty, while postives values\
        \n       are correct (+ favors gaps, - disfavors).\
+       \n   -score-matrix: [ENDNAFULL]\
+       \n     o File with matrix to use. It should have one line for\
+       \n       each possible score. Scores not supplied will be set to\
+       \n       defaults. (see scoring-matrix.txt file in source).\
+       \n     o Format:\
+       \n       a t -4\
+       \n       a a 5 \
+       \n       \\\\ This is a comment\
        \n Output:\
        \n  - Alignment with query on top, reference, and error line to\
        \n    stdout or specified file.\
@@ -182,6 +192,10 @@ int main(
             ); /*Print out the closest thing to a version*/
             exit(0);
         } /*Else if the user wanted the version number*/
+
+        // If their was an invalid scoring file (error already printed)
+        else if(strcmp(inputCStr, "-score-matrix") == 0)
+            exit(1);
 
         else if(inputCStr != 0)
         { /*If user had invalid input*/
@@ -312,7 +326,7 @@ int main(
            lenRefSeqUI,
            &alnSetST,
            &lenErrAryUI,
-           &alnScoreI
+           &alnScoreL
    ); // Get the alignment
 
    if(alnErrUCAry == 0)
@@ -465,6 +479,8 @@ int main(
 |  - Returns:
 |     o 0: If no errors
 |     o Pointer to parameter that was an issue
+|     o Pointer to -score-matrix if the scoring matrix is invalid
+|  - Prints to stdout when the scoring file is invalid
 \---------------------------------------------------------------------*/
 char * checkInput(
     int *lenArgsInt,               /*Number arguments user input*/
@@ -484,7 +500,10 @@ char * checkInput(
     ^ Fun-01 Sec-1: Variable declerations
     \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-    char *tmpCStr = 0, *singleArgCStr = 0;
+    char *tmpCStr = 0;
+    char *singleArgCStr = 0;
+    unsigned long scoreFileErrUL = 0;
+    FILE *scoreFILE = 0;  // For loading the scoring matrix
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Fun-01 Sec-2: Look through user input
@@ -512,6 +531,34 @@ char * checkInput(
             alnSetST->gapExtendPenaltyI =
                 strtol(singleArgCStr, &tmpCStr, 10);
 
+        else if(strcmp(tmpCStr, "-score-matrix") == 0)
+        { // else if the user supplied a scoring matrix
+            scoreFILE = fopen(singleArgCStr, "r");
+
+            if(scoreFILE == 0)
+            { // If I could not open the scoring file
+                return tmpCStr; // So user knows invalid
+
+                fprintf(stderr,
+                    "-score-matrix %s is an invalid scoring file\n",
+                    singleArgCStr
+                ); /*Print out the problem*/
+            } // If I could not open the scoring file
+
+            scoreFileErrUL = readInScoreFile(alnSetST, scoreFILE);
+
+            if(scoreFileErrUL != 0)
+            { // If the scoring file had an error
+                fprintf(stderr,
+                    "Line: %lu in -score-matrix %s is invalid\n",
+                    scoreFileErrUL,
+                    singleArgCStr
+                ); /*Print out the problem*/
+
+                return tmpCStr;    // invalid file
+            } // If the scoring file had an error
+        } // else if the user supplied a scoring matrix
+            
         else return tmpCStr; // Invalid parameter
 
         intArg++; /*Move to the parameter, so next input is a flag*/
