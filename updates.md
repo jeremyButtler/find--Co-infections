@@ -17,6 +17,12 @@ The version number for find co-infections V3 now includes the date it
 
 # Changes
 
+## 2023-03-26
+
+1. Debugged alignSeq, which currently is a Needleman-Wunsch alignment
+   only.
+    - See supplemental programs for information on and how to install.
+
 ## 2023-03-22:
 
 1. This is mainly an updated for adding new figures and the results of

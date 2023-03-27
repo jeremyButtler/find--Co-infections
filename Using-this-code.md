@@ -167,6 +167,78 @@ After you list is built you can then build the hash table using
          q-score numeric entry.
    - Input: length of the read (unit32_t)
 
+### AlignSeq
+
+This is the docuemetation for alignSeq, which uses a two bit
+  Needleman Wunsch alignment algorithm. Most of the functions can be
+  found in alignments.c/h. It also requries cStrToNumberFun.c/h and
+  defaultSettings.h (sec-9 holds the gap pentalies and scoring matrix
+  settings).
+   
+   - Uses the alnSet structure for storing alignment settings.
+       - gapStartPenaltyI: penatly for opening new gaps.
+       - gapExtendPenaltyI: penalty for extending a gap
+   - initAlnSet:
+       - Initalizes the alnSet structure to default values.
+       - Input pointer to an alnSet structure to initalize.
+   - readInScoreFile:
+       - Takes in a score matrix file (V3/scoring-matrix.txt) and
+         updates the scores.
+       - Input: Pointer to alnSet structures to add scores to.
+       - Input: scoreFILE, FILE pointer to file to get scores from.
+   - setBasePairScore
+       - Sets the alignment matrix score for a single pair of bases
+       - Input: Pointer to the query base
+       - Input: Pointer to the reference base
+       - Input: Score to add to the scoring matrix
+       - Input: Pointer to alnSet structer with the scoring matrix
+   - NeedleManWunschAln
+       - Performs a Needleman Wunsch alignment on a pair of sequences
+       - Returns: an alignment array with flags marking if the base is
+                  an match, snp, insertion or deltion
+           - This array needs to be freeded (on heap)
+           - Use: defMatchFlag, defBaseFlag (snp), defInsFlag,
+                  defDelFlag to identify the error type.
+       - Input: c-string with the query sequence to align
+       - Input: Starting point on the query sequence (index 1)
+       - Input: Ending point on the query sequence (index 1)
+       - Input: c-string with the reference sequence to align
+       - Input: Starting point on the reference sequence (index 1)
+       - Input: Ending point on the query reference (index 1)
+       - Input: Pointer to alnSet structure with settings
+       - Input: lenErrAryUI, will hold the length of the alignment array
+       - Input: Score of the alignment
+   - cnvtAlnErrToSeq:
+       - Coverts an alignment error array (from NeedleManWunschAln) to
+         an aligned sequence
+       - The aligned sequence is stored on heap and needs to be freeded
+       - Input: c-string with sequence
+       - Input: starting position on sequence
+       - Input: 1: is a query sequence, 0 is a reference sequence
+       - Input: error array (from NeedleManWunschAln) with alignment
+       - lenErrAryUI: length of the error array
+    - cnvtAlnErrAryToLetter
+       - Converts an error array (from NeedleManWunschAln) to have a
+         human readable format (I is insertion, = is match, X is SNP,
+         D is deletion).
+       - Input: error Array (from NeedleManWunschAln) to convert to
+         human readable format.
+    - readFaSeq (from sequence.c)
+       - Reads in a fasta sequence and modifies input arrays to hold the
+         input.
+       - Arrays will be reallocated as needed (so plan on putting them
+         on the heap and freeing them as needed).
+       - Input: FILE pointer to fasta file to read sequneces from
+       - Input: buffer to hold the header entry in the fasta file
+       - Input: length of header entry (0 will allocate more memory)
+       - Input: buffer to hold the sequence entry in the fasta file
+       - Input: length of sequence entry (0 will allocate more memory)
+       - Input: Variable to hold the length of the inptu sequence
+    - twoBit functions:
+       - These functions are here for working with two bit arrays. I
+         will only mention they exist, so you can check them and use
+         them if you are interested.
+
 # Documentation method
 
 My documentation style may not be the best style, but if you want to 

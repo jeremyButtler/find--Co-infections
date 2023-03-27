@@ -270,3 +270,35 @@ chmod a+x /path/to/install/extractTopReads
 
 extractTopReads -fastq reads.fastq > top-reads.fastq
 ```
+
+### alignSeq
+
+AlignSeq is a Needleman Wunsch alignment algorithm that I am planning to
+  use for improving my majority consensus step. It uses a two bit
+  direction matrix, which results in at least 4x less memory than a 
+  traditional Needleman Wunsch. During scoring it decides the direction
+  to travel back and ignores any other potentailly equal possiblities.
+  The preference for equal scores are diagnol moves (SNPs), top moves
+  (insertion), and then left move (deletions). This allows keeping track
+  of only one direction per score.
+
+AlignSeq is only memory efficent when compared to other Needleman-Wunsch
+  alignments (N^2/4 instead of N^2). However, it will never be as
+  efficant than Hirschenberg.
+
+AlignSeq does not use decimals, so if you want decimals for the gap
+  extension penatly you will have to multiply all scores by 10.
+
+The help message can be called with -h. For an exmaple of the scoring
+  matrix see V3/scoring-matrix.txt.
+
+#### How to build alignSeq
+
+```
+cd V3
+make alignSeq
+mv alignSeq /path/to/install
+chmod a+x /path/to/install/alignSeq
+
+alignSeq -query query.fasta -ref ref.fasta > alignment.aln
+```
