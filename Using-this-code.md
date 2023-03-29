@@ -252,10 +252,7 @@ This is the documentation for alignSeq, which uses a two bit
        - Input: Variable to hold the length of the inptu sequence
    - twoBit functions:
        - Found in twoBirArrays.c/h
-       - These functions are here for working with two bit arrays. I
-         will mention that they exist, but will not list them, since 
-         most people would not be interested (see SOF or SOP in
-         alignments.c/h for a list).
+       - These functions are here for working with two bit arrays.
 
 # Documentation method
 
