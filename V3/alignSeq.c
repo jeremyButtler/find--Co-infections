@@ -455,10 +455,10 @@ int main(
    fprintf(outFILE, "#   - = is match\n");
    fprintf(outFILE, "#   - X is mismatch\n");
    fprintf(outFILE, "#   - I is insertion\n");
-   fprintf(outFILE, "#   - D is deletion\n\n");
-   fprintf(outFILE, "#   - S is soft mask on query and reference\n\n");
-   fprintf(outFILE, "#   - s is soft mask on query only\n\n");
-   fprintf(outFILE, "#   - P is soft mask on reference only\n\n");
+   fprintf(outFILE, "#   - D is deletion\n");
+   fprintf(outFILE, "#   - S is soft mask on query and reference\n");
+   fprintf(outFILE, "#   - s is soft mask on query only\n");
+   fprintf(outFILE, "#   - P is soft mask on reference only\n");
 
    queryPtrCStr = queryAlnCStr;
    refPtrCStr = refAlnCStr;
