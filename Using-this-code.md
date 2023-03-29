@@ -227,7 +227,7 @@ This is the documentation for alignSeq, which uses a two bit
        - Input: 1: is a query sequence, 0 is a reference sequence
        - Input: error array (from NeedleManWunschAln) with alignment
        - lenErrAryUI: length of the error array
-    - cnvtAlnErrAryToLetter
+   - cnvtAlnErrAryToLetter
        - Converts an error array (from NeedleManWunschAln) to have a
          human readable format (I is insertion, = is match, X is SNP,
          D is deletion). This will only count matches if a reference
@@ -239,7 +239,7 @@ This is the documentation for alignSeq, which uses a two bit
          Used to detect matches (use 0 to ignore matches).
        - Input: error Array (from NeedleManWunschAln) to convert to
          human readable format.
-    - readFaSeq (from sequence.c)
+   - readFaSeq (from sequence.c)
        - Reads in a fasta sequence and modifies input arrays to hold the
          input.
        - Arrays will be reallocated as needed (so plan on putting them
@@ -250,7 +250,7 @@ This is the documentation for alignSeq, which uses a two bit
        - Input: buffer to hold the sequence entry in the fasta file
        - Input: length of sequence entry (0 will allocate more memory)
        - Input: Variable to hold the length of the inptu sequence
-    - twoBit functions:
+   - twoBit functions:
        - Found in twoBirArrays.c/h
        - These functions are here for working with two bit arrays. I
          will mention that they exist, but will not list them, since 
