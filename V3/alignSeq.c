@@ -458,7 +458,7 @@ int main(
    fprintf(outFILE, "#   - D is deletion\n");
    fprintf(outFILE, "#   - S is soft mask on query and reference\n");
    fprintf(outFILE, "#   - s is soft mask on query only\n");
-   fprintf(outFILE, "#   - P is soft mask on reference only\n");
+   fprintf(outFILE, "#   - P is soft mask on reference only\n\n");
 
    queryPtrCStr = queryAlnCStr;
    refPtrCStr = refAlnCStr;
