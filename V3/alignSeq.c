@@ -119,7 +119,7 @@ int main(
        \n     o Second fasta sequence to align.\
        \n   -out: [stdout]\
        \n     o File to output alignment to (default to screen)\
-       \n   -gapopen: [0]\
+       \n   -gapopen: [-1]\
        \n     o Cost of starting an indel (as integer).\
        \n     o A negative value is a penalty, while postives values\
        \n       are correct (+ favors gaps, - disfavors).\

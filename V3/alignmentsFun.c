@@ -172,8 +172,9 @@ uint8_t * WatermanSmithAln(
    '  o fun-04 sec-4: Fill the matrix with scores
    '  o fun-04 sec-5: Find the best path
    '  o fun-04 sec-6: Clean up and add softmasking to start
-   '  o fun-04 sec-7: Invert the error type array
-   '  o fun-04 sec-8: Add softmasking to the end and return the array
+   '  o fun-04 sec-7: Mark end of alignment array & clean up end indels
+   '  o fun-04 sec-8: Invert the error type array
+   '  o fun-04 sec-9: Add softmasking to the end and return the array
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
@@ -544,11 +545,38 @@ uint8_t * WatermanSmithAln(
    } // While I have softmasking to do
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-04 Sec-7: Invert the error type array
+   ^ Fun-04 Sec-7: Mark end of alignment array & clean up indels at end
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   // This only happens when the gapopen penalty is 0
+   // Mark the end of the error array
+   *(alnErrAryUC + numErrUI) = 0;
+   startUCPtr = alnErrAryUC;
+
+   // Remove any hangin indels at the end (no matches after indel)
+   while(!(*startUCPtr & 4))
+   { // While I have no bases
+       switch(*startUCPtr)
+       { // Switch: Check wich soft mask I apply
+           case defDelFlag:
+               *startUCPtr = defSoftRefFlag;
+               break;
+
+           case defInsFlag:
+               *startUCPtr = defSoftQueryFlag;
+               break;
+       } // Switch: Check wich soft mask I apply
+
+       if(*startUCPtr == 0) break; // At end of the array
+
+       ++startUCPtr;
+   } // While I have no bases
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-8: Invert the error type array
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    // flag the end of the error array
-   *(alnErrAryUC + numErrUI) = 0;
    startUCPtr = alnErrAryUC;
    endUCPtr = (alnErrAryUC + numErrUI - 1);
 
@@ -594,7 +622,7 @@ uint8_t * WatermanSmithAln(
    } // While I have elements to inver
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
-   ^ Fun-04 Sec-8: Add softmasking to the end and return the array
+   ^ Fun-04 Sec-9: Add softmasking to the end and return the array
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    // Add softmasking to the end

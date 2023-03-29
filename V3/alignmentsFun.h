@@ -31,9 +31,9 @@
 #define defMoveUp 2      // Move up (insertion) in alignment matrix
 #define defMoveDiagnol 3 // Move on a diagnol (snp/match) in alignment
 
-#define defBaseFlag 4   // match or snp
-#define defInsFlag 2    // insertion
 #define defDelFlag 1    // deletion
+#define defInsFlag 2    // insertion
+#define defBaseFlag 4   // match or snp
 #define defSoftQueryFlag 8 // Softmask a query base
 #define defSoftRefFlag 16  // Softmask a reference base
 

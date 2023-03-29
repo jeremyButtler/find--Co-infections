@@ -294,6 +294,12 @@ AlignSeq is only memory efficent when compared to other Needleman-Wunsch
 AlignSeq does not use decimals, so if you want decimals for the gap
   extension penatly you will have to multiply all scores by 10.
 
+Note: This program is more set up for noisy reads. This means that the
+  gap opening has a lighter penalty than the gap extenstion, which means
+  that this program favors single gaps instead of longer gaps. For a
+  reference or consensus alignment you will want to set the gap open
+  penalty higher and lower the gap extension penalty.
+
 The help message can be called with -h. For an exmaple of the scoring
   matrix see V3/scoring-matrix.txt.
 
