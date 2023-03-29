@@ -219,8 +219,7 @@ This is the documentation for alignSeq, which uses a two bit
        - Input: lenErrAryUI, will hold the length of the alignment array
        - Input: Score of the alignment
    - cnvtAlnErrToSeq:
-       - Coverts an alignment error array (from NeedleManWunschAln) to
-         an aligned sequence
+       - Coverts an alignment error array to an aligned sequence
        - The aligned sequence is stored on heap and needs to be freeded
        - Input: c-string with sequence
        - Input: starting position on sequence
@@ -228,11 +227,12 @@ This is the documentation for alignSeq, which uses a two bit
        - Input: error array (from NeedleManWunschAln) with alignment
        - lenErrAryUI: length of the error array
    - cnvtAlnErrAryToLetter
-       - Converts an error array (from NeedleManWunschAln) to have a
-         human readable format (I is insertion, = is match, X is SNP,
-         D is deletion). This will only count matches if a reference
-         and query sequence is provided, otherise it will print X for
-         SNPs and matches.
+       - Converts an error array to have a human readable format (I is
+         insertion, = is match, X is SNP, D is deletion, s is a query
+         soft mask, P is a reference soft mask, and S is both reference
+         and query soft mask). This will only count matches if a
+         reference and query sequence is provided, otherise it will
+         print X for SNPs and matches.
        - Input: Reference sequence used in the alignment.
          Used to detect matches (use 0 to ignore matches).
        - Input: Query sequence used in the alignment.
