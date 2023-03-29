@@ -267,8 +267,9 @@
 #define defTopPriority 0      // insertions selected for equal scores
 #define defLeftPriority 2     // Deletions selected for equal scores
 
-#define defGapStartPenalty 0  // adding an indel has a slight penatly
-#define defGapExtendPenalty -3 // adding an indel has a slight penatly
+// Scoring variables
+#define defGapStartPenalty -1 // adding an indel has a slight penatly
+#define defGapExtendPenalty -4 // adding an indel has a slight penatly
 
 // Scoring matrix is EDNAFULL or something close to it. I think I have
 // the anonymous bases with the correct scores.

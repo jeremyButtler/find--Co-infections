@@ -89,11 +89,15 @@ char * cnvtAlnErrToSeq(
 
                break;
            case defInsFlag:                    // insertion
-               if(!(queryBl & 1))
-               { // If I am dealing with a reference sequence
-                   *tmpBaseCStr = '-';
-                   break;
-               } // If I am dealing with a reference sequence
+               if(!(queryBl & 1)) *tmpBaseCStr = '-';
+
+               else
+               { // Else dealing with a query sequence
+                   *tmpBaseCStr = *baseCStr;
+                   ++baseCStr;
+               } // Else dealing with a query sequence
+
+               break;
 
            case defSoftQueryFlag:
                if(queryBl != 0)
@@ -499,6 +503,8 @@ uint8_t * WatermanSmithAln(
            ++bestQueryCStr;
    } // Switch; check which sequence I am on the off base
 
+   endUCPtr = alnErrAryUC;
+
    tmpQueryCStr = queryCStr;
    tmpRefCStr = refCStr;
    endUCPtr = (alnErrAryUC + numErrUI);
@@ -592,8 +598,8 @@ uint8_t * WatermanSmithAln(
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    // Add softmasking to the end
-   tmpQueryCStr = queryCStr + lenQueryUL;
-   tmpRefCStr = refCStr + lenRefUL;
+   tmpQueryCStr = queryCStr + lenQueryUL + 1;
+   tmpRefCStr = refCStr + lenRefUL + 1;
    endUCPtr = alnErrAryUC + numErrUI;
 
    // Apply softmasking to the start region
