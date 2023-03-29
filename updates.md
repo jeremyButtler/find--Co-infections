@@ -17,6 +17,30 @@ The version number for find co-infections V3 now includes the date it
 
 # Changes
 
+## 2023-03-28
+
+1. Modified alignSeq to have additional options to select the preferred
+   error type when error types are equal.
+   - Flag is "-error1-error2-error3" (EX: "match-ins-del")
+   - Default has been changed to "ins-match-del"
+2. Modified alignSeq so that you can choose if you want matches to 
+   always be counted as the highest score or not (default set to no).
+   The 2023-03-26 version used match priority.
+3. Fixed bug alignSeq were in some cases the last few bases would be a
+   false insertion deletion. This was due to my ending two bit element
+   in by two bit array not being adjusted to its correct position.
+4. Moved the two bit array functions to out of the alignments file to
+   separate .c and .h files and added in some additional support
+   functions. This is not very important, but I am mentioning this if
+   you are interested in my two bit array functions.
+5. Added in a Waterman Smith alignment method. This Waterman Smith only
+   searches for a single best alignment instead of a series of of best
+   local alignments. So, it is not very great, but it uses the same
+   memory usage as my Needleman Wunsch.
+   - I am hoping that this will help out in my attempts to improve the 
+     inbuilt majority consensus steps (the Needleman Wunsch did not
+     improve it).
+
 ## 2023-03-26
 
 1. Debugged alignSeq, which currently is a Needleman-Wunsch alignment

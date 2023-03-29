@@ -1,44 +1,53 @@
+/*######################################################################
+# Name alignmentsFun
+# Use:
+#  o Holds functions for doing pairwise alignments (Needleman/waterman)
+# Includes:
+#   - "defaultSettings.h"
+#   - "cStrToNumberFun.h"
+#   - "twoBitArrays.h"
+# C Standard libraries:
+#   - <stdlib.h>
+#   - <stdio.h>
+#   o <stdint.h>
+######################################################################*/
+
+#include "alignmentsFun.h"
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
 ' SOF: Start Of Functions
-'  - fun-04 cnvtAlnErrToSeq:
+'  - fun-03 cnvtAlnErrToSeq:
 '     o Uses an array of error types and a c-string with the a sequence
 '       to make one part of an alignment
+'  - fun-04 WatermanSmithAln:
+'     o Perform a Waterman Smith alignment on input sequences
 '  - fun-05 NeedleManWunschAln:
 '     o Perform a Needleman-Wunsch alignment on input sequences
-'  - fun-06 getElmFromToBitUCAry:
-'     o Get an element from a two bit array
-'  - fun-07 twoBitAryShiftBytsForNewElm:
-'     o Make room in a unit8_t for two more two-bit elements
-'  - fun-08 twoBitAryMoveToNextElm:
-'     o Moves to the next element in a two-bit array
-'  - fun-09 twoBitAryMoveBackOneElm:
-'     o Moves back one element in a 2-bit array
-'  - fun-10 twoBitAryMoveBackXElm:
-'     o Moves back X elements in a 2-bit array
-'  - fun-11 makeAlnSet:
-'     o Makes & initalizes an alnSet structer on the heap
-'  - fun-12 getBasePairScore:
-'     o Get the score for a pair of bases from an alignment structure
-'  - fun-13 initAlnSet:
-'     o Set values in altSet (alingment settings) structure to defaults
-'  - fun-14 setAlnSetSnpPenalty:
-'     o Changes SNP/Match penalty for one query/reference combination
-'  - fun-15 freeAlnSet:
-'     o Frees and alnSet (alignment settings) structure
-'  - fun-16 checkIfBasesMatch:
+'  - fun-07 checkIfBasesMatch
 '     o Check if two bases are the same (includes anonymous bases)
+'  - fun-13 getBasePairScore:
+'     o Get the score for a pair of bases from an alignment structure
+'  - fun-14 initAlnSet:
+'     o Set values in altSet (alingment settings) structure to defaults
+'  - fun-15 setAlnSetSnpPenalty:
+'     o Changes SNP/Match penalty for one query/reference combination
+'  - fun-16 freeAlnSet:
+'     o Frees and alnSet (alignment settings) structure
 '  - fun-17 cnvtAlnErrAryToLetter:
 '     o Converts an alignment error array from my Needleman-Wunsch
 '       alignment into an array of letters (I = insertion, D = deletion,
 '       = = match, X = snp) [These codes are from the eqx cigar entry]
-'  - fun-0? NeedleManWunschAlnCostly:
-'     o Perform a Needleman-Wunsch alignment on input sequences this
-'       variation uses a scoring array and direction array and so is
-        more costly (this was before I realized I did not need to keep
-'       scores)
+'  - fun-18 readInScoreFile
+'     o Reads in a file of scores for a scoring matrix
+'  - fun-19 getIndelScore:
+'     o Gets an indel score for the current cell
+'  - fun-20 updateDirAndScore:
+'     o Picks the best score and direction for the current base pairs
+'       being compared in a Needleman Wunsch alignment
+'  - fun-21 updateDirAndScoreWater:
+'     o Picks the best score and direction for the current base pairs
+'       being compared in a Waterman Smith alignment
 \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
-#include "alignmentsFun.h"
 
 /*---------------------------------------------------------------------\
 | Output: Heap alloacted C-string with alignment for the input sequence
@@ -50,7 +59,7 @@ char * cnvtAlnErrToSeq(
     uint8_t *alnErrUCAry, // Holds error types (ends with 0)
     uint32_t lenErrAryUI  // length of alnErrUCAry (for sequence array)
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-04 TOC: Sec-1 Sub-1: cnvtAlnQueryErrToSeq
+   ' Fun-03 TOC: Sec-1 Sub-1: cnvtAlnQueryErrToSeq
    '  - Uses an array of error types and a c-string with the a sequence
    '    to make one part of an alignment
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -85,11 +94,37 @@ char * cnvtAlnErrToSeq(
                    *tmpBaseCStr = '-';
                    break;
                } // If I am dealing with a reference sequence
-           case defBaseFlag:                    // (match/snp)
+
+           case defSoftQueryFlag:
+               if(queryBl != 0)
+               { // If softmasking a query region
+                   *tmpBaseCStr = *baseCStr;
+                   ++baseCStr;
+               } // If softmasking a query region
+
+               // Else working on the reference sequence
+               else *tmpBaseCStr = '-';
+               break;
+
+
+           case defSoftRefFlag:   // Soft masked a reference base
+               if(queryBl == 0)
+               { // Else if It is a reference base I am soft masking
+                   *tmpBaseCStr = *baseCStr;
+                   ++baseCStr;
+               } // Else if It is a reference base I am soft masking
+
+               // Else working on a query sequence
+               else *tmpBaseCStr = '-';
+               break;
+
+           // Is bot a query and reference soft mask
+           case defSoftQueryFlag + defSoftRefFlag:
                *tmpBaseCStr = *baseCStr;
                ++baseCStr;
                break;
-           case defMatchFlag:
+
+           case defBaseFlag:                    // (match/snp)
                *tmpBaseCStr = *baseCStr;
                ++baseCStr;
                break;
@@ -103,6 +138,495 @@ char * cnvtAlnErrToSeq(
   *tmpBaseCStr = '\0'; // Make into a c-string
   return seqAlnCStr;
 } // cnvtAlnQueryErrToSeq
+
+/*---------------------------------------------------------------------\
+| Output:
+|  - Returns:
+|    o array with flags for snp/match, insertion, and deletions at each
+|      position. (1 = snp/match, 2 = insertion, 4 = deletion)
+|    o 0 for memory allocation errors
+|  - Modifies:
+|    o lenErrAryUI to hold the length of the returned array
+\---------------------------------------------------------------------*/
+uint8_t * WatermanSmithAln(
+    char *queryCStr,        // Full query sequence as c-string
+    int32_t queryStartI,    // Starting query coordinate for alignment
+    int32_t queryEndI,      // Ending query coordinate for alignment
+    char *refCStr,          // Full reference sequence as c-string
+    int32_t refStartI,      // Starting reference coordinate for aln
+    int32_t refEndI,        // Ending reference coordinate for alignment
+    struct alnSet *settings,// Settings for the alignment
+    uint32_t *lenErrAryUI,  // Will hold the return arrays length
+    long *scoreL        // Score for the alignment (bottom right)
+    // *startI and *endI paramaters should be index 1
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-04 TOC: WatermanSmithAln
+   '  - Perform a Waterman Smith alignment on input sequences
+   '  o fun-04 sec-1: Variable declerations
+   '  o fun-04 sec-2: Allocate memory for alignment
+   '  o fun-04 sec-3: Fill in the initial negatives for the reference
+   '  o fun-04 sec-4: Fill the matrix with scores
+   '  o fun-04 sec-5: Find the best path
+   '  o fun-04 sec-6: Clean up and add softmasking to start
+   '  o fun-04 sec-7: Invert the error type array
+   '  o fun-04 sec-8: Add softmasking to the end and return the array
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-1: Variable declerations
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   char swapBuffBl = 1;   // Swap buffers when finshed every 2nd row
+
+   char *refStartCStr = refCStr + refStartI - 1;
+   char *queryStartCStr = queryCStr + refStartI - 1;
+
+   char *tmpQueryCStr = queryStartCStr;
+   char *tmpRefCStr = refStartCStr;
+   char *bestQueryCStr = 0;  // Best end start for the query sequence
+   char *bestRefCStr = 0;    // Best end for the reference sequence
+
+   // Find the length of the reference and query
+   unsigned long lenQueryUL = queryEndI - queryStartI + 1;
+       // +1 to convert back to 1 index (subtraction makes 0)
+   unsigned long lenRefUL = refEndI - refStartI + 1;
+       // +1 to convert back to 1 index (subtraction makes 0)
+   unsigned long lenMatrixUL = 0;
+
+   long snpScoreL = 0;     // Score for single base pair
+   long scoreTopL = 0;     // Score when using the top cell
+   long scoreDiagnolL = 0; // Score when using the diagnol cell
+   long scoreLeftL = 0;    // Score when using the left cell
+   long bestScoreL = 0;    // Best score
+
+   long *scoreMatrixL = 0; // matrix to use in alignment
+   long *scoreOnLPtr = 0;  // Score I am currently working on
+   long *lastBaseLPtr = 0; // Pointer to cell with last base
+
+   // Two bit array variables
+   uint8_t *dirMatrixUC = 0;  // Directions for each score cell
+   uint8_t bitElmUC = 0;      // The value of a single bit element
+   uint8_t lastBitElmUC = 0;
+
+   uint8_t *dirOnUCPtr = 0;   // Score working on
+   uint8_t bitUC = 0;  // Keep track of if need to change direction elm
+
+   uint8_t *topDirUCPtr = 0; // Direction of last score in the matrix
+   uint8_t topBitUC = 0;     // Element on for last direction
+
+   uint8_t *leftDirUCPtr = 0;
+   uint8_t leftBitUC = 0;
+   uint8_t tmpLeftBitUC = 0;
+
+   // For a more through system I would recored every best score
+   uint8_t *bestScoreUCPtr = 0; // Start of path to trace back
+   uint8_t bestBitUC = 0;       // Start of path to trace back
+
+   uint8_t *alnErrAryUC = 0;   // Error type array (match/snp, ins, del)
+   uint32_t numErrUI = 0;      // Number of error detected
+   uint8_t *startUCPtr = 0;    // For inverting the alignment array
+   uint8_t *endUCPtr = 0;     // For inverting the alignment array
+   uint8_t swapUC = 0;         // For swaping elements in the array
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-2: Allocate memory for alignment
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   scoreMatrixL = calloc(2 * (lenRefUL + 1), sizeof(unsigned long));
+       // I need two rows to keep track of the scores (2x)
+       // lenRefUL + 1 is to account for insertion zero query column
+   if(scoreMatrixL == 0) return 0;
+
+   // This gives me an array of 0's (so no extra clearing)
+   // This array is used for finding the directions
+   lenMatrixUL = 1 + (((lenRefUL + 1) * (lenQueryUL + 1)) >> 2);
+   dirMatrixUC = calloc(lenMatrixUL, sizeof(uint8_t));
+       // Make the direction array for the scoring array
+       // 1 + is to make sure have enough chars
+       // lenRefUL + 1 is to account for the insertion  reference row
+       // lenQeurI + 1 is to account for insertion zero query column
+       // x >> 2 = x / 4 & accounts for taking 2 bits (char = 8 bits)
+          // per cell
+
+   if(dirMatrixUC == 0)
+   { // If I do not have a direction matrix for each cell
+       free(scoreMatrixL);
+       return 0;
+   } // If I do not have a direction matrix for each cell
+
+   *lenErrAryUI = lenQueryUL + lenRefUL;
+   alnErrAryUC = malloc(sizeof(uint8_t) * *lenErrAryUI);
+
+   if(alnErrAryUC == 0) 
+   { /*If I had a memory allocation error*/
+       free(scoreMatrixL);
+       free(dirMatrixUC);
+       return 0;
+   } /*If I had a memory allocation error*/
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-3: Fill in the initial negatives for the reference
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   // Calloc already set everything to done (defMoveStop = 0)
+   scoreOnLPtr = scoreMatrixL + lenRefUL + 1;
+       // Move to the first column in next row
+   dirOnUCPtr = dirMatrixUC;
+   twoBitAryMoveForXElm(&dirOnUCPtr, &bitUC, lenRefUL + 1);
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-4: Fill the matrix with scores
+   ^  o fun-04 sec-4 sub-1: Fill in the indel column
+   ^  o fun-04 sec-4 sub-2: Get scores for insertion, deletion, match
+   ^  o fun-04 sec-4 sub-3: Move to the next refernce/query base
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   /*******************************************************************\
+   * Fun-04 Sec-4 Sub-1: Fill in the indel column
+   \*******************************************************************/
+
+   // Marks the last cell in the score matrix (just to make sure)
+   lastBaseLPtr = scoreMatrixL; // Set up the last base
+   swapBuffBl = 1;   // Swap buffers when finsh every 2nd row
+
+   // Direction of the upper cell
+   topDirUCPtr = dirMatrixUC;
+   topBitUC = 0;
+
+   tmpQueryCStr = queryStartCStr;
+   tmpRefCStr = refStartCStr;
+
+   // Starting on the first sequence row
+   while(*tmpQueryCStr != '\0')
+   { // loop; compare one query base against all reference bases
+       *scoreOnLPtr = 0;
+       *dirOnUCPtr |= defMoveStop;  // Set to move to top
+       leftDirUCPtr = dirOnUCPtr; // Previous direction
+       leftBitUC = bitUC;         // bit of previous direction
+
+       // Move to the first base comparison
+       ++scoreOnLPtr;  // Get of negative column for the new query base
+       ++lastBaseLPtr; // Get of negative column for last query base
+
+       twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
+       twoBitAryMoveToNextElm(&topDirUCPtr, &topBitUC);
+       tmpRefCStr = refStartCStr;
+
+       /***************************************************************\
+       * Fun-04 Sec-4 Sub-2: Get scores for insertion, deletion, match
+       \***************************************************************/
+
+       // First reference bases column (indel column already handled)
+       while(*tmpRefCStr != '\0')
+       { // loop; compare one query to one reference base
+
+           snpScoreL =
+              getBasePairScore(
+                  tmpQueryCStr,
+                  tmpRefCStr,
+                  settings
+           ); // Find the score for the two base pairs
+
+           // Find the score for the diagnol cell (snp/match)
+           scoreDiagnolL = *(lastBaseLPtr - 1) + snpScoreL;
+
+           switch(settings->matchPriorityBl) 
+           { // Switch: check if matches have priority
+
+               case 1:
+                   if(checkIfBasesMatch(tmpQueryCStr, tmpRefCStr) != 0)
+                   { // If had matching bases
+                       *dirOnUCPtr |= defMoveDiagnol;
+                       *scoreOnLPtr = scoreDiagnolL;
+                       break;
+                   } // If had matching bases
+
+               case 0:   // Either not using match priority or not match
+                   scoreTopL =
+                       getIndelScore(
+                           topDirUCPtr,
+                           &topBitUC,
+                           settings,
+                           lastBaseLPtr
+                   ); // Get the score for an insertion
+
+                   // If the limb is not complete the last direction
+                   // will always be one shift back 
+                   if(leftBitUC < 3) tmpLeftBitUC = 2;
+                   else tmpLeftBitUC = 3;
+
+                   scoreLeftL =
+                       getIndelScore(
+                           leftDirUCPtr,   // part of two bit index
+                           &tmpLeftBitUC,  // part of two bit index
+                           settings,       // Has gap penalties
+                           scoreOnLPtr - 1 // Score of the previous base
+                   ); // Get the score for an insertion
+
+                   updateDirAndScoreWater(
+                       dirOnUCPtr,
+                       settings,   // Has preference for score selection
+                       &scoreTopL,     // Score for an insertion
+                       &scoreDiagnolL, // Score for an match/snp
+                       &scoreLeftL,    // The score for an deletion
+                       scoreOnLPtr
+                   ); // Update the scores
+
+                   if(*scoreOnLPtr >= bestScoreL)
+                   { // Else if have a new best score
+                       bestScoreL = *scoreOnLPtr;
+                       bestScoreUCPtr = dirOnUCPtr;
+                       bestBitUC = bitUC;
+                       bestQueryCStr = tmpQueryCStr;
+                       bestRefCStr = tmpRefCStr;
+                   } // Else if have a new best score
+           } // Switch: check if matches have priority
+
+           /************************************************************\
+           * Fun-04 Sec-4 Sub-3: Move to the next refernce/query base
+           \************************************************************/
+       
+           // Move to the next cell to score
+           ++scoreOnLPtr; // Move to next comparison for this query base
+           ++lastBaseLPtr; // Move to next element
+           ++tmpRefCStr;   // Move to the next reference base
+
+           leftDirUCPtr = dirOnUCPtr; // Previous direction
+           leftBitUC = bitUC;         // bit of previous direction
+
+           twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
+           twoBitAryMoveToNextElm(&topDirUCPtr, &topBitUC);
+       } // loop; compare one query to one reference base
+
+       // Will end on the corrnor cell
+       *scoreL = *(scoreOnLPtr - 1);
+
+       if(swapBuffBl & 1)
+       { // If need to swap the buffers
+           scoreOnLPtr = scoreMatrixL; // Restarting scoring
+           swapBuffBl = 0;
+       } // If need to swap the buffers
+
+       else
+       { // Else need to reset the score part
+           lastBaseLPtr = scoreMatrixL; // Last base is on first row
+           swapBuffBl = 1;
+       } // Else need to reset the score part
+
+       ++tmpQueryCStr; // Move to the next query base
+   } // loop; compare one query base against all reference bases
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-5: Find the best path
+   ^   o fun-04 sec-5 sub-1: Get to the very last score (bottom right)
+   ^   o fun-04 sec-5 sub-2: Find the best path
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   /*******************************************************************\
+   * Fun-04 Sec-5 Sub-1: Get to the very last score (bottom right)
+   \*******************************************************************/
+
+   // Make sure the last index is correct
+   finishTwoBitAry(dirOnUCPtr, bitUC);
+
+   // Move to the last direction (currently on direction after last)
+   dirOnUCPtr = bestScoreUCPtr;
+   bitUC = bestBitUC;
+   bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitUC);
+   // Move to bottom right base to trace back the path
+
+   /*******************************************************************\
+   * Fun-04 Sec-5 Sub-2: Find the best path
+   \*******************************************************************/
+
+   while(bitElmUC != defMoveStop) // While not at the ned of the matrix
+   { // While I have more bases to add to the path
+       lastBitElmUC = bitElmUC; // Keep track of the last bit
+
+       switch(bitElmUC)
+       { // Switch: check what the next base is in the sequence
+           case defMoveUp:                    // Move to top (insertion)
+               twoBitAryMoveBackXElm(&dirOnUCPtr, &bitUC, lenRefUL + 1);
+                   // have lenRefUL (index 1) cells per row, so need to
+                   // do lenRefUL + 1 to get to cell above current
+               *(alnErrAryUC + numErrUI) = defInsFlag;  // flag for ins
+               --bestQueryCStr;
+               break;
+
+           case defMoveDiagnol:           // Move to diagnol (match/snp)
+               *(alnErrAryUC + numErrUI) = defBaseFlag; // snp
+               twoBitAryMoveBackXElm(&dirOnUCPtr, &bitUC, lenRefUL + 2);
+                   // have lenRefUL (index 1) cells per row, so need to
+                   // do lenRefUL + 2 to get to diagnol cell
+               --bestQueryCStr;
+               --bestRefCStr;
+               break;
+
+           case defMoveLeft:              // Move to left (deletion)
+               twoBitAryMoveBackOneElm(&dirOnUCPtr, &bitUC);
+               *(alnErrAryUC + numErrUI) = defDelFlag;  // flag for del
+               --bestRefCStr;
+               break;
+       } // Switch: check what the next base is in the sequence
+
+       // Move back to the selected base
+
+       // Get the next direction to move
+       bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitUC);
+
+       ++numErrUI; // Account for the added error
+   } // While I have more bases to add to the path
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-6: Clean up and add softmasking to start
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   free(scoreMatrixL);               // No longer need
+   free(dirMatrixUC);
+
+   switch(lastBitElmUC)
+   { // Switch; check which sequence I am on the off base
+       case defMoveDiagnol:   // Both sequences are one bit off
+           ++bestQueryCStr;
+           ++bestRefCStr;
+           break;
+
+       case defMoveLeft:   // Last move was a deletion, ref one base off
+           ++bestRefCStr;
+           break;
+
+       case defMoveUp:   // Last base was insertion, query one base off
+           ++bestQueryCStr;
+   } // Switch; check which sequence I am on the off base
+
+   tmpQueryCStr = queryCStr;
+   tmpRefCStr = refCStr;
+   endUCPtr = (alnErrAryUC + numErrUI);
+   lenRefUL = 0; // So can softmask the end bases
+   lenQueryUL = 0; // So can softmask the end bases
+
+   // Apply softmasking to the start region
+   while(1)
+   { // While I have softmasking to do
+       if(tmpQueryCStr != bestQueryCStr)
+       { // IF have a query base to mask
+           *endUCPtr |= defSoftQueryFlag;
+           ++tmpQueryCStr;
+           ++lenQueryUL;
+
+           if(tmpRefCStr != bestRefCStr)
+           { // IF have a query base to mask
+               *endUCPtr |= defSoftRefFlag;
+               ++tmpRefCStr;
+               ++lenRefUL;
+           } // IF have a query base to mask
+
+           ++endUCPtr;
+           ++numErrUI;
+       } // IF have a query base to mask
+
+       else if(tmpRefCStr != bestRefCStr)
+       { // IF have a query base to mask
+           *endUCPtr |= defSoftRefFlag;
+           ++tmpRefCStr;
+           ++numErrUI;
+           ++endUCPtr;
+           ++lenRefUL;
+       } // IF have a query base to mask
+
+       else break; // Done
+   } // While I have softmasking to do
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-7: Invert the error type array
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   // flag the end of the error array
+   *(alnErrAryUC + numErrUI) = 0;
+   startUCPtr = alnErrAryUC;
+   endUCPtr = (alnErrAryUC + numErrUI - 1);
+
+   while(startUCPtr < endUCPtr)
+   { // While I have elements to inver
+       switch(*endUCPtr)
+       { // Switch; Check if I need to count a base
+           case defBaseFlag:
+               ++lenQueryUL;
+               ++lenRefUL;
+               break;
+
+           case defInsFlag:
+               ++lenQueryUL;
+               break;
+
+           case defDelFlag:
+               ++lenRefUL;
+               break;
+       } // Switch; Check if I need to count a base
+
+       switch(*startUCPtr)
+       { // Switch; Check if I need to count a base
+           case defBaseFlag:
+               ++lenQueryUL;
+               ++lenRefUL;
+               break;
+
+           case defInsFlag:
+               ++lenQueryUL;
+               break;
+
+           case defDelFlag:
+               ++lenRefUL;
+               break;
+       } // Switch; Check if I need to count a base
+
+       swapUC = *endUCPtr;
+       *endUCPtr = *startUCPtr;
+       *startUCPtr = swapUC;
+       ++startUCPtr;
+       --endUCPtr;
+   } // While I have elements to inver
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-04 Sec-8: Add softmasking to the end and return the array
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   // Add softmasking to the end
+   tmpQueryCStr = queryCStr + lenQueryUL;
+   tmpRefCStr = refCStr + lenRefUL;
+   endUCPtr = alnErrAryUC + numErrUI;
+
+   // Apply softmasking to the start region
+   while(1)
+   { // While I have softmasking to do
+       if(*tmpQueryCStr != '\0')
+       { // IF have a query base to mask
+           *endUCPtr |= defSoftQueryFlag;
+           ++tmpQueryCStr;
+
+           if(*tmpRefCStr != '\0')
+           { // IF have a query base to mask
+               *endUCPtr |= defSoftRefFlag;
+               ++tmpRefCStr;
+           } // IF have a query base to mask
+
+           ++endUCPtr;
+       } // IF have a query base to mask
+
+       else if(*tmpRefCStr != '\0')
+       { // IF have a query base to mask
+           *endUCPtr |= defSoftRefFlag;
+           ++tmpRefCStr;
+           ++endUCPtr;
+       } // IF have a query base to mask
+
+       else break; // Done
+   } // While I have softmasking to do
+
+   endUCPtr = 0; // Add end of sequence
+
+   return alnErrAryUC;
+} // WatermanSmithAln
 
 /*---------------------------------------------------------------------\
 | Output:
@@ -156,10 +680,10 @@ uint8_t * NeedleManWunschAln(
 
        // +1 to convert back to 1 index (subtraction makes 0)
 
-   long snpScoreI = 0;     // Score for single base pair
-   long scoreTopI = 0;     // Score when using the top cell
-   long scoreDiagnolI = 0; // Score when using the diagnol cell
-   long scoreLeftI = 0;    // Score when using the left cell
+   long snpScoreL = 0;     // Score for single base pair
+   long scoreTopL = 0;     // Score when using the top cell
+   long scoreDiagnolL = 0; // Score when using the diagnol cell
+   long scoreLeftL = 0;    // Score when using the left cell
 
    long *scoreMatrixL = 0; // matrix to use in alignment
    long *scoreOnLPtr = 0;  // Score I am currently working on
@@ -175,6 +699,7 @@ uint8_t * NeedleManWunschAln(
 
    uint8_t *leftDirUCPtr = 0;
    uint8_t leftBitUC = 0;
+   uint8_t tmpLeftBitUC = 0;
      // Every 2 bits tells were to move next 11=top,10=diagnol,01=left
      // Find next cell: top: scoreOnLPtr - lenRefUL;
      // Find next cell: diagnol: scoreOnLPtr - lenRefUL - 1;
@@ -236,7 +761,7 @@ uint8_t * NeedleManWunschAln(
 
    // Get direction matrix in sync with scoring matrix
    dirOnUCPtr = dirMatrixUC; // Move left
-   *dirOnUCPtr |= defMoveMatch;
+   *dirOnUCPtr |= defMoveStop;
    twoBitAryShiftBitsForNewElm(&dirOnUCPtr, &bitUC);
 
    *dirOnUCPtr |= defMoveLeft;
@@ -263,8 +788,7 @@ uint8_t * NeedleManWunschAln(
    ^ Fun-05 Sec-4: Fill the matrix with scores
    ^  o fun-05 sec-4 sub-1: Fill in the indel column
    ^  o fun-05 sec-4 sub-2: Get scores for insertion, deletion, match
-   ^  o fun-05 sec-4 sub-3: Find direction from scores (best score)
-   ^  o fun-05 sec-4 sub-4: Move to the next refernce/query base
+   ^  o fun-05 sec-4 sub-3: Move to the next refernce/query base
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
    /*******************************************************************\
@@ -321,7 +845,7 @@ uint8_t * NeedleManWunschAln(
        while(*tmpRefCStr != '\0')
        { // loop; compare one query to one reference base
 
-           snpScoreI =
+           snpScoreL =
               getBasePairScore(
                   tmpQueryCStr,
                   tmpRefCStr,
@@ -329,97 +853,53 @@ uint8_t * NeedleManWunschAln(
            ); // Find the score for the two base pairs
 
            // Find the score for the diagnol cell (snp/match)
-           scoreDiagnolI = *(lastBaseLPtr - 1) + snpScoreI;
+           scoreDiagnolL = *(lastBaseLPtr - 1) + snpScoreL;
 
-           // Check if I need to find the other scores
-           if(checkIfBasesMatch(tmpQueryCStr, tmpRefCStr) & 1)
-           { //If I have a match
-               *dirOnUCPtr |= defMoveMatch;
-               *scoreOnLPtr = scoreDiagnolI;
-           } //If I have a match
+           switch(settings->matchPriorityBl) 
+           { // Switch: check if matches have priority
 
-           else
-           { // else the bases do not match
-               // Check if this is the first indel or not
-               switch(getTwoBitAryElm(topDirUCPtr, &topBitUC))
-               { // Switch; check if this is the first indel
-                 case defMoveMatch:    // Top base was a match
-                 case defMoveDiagnol:  // Top base was a SNP
-                     scoreTopI =
-                         *lastBaseLPtr + settings->gapStartPenaltyI;
-                   // Top base was not an indel, so this is an new indel
-                     break;
+               case 1:
+                   if(checkIfBasesMatch(tmpQueryCStr, tmpRefCStr) != 0)
+                   { // If had matching bases
+                       *dirOnUCPtr |= defMoveDiagnol;
+                       *scoreOnLPtr = scoreDiagnolL;
+                       break;
+                   } // If had matching bases
 
-                 case defMoveUp:   // Top base was an insertion
-                 case defMoveLeft: // Top base was an deletion
-                     scoreTopI =
-                         *lastBaseLPtr + settings->gapExtendPenaltyI;
-                     // Top base was an indel, so this is an extended
-                     break;
-               } // Switch; check if this is the first indel
+               case 0:   // Either not using match priority or not match
+                   scoreTopL =
+                       getIndelScore(
+                           topDirUCPtr,
+                           &topBitUC,
+                           settings,
+                           lastBaseLPtr
+                   ); // Get the score for an insertion
 
-               // find the score for the left cell (deletion)
-               if(bitUC > 0) bitElmUC = (*dirOnUCPtr & (4 | 8)) >> 2;
-               else bitElmUC = getTwoBitAryElm(leftDirUCPtr,&leftBitUC);
-                  // If handles when have an incomplete element
+                   // If the limb is not complete the last direction
+                   // will always be one shift back 
+                   if(leftBitUC < 3) tmpLeftBitUC = 2;
+                   else tmpLeftBitUC = 3;
 
-               switch(bitElmUC)
-               { // Switch; check if this is the first indel
-                 case defMoveMatch:    // left base was a match
-                 case defMoveDiagnol:  // Left base was a SNP
-                     scoreLeftI =
-                        *(scoreOnLPtr - 1) + settings->gapStartPenaltyI;
-                   // Left base was not an indel, so this is an new indel
-                     break;
+                   scoreLeftL =
+                       getIndelScore(
+                           leftDirUCPtr,   // part of two bit index
+                           &tmpLeftBitUC,  // part of two bit index
+                           settings,       // Has gap penalties
+                           scoreOnLPtr - 1 // Score of the previous base
+                   ); // Get the score for an insertion
 
-                 case defMoveUp:   // Left base was an insertion
-                 case defMoveLeft: // Left base was an deletion
-                     scoreLeftI =
-                         *(scoreOnLPtr - 1)+settings->gapExtendPenaltyI;
-                     // Left base was an indel, so this is an extended
-                     break;
-               } // Switch; check if this is the first indel
-
-               /********************************************************\
-               * Fun-05 Sec-4 Sub-3: Find direction (best score)
-               \********************************************************/
-               
-               // The logic here is that I decide the best path as I
-               // score, since the best of equal alternatives will
-               // always follow an arbitary decision or report all
-               // possible paths (I only care about 1). This allows me
-               // to use a smaller direction matrix, but does add in
-               // some more time.
-               if(scoreTopI > scoreDiagnolI)
-               { // If top score is better than the diagnol (or as good)
-                   if(scoreTopI >= scoreLeftI)
-                   { // If have a better top score
-                       *dirOnUCPtr |= defMoveUp;
-                       *scoreOnLPtr = scoreTopI;
-                   } // If have a better top score
-
-                   else
-                   { // Else if have a better left score
-                       *dirOnUCPtr |= defMoveLeft;
-                       *scoreOnLPtr = scoreLeftI;
-                   } // Else if have a better left score
-               } // If top score is better than the diagnol (or as good)
-
-               else if(scoreLeftI <= scoreDiagnolI)
-               { //else if have a better or as good diagnol score
-                   *dirOnUCPtr |= defMoveDiagnol;
-                   *scoreOnLPtr = scoreDiagnolI;
-               } //else if have a better or as good diagnol score
-
-               else
-               { //Else have a better left score
-                   *dirOnUCPtr |= defMoveLeft;
-                   *scoreOnLPtr = scoreLeftI;
-               } //Else have a better left score
-           } // If the bases do not match
+                   updateDirAndScoreNeedle(
+                       dirOnUCPtr,
+                       settings,   // Has preference for score selection
+                       &scoreTopL,     // Score for an insertion
+                       &scoreDiagnolL, // Score for an match/snp
+                       &scoreLeftL,    // The score for an deletion
+                       scoreOnLPtr
+                   ); // Update the scores
+           } // Switch: check if matches have priority
 
            /************************************************************\
-           * Fun-05 Sec-4 Sub-4: Move to the next refernce/query base
+           * Fun-05 Sec-4 Sub-3: Move to the next refernce/query base
            \************************************************************/
        
            // Move to the next cell to score
@@ -462,6 +942,10 @@ uint8_t * NeedleManWunschAln(
    * Fun-05 Sec-5 Sub-1: Get to the very last score (bottom right)
    \*******************************************************************/
 
+   // Make sure the last index is correct
+   finishTwoBitAry(dirOnUCPtr, bitUC);
+
+   // Move to the last direction (currently on direction after last)
    twoBitAryMoveBackOneElm(&dirOnUCPtr, &bitUC);
    bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitUC);
    // Move to bottom right base to trace back the path
@@ -470,7 +954,7 @@ uint8_t * NeedleManWunschAln(
    * Fun-05 Sec-5 Sub-2: Find the best path
    \*******************************************************************/
 
-   while(bitUC != 0 || dirOnUCPtr != dirMatrixUC)
+   while(bitElmUC != defMoveStop) // While not at the ned of the matrix
    { // While I have more bases to add to the path
        switch(bitElmUC)
        { // Switch: check what the next base is in the sequence
@@ -479,13 +963,6 @@ uint8_t * NeedleManWunschAln(
                    // have lenRefUL (index 1) cells per row, so need to
                    // do lenRefUL + 1 to get to cell above current
                *(alnErrAryUC + numErrUI) = defInsFlag;  // flag for ins
-               break;
-
-           case defMoveMatch:
-               *(alnErrAryUC + numErrUI) = defMatchFlag; // match
-               twoBitAryMoveBackXElm(&dirOnUCPtr, &bitUC, lenRefUL + 2);
-                   // have lenRefUL (index 1) cells per row, so need to
-                   // do lenRefUL + 2 to get to diagnol cell
                break;
 
            case defMoveDiagnol:           // Move to diagnol (match/snp)
@@ -536,232 +1013,218 @@ uint8_t * NeedleManWunschAln(
 } // NeeldeManWunschAln
 
 /*---------------------------------------------------------------------\
-| Output: Two bits of interest from the two bit array
+| Output: 1: if bases were a match; 0 if not
 \---------------------------------------------------------------------*/
-uint8_t getTwoBitAryElm(
-    uint8_t *twoBitAryUC,// Array of bytes that contain 4 2 bit elements
-    uint8_t *charElmOnUC // The two bits on in the unit8_t
+char checkIfBasesMatch(
+    char *queryBaseC, // Query base to see if same as reference
+    char *refBaseC    // Reference base to see if same as query
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-06 TOC: Sec-1 Sub-1: getElmFromToBitUCAry
-   '  - Get an element from a two bit array
+   ' Fun-07 TOC: Sec-1 Sub-1: checkIfBasesMatch
+   '  - Check if two bases are the same (includes anonymous bases)
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-    switch(*charElmOnUC)
-    { // Switch: find the element on
-       case 0: return *twoBitAryUC >> 6;          // Last two bits (7,8)
-       case 1: return (*twoBitAryUC & (16 | 32)) >> 4; // 5th & 6th bits
-       case 2: return (*twoBitAryUC & (4 | 8)) >> 2;   // 3rd & 4th bits
-       case 3: return *twoBitAryUC & (1 | 2);      // The first two bits
-    } // Switch: find the element on
+   
+   // The switch should default to a look up table & will be more clear
+   switch(*queryBaseC & defToUper)
+   { // Switch: Check if bases are the same
+       case 'A':
+       // Case: Query is an A
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'A': return 1;
+               case 'W': return 1;
+               case 'M': return 1;
+               case 'R': return 1;
+               case 'D': return 1;
+               case 'H': return 1;
+               case 'V': return 1;
+               case 'N': return 1;
+               case 'X': return 1;
+               default: return 0;
+           } // Switch: Check what the reference base was
+       // Case: Query is an A
 
-    return 0;
-} // getTwoBitAryElm
+       case 'T':
+       // Case: Query is an T
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'T': return 1;
+               case 'U': return 1;
+               case 'W': return 1;
+               case 'K': return 1;
+               case 'B': return 1;
+               case 'Y': return 1;
+               case 'D': return 1;
+               case 'H': return 1;
+               case 'N': return 1;
+               case 'X': return 1;
+               default: return 0;
+           } // Switch: Check what the reference base was
+       // Case: Query is an T
 
-/*---------------------------------------------------------------------\
-| Output:
-|  - Modifies:
-|    o twoBitAryUC to be shifted to (move last two bits further up) if
-|      the unit8_t has room for two more bits
-|    o twoBitAryUC to point to next uint8_t element if need to shift to
-|      the next set of four two bits
-|    o Incurements bitUC to hold number of two bits in the current
-|      unit8_t
-|    o Sets bitUC to 0 if moving to the next uint8_t element
-| Note:
-|  - This function does not change the memory size
-|  - You have to change the two bit values your self
-\---------------------------------------------------------------------*/
-void twoBitAryShiftBitsForNewElm(
-    uint8_t **twoBitAryUC, // To bit array to add space for a new element
-    uint8_t *bitUC         // Which bit am I on in the uint8_t
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-07 TOC: Sec-1 Sub-1: twoBitAryShiftBytsForNewElm
-   '  - Make room in a unit8_t for two more two-bit elements
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+       case 'U':
+       // Case: Query is an U
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'T': return 1;
+               case 'U': return 1;
+               case 'W': return 1;
+               case 'K': return 1;
+               case 'B': return 1;
+               case 'Y': return 1;
+               case 'D': return 1;
+               case 'H': return 1;
+               case 'N': return 1;
+               case 'X': return 1;
+               default: return 0;
+           } // Switch: Check what the reference base was
+       // Case: Query is an U
 
-   switch(*bitUC)
-   { // Switch; check if need to move to new direction element
-       case 0:
-       case 1:
-       case 2:
-           ++(*bitUC);          // Still have more bits in char
-           **twoBitAryUC = (**twoBitAryUC) << 2;
-                // Move to next cell in 2 bit array
-           return;
-       case 3:
-           *bitUC = 0;
-           ++(*twoBitAryUC);    // Move to next uint8_t in two bit array
-           return;
-   } // Switch; check if need to move to new direction element
-} // twoBitAryShiftBytsForNewElm
+       case 'C':
+       // Case: Query is an C
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'C': return 1;
+               case 'S': return 1;
+               case 'M': return 1;
+               case 'Y': return 1;
+               case 'B': return 1;
+               case 'H': return 1;
+               case 'V': return 1;
+               case 'N': return 1;
+               case 'X': return 1;
+               default: return 0;
+           } // Switch: Check what the reference base was
+       // Case: Query is an C
 
-/*---------------------------------------------------------------------\
-| Output:
-|  - Modifies:
-|    o twoBitAryUC to point to next uint8_t element if the next two bit
-|      elements are in the next unit8_t
-|      (one uint8_t holds four 2-bit elements)
-|    o Incurements bitUC to be on the next 2-bit element in the current
-|      uint8_t
-|    o Sets bitUC to 0 if moving to the next uint8_t in the array
-\---------------------------------------------------------------------*/
-void twoBitAryMoveToNextElm(
-    uint8_t **twoBitAryUC, // To bit array to move to next element in
-    uint8_t *bitUC         // Which bit am I on in the current uint8_t
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-08 TOC: Sec-1 Sub-1: twoBitAryMoveToNextElm
-   '  - Moves to the next element in a two-bit array
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+       case 'G':
+       // Case: Query is an G
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'G': return 1;
+               case 'S': return 1;
+               case 'K': return 1;
+               case 'R': return 1;
+               case 'B': return 1;
+               case 'D': return 1;
+               case 'V': return 1;
+               case 'N': return 1;
+               case 'X': return 1;
+               default: return 0;
+           } // Switch: Check what the reference base was
+       // Case: Query is an G
 
-   // Move the bit above 
-   switch(*bitUC)
-   { // Switch; check if need to move to a new element
-       case 0:
-       case 1:
-       case 2:
-          ++(*bitUC);      // Move to next two bits in uint8_t
-          return;
-       case 3:
-          *bitUC = 0;        // Moving to a new uint8_t
-          ++(*twoBitAryUC);  // Move to the next element
-          return;
-   } // Switch; check if need to move to a new element
+       case 'W':
+       // Case: Query is an W
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'C': return 0;
+               case 'G': return 0;
+               case 'S': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an W
 
-   return;
-} // twoBitAryMoveToNextElm
+       case 'S':
+       // Case: Query is an S
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'A': return 0;
+               case 'T': return 0;
+               case 'U': return 0;
+               case 'W': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an S
 
-/*---------------------------------------------------------------------\
-| Output:
-|  - Modifies:
-|    o twoBitAryUC to point to the previous uint8_t element if the r
-|      previous two bit elements are in the previous unit8_t
-|      (one uint8_t holds four 2-bit elements)
-|    o Decurments bitUC to be on the previouls 2-bit element in the
-|      current uint8_t
-|    o Sets bitUC to 0 if moving to the previous uint8_t in the array
-\---------------------------------------------------------------------*/
-void twoBitAryMoveBackOneElm(
-    uint8_t **twoBitAryUC, // 2-bit array to move to previous element in
-    uint8_t *bitUC         // Which bit am I on in the current uint8_t
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-09 TOC: Sec-1 Sub-1: towBitAryMoveBackOneElm
-   '  - Moves back one element in a 2-bit array
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+       case 'M':
+       // Case: Query is an M
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'G': return 0;
+               case 'T': return 0;
+               case 'U': return 0;
+               case 'K': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an M
 
-   // Move the bit above 
-   switch(*bitUC)
-   { // Switch; check if need to move to a new element
-       case 0:
-          *bitUC = 3;        // One last bit in the previous unit8_t
-          --(*twoBitAryUC);  // Move to previous uint8_t in the array
-          return;
-       case 1:
-       case 2:
-       case 3:
-          --(*bitUC);        // Move to the previous two bits in uint8_t
-          return;
-   } // Switch; check if need to move to a new element
+       case 'K':
+       // Case: Query is an K
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'A': return 0;
+               case 'C': return 0;
+               case 'M': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an K
 
-   return;
-} // twoBitAryMoveToNextElm
+       case 'R':
+       // Case: Query is an R
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'C': return 0;
+               case 'T': return 0;
+               case 'U': return 0;
+               case 'Y': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an R
 
-/*---------------------------------------------------------------------\
-| Output:
-|  - Modifies:
-|    o twoBitAryUC to point to the target uint8_t element
-|    o Sets bitUC to be on the target bit count of the shift
-\---------------------------------------------------------------------*/
-void twoBitAryMoveBackXElm(
-    uint8_t **twoBitAryUC, // 2-bit array to move to previous element in
-    uint8_t *bitUC,        // Which bit am I on in the current uint8_t
-    int32_t shiftByI       // How many elements to shift back by
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-10 TOC: Sec-1 Sub-1: towBitAryMoveBackXElm
-   '  - Moves back X elements in a 2-bit array
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+       case 'Y':
+       // Case: Query is an Y
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'A': return 0;
+               case 'G': return 0;
+               case 'R': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an Y
 
-   // Move back by the indes
-   (*twoBitAryUC) -= (shiftByI >> 2);
+       case 'B':
+       // Case: Query is an B
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'A': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an B
 
-   // Move the bit above 
-   switch(*bitUC)
-   { // Switch; check if need to move to a new element
-       case 0:
-       // Case 0: Current position is on the first bit of the array
-           switch(shiftByI & (1 | 2))
-           { // Switch; find out how many bits to adjust
-               case 0: return; // Finished
-               case 1:
-                   *bitUC = 3; // Just starting on the next array
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-               case 2:
-                   *bitUC = 2;
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-               case 3:
-                   *bitUC = 1;
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-           } // Switch; find out how many bits to adjust
-       // Case 0: Current position is on the first bit of the array
+       case 'D':
+       // Case: Query is an D
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'C': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an C
 
-       case 1:
-       // Case 1: Have one bit to move back by before starting new array
-           switch(shiftByI & (1 | 2))
-           { // Switch; find out how many bits to adjust
-               case 0: return; // Finished
-               case 1:
-                   *bitUC = 0; // Had an extra bit to spare
-                   return;
-               case 2:
-                   *bitUC = 3; // On last element of next uint8_t
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-               case 3:
-                   *bitUC = 2;
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-           } // Switch; find out how many bits to adjust
-       // Case 1: Have one bit to move back by before starting new array
+       case 'H':
+       // Case: Query is an D
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'G': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an H
 
-       case 2:
-       // Case 2: Have two bits to move back by before starting new uint
-           switch(shiftByI & (1 | 2))
-           { // Switch; find out how many bits to adjust
-               case 0: return; // Finished
-               case 1:
-                   *bitUC = 1; // Had an extra bit to spare
-                   return;
-               case 2:
-                   *bitUC = 0; // On last element of shift uint8_t
-                   return;
-               case 3:
-                   *bitUC = 3;
-                   --(*twoBitAryUC); // Acount for off bit
-                   return;
-           } // Switch; find out how many bits to adjust
-       // Case 2: Have two bits to move back by before starting new uint
+       case 'V':
+       // Case: Query is an D
+           switch(*refBaseC & defToUper)
+           { // Switch: Check what the reference base was
+               case 'T': return 0;
+               case 'U': return 0;
+               default: return 1;
+           } // Switch: Check what the reference base was
+       // Case: Query is an V
 
-       case 3:
-       // Case 3: was on the last element of the uint8
-           switch(shiftByI & (1 | 2))
-           { // Switch; find out how many bits to adjust
-               case 0: return; // Finished
-               case 1:
-                   *bitUC = 2;
-                   return;
-               case 2:
-                   *bitUC = 1;
-                   return;
-               case 3:
-                   *bitUC = 0;
-                   return;
-           } // Switch; find out how many bits to adjust
-       // Case 3: was on the last element of the uint8
-   } // Switch; check if need to move to a new element
+       case 'N': return 1;
+       case 'X': return 1;
+   } // Switch: Check if bases are the same
 
-   return;
-} // twoBitAryMoveBackXElm
+   return 0; // not a base
+} // checkIfBasesMatch
 
 /*---------------------------------------------------------------------\
 | Output: Returns: Initalized alnSet structer or 0 for memory error
@@ -769,7 +1232,7 @@ void twoBitAryMoveBackXElm(
 \---------------------------------------------------------------------*/
 struct alnSet * makeAlnSetST(
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-11 TOC: Sec-1 Sub-1: makeAlnSet
+   ' Fun-12 TOC: Sec-1 Sub-1: makeAlnSet
    '  - Makes & initalizes an alnSet structer on the heap
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -789,7 +1252,7 @@ int16_t getBasePairScore(
     const char *refBaseC,   // Reference base of pair to get score for
     struct alnSet *alnSetST // structure with scoring matrix to change
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-12 TOC: Sec-1 Sub-1: getBasePairScore
+   ' Fun-13 TOC: Sec-1 Sub-1: getBasePairScore
    '  - Get the score for a pair of bases from an alignment structure
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -805,7 +1268,7 @@ int16_t getBasePairScore(
 void initAlnSet(
     struct alnSet *alnSetST // Alinment settings structure to initialize
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-13 TOC: Sec-1 Sub-1: initAlnSet
+   ' Fun-14 TOC: Sec-1 Sub-1: initAlnSet
    '  - Set values in altSet (alingment settings) structure to defaults
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -814,11 +1277,17 @@ void initAlnSet(
    alnSetST->maxChunksI = defMaxChunks;
    alnSetST->minChunkLenI = defMinChunkLen;
    alnSetST->minPercKmerD = defMinPercKmer;
+   alnSetST->useNeedleBl = defUseNeedle;
 
    // Aligment Needleman-Wunsch settings
    alnSetST->gapStartPenaltyI = defGapStartPenalty;
    alnSetST->gapExtendPenaltyI = defGapExtendPenalty;
    alnSetST->minScoreUI = defMinScore;
+
+   alnSetST->matchPriorityBl = defMatchPriority;
+   alnSetST->diagnolPriorityC = defDiagnolPriority;
+   alnSetST->topPriorityC = defTopPriority;
+   alnSetST->leftPriorityC = defLeftPriority;
 
    // Aligment Needleman-Wunsch scoring matrix
    for(uint8_t colUC = 0; colUC < 26; ++colUC)
@@ -1158,7 +1627,7 @@ void setBasePairScore(
     int16_t newScoreC,        // New value for [query][ref] combination
     struct alnSet *alnSetST   // structure with scoring matrix to change
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-14 TOC: Sec-1 Sub-1: setBasePairScore
+   ' Fun-15 TOC: Sec-1 Sub-1: setBasePairScore
    '  - Changes SNP/Match penalty for one query/reference combination
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -1218,7 +1687,7 @@ void freeAlnSet(
     struct alnSet *alnSetST,  // Alignment settings structure to free
     char stackBl              // 1: alnSetSt on stack; 0: on heap
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-15 TOC: Sec-1 Sub-1: freeAlnSet
+   ' Fun-16 TOC: Sec-1 Sub-1: freeAlnSet
    '  - Frees and alnSet (alignment settings) structure
    \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -1227,224 +1696,15 @@ void freeAlnSet(
    return; 
 } // freeAlnSet
     
-/*---------------------------------------------------------------------\
-| Output: 1: if bases were a match; 0 if not
-\---------------------------------------------------------------------*/
-char checkIfBasesMatch(
-    char *queryBaseC, // Query base to see if same as reference
-    char *refBaseC    // Reference base to see if same as query
-){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-16 TOC: Sec-1 Sub-1: checkIfBasesMatch
-   '  - Check if two bases are the same (includes anonymous bases)
-   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-   
-   // The switch should default to a look up table & will be more clear
-   switch(*queryBaseC & defToUper)
-   { // Switch: Check if bases are the same
-       case 'A':
-       // Case: Query is an A
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'A': return 1;
-               case 'W': return 1;
-               case 'M': return 1;
-               case 'R': return 1;
-               case 'D': return 1;
-               case 'H': return 1;
-               case 'V': return 1;
-               case 'N': return 1;
-               case 'X': return 1;
-               default: return 0;
-           } // Switch: Check what the reference base was
-       // Case: Query is an A
-
-       case 'T':
-       // Case: Query is an T
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'T': return 1;
-               case 'U': return 1;
-               case 'W': return 1;
-               case 'K': return 1;
-               case 'B': return 1;
-               case 'Y': return 1;
-               case 'D': return 1;
-               case 'H': return 1;
-               case 'N': return 1;
-               case 'X': return 1;
-               default: return 0;
-           } // Switch: Check what the reference base was
-       // Case: Query is an T
-
-       case 'U':
-       // Case: Query is an U
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'T': return 1;
-               case 'U': return 1;
-               case 'W': return 1;
-               case 'K': return 1;
-               case 'B': return 1;
-               case 'Y': return 1;
-               case 'D': return 1;
-               case 'H': return 1;
-               case 'N': return 1;
-               case 'X': return 1;
-               default: return 0;
-           } // Switch: Check what the reference base was
-       // Case: Query is an U
-
-       case 'C':
-       // Case: Query is an C
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'C': return 1;
-               case 'S': return 1;
-               case 'M': return 1;
-               case 'Y': return 1;
-               case 'B': return 1;
-               case 'H': return 1;
-               case 'V': return 1;
-               case 'N': return 1;
-               case 'X': return 1;
-               default: return 0;
-           } // Switch: Check what the reference base was
-       // Case: Query is an C
-
-       case 'G':
-       // Case: Query is an G
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'G': return 1;
-               case 'S': return 1;
-               case 'K': return 1;
-               case 'R': return 1;
-               case 'B': return 1;
-               case 'D': return 1;
-               case 'V': return 1;
-               case 'N': return 1;
-               case 'X': return 1;
-               default: return 0;
-           } // Switch: Check what the reference base was
-       // Case: Query is an G
-
-       case 'W':
-       // Case: Query is an W
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'C': return 0;
-               case 'G': return 0;
-               case 'S': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an W
-
-       case 'S':
-       // Case: Query is an S
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'A': return 0;
-               case 'T': return 0;
-               case 'U': return 0;
-               case 'W': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an S
-
-       case 'M':
-       // Case: Query is an M
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'G': return 0;
-               case 'T': return 0;
-               case 'U': return 0;
-               case 'K': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an M
-
-       case 'K':
-       // Case: Query is an K
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'A': return 0;
-               case 'C': return 0;
-               case 'M': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an K
-
-       case 'R':
-       // Case: Query is an R
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'C': return 0;
-               case 'T': return 0;
-               case 'U': return 0;
-               case 'Y': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an R
-
-       case 'Y':
-       // Case: Query is an Y
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'A': return 0;
-               case 'G': return 0;
-               case 'R': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an Y
-
-       case 'B':
-       // Case: Query is an B
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'A': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an B
-
-       case 'D':
-       // Case: Query is an D
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'C': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an C
-
-       case 'H':
-       // Case: Query is an D
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'G': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an H
-
-       case 'V':
-       // Case: Query is an D
-           switch(*refBaseC & defToUper)
-           { // Switch: Check what the reference base was
-               case 'T': return 0;
-               case 'U': return 0;
-               default: return 1;
-           } // Switch: Check what the reference base was
-       // Case: Query is an V
-
-       case 'N': return 1;
-       case 'X': return 1;
-   } // Switch: Check if bases are the same
-
-   return 0; // not a base
-} // checkIfBasesMatch
 
 /*---------------------------------------------------------------------\
 | Output: Modifies: alnErrUCAry to have letters instead of codes
 \---------------------------------------------------------------------*/
 void cnvtAlnErrAryToLetter(
+    char *refSeqCStr,      // Reference sequence for detecting matches
+                           // Input 0 to ignore matches
+    char *querySeqCStr,    // query sequence for detecting matches
+                           // Input 0 to ignore matches
     uint8_t *alnErrUCAry   // Array array from Needleman (fun-05) to 
                           // convert to legible characters
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
@@ -1460,15 +1720,38 @@ void cnvtAlnErrAryToLetter(
         { // Switch; check the error type
             case defDelFlag:                    // deletion
                 *alnErrUCAry = 'D';
+                ++refSeqCStr;           // Move to next reference base
                 break;
             case defInsFlag:                    // insertion
                 *alnErrUCAry = 'I';
+                ++querySeqCStr;         // Move to next query base
                 break;
-            case defMatchFlag:                    // match
-                *alnErrUCAry = '=';
+
+            case defSoftQueryFlag:      // Query base was sofmasked
+                *alnErrUCAry = 's';     // mark as query masked
+                ++querySeqCStr;         // Move to next query base
                 break;
-            case defBaseFlag:                   // snp
-                *alnErrUCAry = 'X';
+
+            case defSoftRefFlag:        // Reference base was softmasked
+                *alnErrUCAry = 'P';     // Mark as reference mask
+                ++refSeqCStr;         // Move to next query base
+                break;
+
+            case defSoftRefFlag + defSoftQueryFlag: 
+                *alnErrUCAry = 'S';    // Mark as both masked
+                ++querySeqCStr;         // Move to next query base
+                ++refSeqCStr;         // Move to next query base
+                break;
+
+            case defBaseFlag:                   // Match or snp
+                if(refSeqCStr == 0 || querySeqCStr == 0)
+                    *alnErrUCAry = 'X';    // No idea if match or snp
+                else if(checkIfBasesMatch(querySeqCStr,refSeqCStr) == 0)
+                    *alnErrUCAry = 'X';    // snp
+                else *alnErrUCAry = '=';   // match
+
+                ++refSeqCStr;           // Move to next reference base
+                ++querySeqCStr;         // Move to next query base
                 break;
         } // Switch; check the error type
 
@@ -1555,3 +1838,757 @@ unsigned long readInScoreFile(
 
     return 0;
 } // readInScoreFile
+
+/*---------------------------------------------------------------------\
+| Output: Returns the score for an Needleman Wunsch indel
+\---------------------------------------------------------------------*/
+long getIndelScore(
+    uint8_t *lastDirUC,      // Cell gettign last score from
+    uint8_t *lastBitUC,      // two bit element on in lastDirUC
+    struct alnSet *alnSetST, // Holds the gap open & extension penalties
+    long *lastBaseL          // Has score of the last base
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-19 TOC: Sec-1 Sub-1: getIndelScore
+   '  - Gets an indel score for the current cell
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   // Check if this is the first indel or not
+   switch(getTwoBitAryElm(lastDirUC, lastBitUC))
+   { // Switch; check if this is the first indel
+     case defMoveStop:     // At the end of the matrix
+     case defMoveDiagnol:  // Top base was a SNP
+         return *lastBaseL + alnSetST->gapStartPenaltyI;
+
+     case defMoveUp:   // Top base was an insertion
+     case defMoveLeft: // Top base was an deletion
+         return *lastBaseL + alnSetST->gapExtendPenaltyI;
+   } // Switch; check if this is the first indel
+
+   return 0; // Somthing went wrong
+} // getIndelScore
+
+/*---------------------------------------------------------------------\
+| Output: Modifies: scoreOnL and dirOnUC to hold best score & direction
+\---------------------------------------------------------------------*/
+void updateDirAndScoreNeedle(
+    uint8_t *dirOnUCPtr,     // Direction on with first two bits cleared
+    struct alnSet *alnSetST, // Has preference for score selection
+    long *scoreTopL,     // Score for an insertion
+    long *scoreDiagnolL, // Score for an match/snp
+    long *scoreLeftL,    // The score for an deletion
+    long *scoreOnL       // Score to update
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-20 TOC: updateDirAndScoreNeedle
+   '  - Picks the best score and direction for the current base pairs
+   '    being compared in a Needleman Wunsch alignment
+   '  o fun-20 sec-1: Matches->insertions->deletions
+   '  o fun-20 sec-2: Matches->deletions->insertions
+   '  o fun-20 sec-3: Insertions->matches->deletions
+   '  o fun-20 sec-4: Deletions->matches->insertions
+   '  o fun-20 sec-5: Insertions->deletions->matches
+   '  o fun-20 sec-6: Deletions->insertions->matches
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   // I decide the best path as I score since all equal scores create
+   // an equally valid alignment.
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-20 Sec-1: Matches and then insertions
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   switch(alnSetST->diagnolPriorityC)
+   { // Switch; get an snp/match priority
+       case 0:  // Top priority
+       // Case; bases or matches are top priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 1:
+               // Case: priority is matches/snps and then insertions
+                   if(*scoreDiagnolL >= *scoreTopL)
+                   { // If diagnol beats insertion
+
+                       if(*scoreDiagnolL >= *scoreLeftL)
+                       { // If diagnol beats deletions
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol beats deletions
+
+                       else
+                       { // Else the deletion is the best score
+                           *dirOnUCPtr |= defMoveLeft;
+                           *scoreOnL = *scoreLeftL;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreTopL >= *scoreLeftL)
+                   { // Else the insertion is the best score
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                   } // Else the insertion is the best score
+
+                   else
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then insertions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-20 Sec-2: Matches->deletions->insertions
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is matches/snps and then deletions
+                   if(*scoreDiagnolL >= *scoreLeftL)
+                   { // If diagnol beats deletion
+
+                       if(*scoreDiagnolL >= *scoreTopL)
+                       { // If diagnol beats insertions
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                       } // Else the insertion is the best score
+                   } // If diagnol beats deletion
+
+                   else if(*scoreLeftL >= *scoreTopL)
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the insertion is the best score
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                   } // Else the insertion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then deletions
+           } // Priority for insertions
+       // Case; bases or matches are top priority
+
+       /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+       ^ Fun-20 Sec-3: Insertions->matches->deletions
+       \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+       case 1:
+       // Case; bases or matches are second priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 0:
+               // Case: priority is insertions and then matches/snps
+                   if(*scoreDiagnolL > *scoreTopL)
+                   { // If diagnol beats insertion
+
+                       if(*scoreDiagnolL >= *scoreLeftL)
+                       { // If diagnol beats deletions
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol beats deletions
+
+                       else
+                       { // Else the deletion is the best score
+                           *dirOnUCPtr |= defMoveLeft;
+                           *scoreOnL = *scoreLeftL;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreTopL >= *scoreLeftL)
+                   { // Else the insertion is the best score
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                   } // Else the insertion is the best score
+
+                   else
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then insertions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-20 Sec-4: Deletions->matches->insertions
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is deletions and then matches/snps
+                   if(*scoreDiagnolL > *scoreLeftL)
+                   { // If diagnol beats deletion
+
+                       if(*scoreDiagnolL >= *scoreTopL)
+                       { // If diagnol beats insertions
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                       } // Else the insertion is the best score
+                   } // If diagnol beats deletion
+
+                   else if(*scoreLeftL >= *scoreTopL)
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the insertion is the best score
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                   } // Else the insertion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then deletions
+           } // Priority for insertions
+
+       /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+       ^ Fun-20 Sec-5: Insertions->deletions->matches
+       \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+       case 2:
+       // Case; bases or matches are last priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 0:
+               // Case: priority is insertions and then deletions
+                   if(*scoreTopL >= *scoreLeftL)
+                   { // If diagnol beats insertion
+
+                       if(*scoreDiagnolL > *scoreTopL)
+                       { // If diagnol is the highest score
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol is the highest score
+
+                       else
+                       { // Else the insertion is the best score
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreLeftL >= *scoreDiagnolL)
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the match/snp is the best score
+                      *dirOnUCPtr |= defMoveDiagnol;
+                      *scoreOnL = *scoreDiagnolL;
+                   } // Else the match/snp is the best score
+                       
+                   return;
+               // Case: priority is insertions then deletions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-20 Sec-6: Deletions->insertions->matches
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is deletions and then insertions
+                   if(*scoreTopL > *scoreLeftL)
+                   { // If insertion beats deletion
+
+                       if(*scoreDiagnolL > *scoreTopL)
+                       { // If diagnol beats insertions
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                       } // Else the insertion is the best score
+                   } // If insertion beats deletion
+
+                   else if(*scoreLeftL >= *scoreDiagnolL)
+                   { // Else the deletion is the best score
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the match/snp is the best score
+                      *dirOnUCPtr |= defMoveDiagnol;
+                      *scoreOnL = *scoreDiagnolL;
+                   } // Else the match/snp is the best score
+                       
+                   return;
+               // Case: priority is insertions and then deletions
+           } // Priority for insertions
+       // Case; bases or matches are last priority
+   } // Switch; get an snp/match priority
+
+   return;
+} // updateDirAndScoreNeedle
+
+/*---------------------------------------------------------------------\
+| Output: Modifies: scoreOnL and dirOnUC to hold best score & direction
+\---------------------------------------------------------------------*/
+void updateDirAndScoreWater(
+    uint8_t *dirOnUCPtr,     // Direction on with first two bits cleared
+    struct alnSet *alnSetST, // Has preference for score selection
+    long *scoreTopL,     // Score for an insertion
+    long *scoreDiagnolL, // Score for an match/snp
+    long *scoreLeftL,    // The score for an deletion
+    long *scoreOnL       // Score to update
+){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+   ' Fun-21 TOC: updateDirAndScoreWater
+   '  - Picks the best score and direction for the current base pairs
+   '    being compared in a Waterman Smith alignment
+   '  o fun-21 sec-1: Matches->insertions->deletions
+   '  o fun-21 sec-2: Matches->deletions->insertions
+   '  o fun-21 sec-3: Insertions->matches->deletions
+   '  o fun-21 sec-4: Deletions->matches->insertions
+   '  o fun-21 sec-5: Insertions->deletions->matches
+   '  o fun-21 sec-6: Deletions->insertions->matches
+   \~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+   // I decide the best path as I score since all equal scores create
+   // an equally valid alignment.
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+   ^ Fun-21 Sec-1: Matches and then insertions
+   \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+   switch(alnSetST->diagnolPriorityC)
+   { // Switch; get an snp/match priority
+       case 0:  // Top priority
+       // Case; bases or matches are top priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 1:
+               // Case: priority is matches/snps and then insertions
+                   if(*scoreDiagnolL >= *scoreTopL)
+                   { // If diagnol beats insertion
+                       if(*scoreDiagnolL >= *scoreLeftL)
+                       { // If diagnol beats deletions
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol beats deletions
+
+                       else
+                       { // Else the deletion is the best score
+                           if(*scoreLeftL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveLeft;
+                           *scoreOnL = *scoreLeftL;
+                           return;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreTopL >= *scoreLeftL)
+                   { // Else the insertion is the best score
+                      if(*scoreTopL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                      return;
+                   } // Else the insertion is the best score
+
+                   else
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                      return;
+                   } // Else the deletion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then insertions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-21 Sec-2: Matches->deletions->insertions
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is matches/snps and then deletions
+                   if(*scoreDiagnolL >= *scoreLeftL)
+                   { // If diagnol beats deletion
+                       if(*scoreDiagnolL >= *scoreTopL)
+                       { // If diagnol beats insertions
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                          if(*scoreTopL <= 0)
+                          { // If need to make a stopping point
+                              *dirOnUCPtr |= defMoveStop;
+                              *scoreOnL = 0;
+                              return;
+                          } // If need to make a stopping point
+
+                          *dirOnUCPtr |= defMoveUp;
+                          *scoreOnL = *scoreTopL;
+                          return;
+                       } // Else the insertion is the best score
+                   } // If diagnol beats deletion
+
+                   else if(*scoreLeftL >= *scoreTopL)
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                      return;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the insertion is the best score
+                      if(*scoreTopL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                      return;
+                   } // Else the insertion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then deletions
+           } // Priority for insertions
+       // Case; bases or matches are top priority
+
+       /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+       ^ Fun-21 Sec-3: Insertions->matches->deletions
+       \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+       case 1:
+       // Case; bases or matches are second priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 0:
+               // Case: priority is insertions and then matches/snps
+                   if(*scoreDiagnolL > *scoreTopL)
+                   { // If diagnol beats insertion
+                       if(*scoreDiagnolL >= *scoreLeftL)
+                       { // If diagnol beats deletions
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol beats deletions
+
+                       else
+                       { // Else the deletion is the best score
+                           if(*scoreLeftL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveLeft;
+                           *scoreOnL = *scoreLeftL;
+                           return;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreTopL >= *scoreLeftL)
+                   { // Else the insertion is the best score
+                      if(*scoreTopL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                      return;
+                   } // Else the insertion is the best score
+
+                   else
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                      return;
+                   } // Else the deletion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then insertions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-21 Sec-4: Deletions->matches->insertions
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is deletions and then matches/snps
+                   if(*scoreDiagnolL > *scoreLeftL)
+                   { // If diagnol beats deletion
+
+                       if(*scoreDiagnolL >= *scoreTopL)
+                       { // If diagnol beats insertions
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                           if(*scoreTopL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                           return;
+                       } // Else the insertion is the best score
+                   } // If diagnol beats deletion
+
+                   else if(*scoreLeftL >= *scoreTopL)
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                      return;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the insertion is the best score
+                      if(*scoreTopL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveUp;
+                      *scoreOnL = *scoreTopL;
+                      return;
+                   } // Else the insertion is the best score
+                       
+                   return;
+               // Case: priority is matches/snps and then deletions
+           } // Priority for insertions
+
+       /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+       ^ Fun-21 Sec-5: Insertions->deletions->matches
+       \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+       case 2:
+       // Case; bases or matches are last priority
+           switch(alnSetST->topPriorityC)
+           { // Priority for insertions
+               case 0:
+               // Case: priority is insertions and then deletions
+                   if(*scoreTopL >= *scoreLeftL)
+                   { // If diagnol beats insertion
+                       if(*scoreDiagnolL > *scoreTopL)
+                       { // If diagnol is the highest score
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol is the highest score
+
+                       else
+                       { // Else the insertion is the best score
+                           if(*scoreTopL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                           return;
+                       } // Else the deletion is the best score
+                   } // If diagnol beats insertion
+
+                   else if(*scoreLeftL >= *scoreDiagnolL)
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the match/snp is the best score
+                      if(*scoreDiagnolL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveDiagnol;
+                      *scoreOnL = *scoreDiagnolL;
+                      return;
+                   } // Else the match/snp is the best score
+                       
+                   return;
+               // Case: priority is insertions then deletions
+
+               /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
+               ^ Fun-21 Sec-6: Deletions->insertions->matches
+               \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
+               case 2:
+               // Case: priority is deletions and then insertions
+                   if(*scoreTopL > *scoreLeftL)
+                   { // If insertion beats deletion
+                       if(*scoreDiagnolL > *scoreTopL)
+                       { // If diagnol beats insertions
+                           if(*scoreDiagnolL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveDiagnol;
+                           *scoreOnL = *scoreDiagnolL;
+                           return;
+                       } // If diagnol beats insertions
+
+                       else
+                       { // Else the insertion is the best score
+                           if(*scoreTopL <= 0)
+                           { // If need to make a stopping point
+                               *dirOnUCPtr |= defMoveStop;
+                               *scoreOnL = 0;
+                               return;
+                           } // If need to make a stopping point
+
+                           *dirOnUCPtr |= defMoveUp;
+                           *scoreOnL = *scoreTopL;
+                           return;
+                       } // Else the insertion is the best score
+                   } // If insertion beats deletion
+
+                   else if(*scoreLeftL >= *scoreDiagnolL)
+                   { // Else the deletion is the best score
+                      if(*scoreLeftL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveLeft;
+                      *scoreOnL = *scoreLeftL;
+                      return;
+                   } // Else the deletion is the best score
+
+                   else
+                   { // Else the match/snp is the best score
+                      if(*scoreDiagnolL <= 0)
+                      { // If need to make a stopping point
+                          *dirOnUCPtr |= defMoveStop;
+                          *scoreOnL = 0;
+                          return;
+                      } // If need to make a stopping point
+
+                      *dirOnUCPtr |= defMoveDiagnol;
+                      *scoreOnL = *scoreDiagnolL;
+                      return;
+                   } // Else the match/snp is the best score
+                       
+                   return;
+               // Case: priority is insertions and then deletions
+           } // Priority for insertions
+       // Case; bases or matches are last priority
+   } // Switch; get an snp/match priority
+
+   return;
+} // updateDirAndScoreWater

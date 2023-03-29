@@ -4,6 +4,7 @@
 # Includes:
 #  - "alignmentsFun.h"
 #  - "sequenceFun.h"
+#  o "twoBitArrays.h"
 # C standard libraries:
 #  - <string.h>
 #  o <stdlib.h>
@@ -134,6 +135,34 @@ int main(
        \n       a t -4\
        \n       a a 5 \
        \n       \\\\ This is a comment\
+       \n  -use-water: [Needleman Wunsch]\
+       \n     o Use a Waterman Smith alignment instead of the Needleman\
+       \n       Wunsch (Waterman is a local, Needle is an global).\
+       \n     o This only tracks one best alignment, not all best\
+       \n       (or all) alignments.\
+       \n  -enable-match-priority: [No]\
+       \n     o Always go with matches for best score, even when an\
+       \n       indel would give a better score.\
+       \n     o This does not apply to SNPs.\
+       \n  -match-ins-del: [ins-match-del]\
+       \n     o For equal scores choose matches/SNPs over insertions.\
+       \n       Choose insertions over deletions.\
+       \n  -match-del-ins: [ins-match-del]\
+       \n     o For equal scores choose matches/SNPs over deletions.\
+       \n       Choose deletions over insertions.\
+       \n  -ins-match-del: [ins-match-del]\
+       \n     o For equal scores choose insertions over matches/SNPs.\
+       \n       Choose matchs/SNPs over deletions.\
+       \n  -del-match-ins: [ins-match-del]\
+       \n     o For equal scores choose deletions over matches/SNPs.\
+       \n       Choose matchs/SNPs over insertions.\
+       \n  -ins-del-match: [ins-match-del]\
+       \n     o For equal scores choose insertions over deletions.\
+       \n       Choose deletions over matchs/SNPs.\
+       \n  -del-ins-match: [ins-match-del]\
+       \n     o For equal scores choose deletions over insertions.\
+       \n       Choose insertions over matches/SNPs.\
+       \n     o When scores are equal choose deletions then insertions.\
        \n Output:\
        \n  - Alignment with query on top, reference, and error line to\
        \n    stdout or specified file.\
@@ -142,10 +171,6 @@ int main(
        \n    o D = Deletion\
        \n    o X = mismatch\
        \n    o = = match\
-       \n Note:\
-       \n  - The Scoring matrix is currently an EDNAFULL matix.\
-       \n  - Currently the scoring matrix can only be changed at\
-       \n    compile time (see Sec-9 in defaultSettings.h).\
        ";
 
    /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
@@ -316,18 +341,37 @@ int main(
    ^ Main Sec-5: Do the alingment
    \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-   alnErrUCAry =
-       NeedleManWunschAln(
-           queryCStr,
-           1,
-           lenQuerySeqUI,
-           refCStr,
-           1,
-           lenRefSeqUI,
-           &alnSetST,
-           &lenErrAryUI,
-           &alnScoreL
-   ); // Get the alignment
+   if(alnSetST.useNeedleBl != 0)
+   { // If doing a Needleman Wunsch alignment
+       alnErrUCAry =
+           NeedleManWunschAln(
+               queryCStr,
+               1,
+               lenQuerySeqUI,
+               refCStr,
+               1,
+               lenRefSeqUI,
+               &alnSetST,
+               &lenErrAryUI,
+               &alnScoreL
+       ); // Get the alignment
+   } // If doing a Needleman Wunsch alignment
+
+   else
+   { // Else doing a Waterman Smith alignment
+       alnErrUCAry =
+           WatermanSmithAln(
+               queryCStr,
+               1,
+               lenQuerySeqUI,
+               refCStr,
+               1,
+               lenRefSeqUI,
+               &alnSetST,
+               &lenErrAryUI,
+               &alnScoreL
+       ); // Get the alignment
+   } // Else doing a Waterman Smith alignment
 
    if(alnErrUCAry == 0)
    { // If did not have enough memory
@@ -352,7 +396,7 @@ int main(
 
    if(queryAlnCStr == 0)
    { // If had a memory allocation error
-       cnvtAlnErrAryToLetter(alnErrUCAry);
+       cnvtAlnErrAryToLetter(refCStr, queryCStr, alnErrUCAry);
        fprintf(outFILE, "%s\n", alnErrUCAry);
 
        fprintf(stderr, "Memory error, while outputing sequences\n");
@@ -378,7 +422,7 @@ int main(
 
    if(refAlnCStr == 0)
    { // If had a memory allocation error
-       cnvtAlnErrAryToLetter(alnErrUCAry);
+       cnvtAlnErrAryToLetter(refCStr, queryCStr, alnErrUCAry);
        fprintf(outFILE, "%s\n%s\n", queryAlnCStr, alnErrUCAry);
 
        fprintf(
@@ -403,7 +447,7 @@ int main(
    ^ Main Sec-8: Print out the alignment
    \>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
-   cnvtAlnErrAryToLetter(alnErrUCAry);
+   cnvtAlnErrAryToLetter(refCStr, queryCStr, alnErrUCAry);
 
    fprintf(outFILE, "# Query = %s", queryHeadCStr);
    fprintf(outFILE, "# Ref = %s", refHeadCStr);
@@ -412,6 +456,9 @@ int main(
    fprintf(outFILE, "#   - X is mismatch\n");
    fprintf(outFILE, "#   - I is insertion\n");
    fprintf(outFILE, "#   - D is deletion\n\n");
+   fprintf(outFILE, "#   - S is soft mask on query and reference\n\n");
+   fprintf(outFILE, "#   - s is soft mask on query only\n\n");
+   fprintf(outFILE, "#   - P is soft mask on reference only\n\n");
 
    queryPtrCStr = queryAlnCStr;
    refPtrCStr = refAlnCStr;
@@ -420,6 +467,17 @@ int main(
    // This is not very elegent or efficent, but it works for now
    while(*queryPtrCStr != 0)
    { // While I have bases to print out
+       charOnUC = 0;
+       fprintf(outFILE, "Ref:                 ");
+       while(charOnUC < 49)
+       { // While I have query bases to print out
+           fprintf(outFILE, "%c", *refPtrCStr);
+           ++charOnUC;
+           ++refPtrCStr;
+           if(*refPtrCStr == 0) break;
+       } // While I have query bases to print out
+       fprintf(outFILE, "\n");
+
        charOnUC = 0;
        fprintf(outFILE, "Query:               ");
        while(charOnUC < 49)
@@ -430,17 +488,6 @@ int main(
            if(*queryPtrCStr == 0) break;
        } // While I have query bases to print out
 
-       fprintf(outFILE, "\n");
-
-       charOnUC = 0;
-       fprintf(outFILE, "Ref:                 ");
-       while(charOnUC < 49)
-       { // While I have query bases to print out
-           fprintf(outFILE, "%c", *refPtrCStr);
-           ++charOnUC;
-           ++refPtrCStr;
-           if(*refPtrCStr == 0) break;
-       } // While I have query bases to print out
        fprintf(outFILE, "\n");
 
        charOnUC = 0;
@@ -530,6 +577,66 @@ char * checkInput(
         else if(strcmp(tmpCStr, "-gapextend") == 0)
             alnSetST->gapExtendPenaltyI =
                 strtol(singleArgCStr, &tmpCStr, 10);
+
+        else if(strcmp(tmpCStr, "-use-water") == 0)
+        { // Else if disabling match priority
+            alnSetST->useNeedleBl = !defUseNeedle;
+            --intArg;
+        } // Else if disabling match priority
+
+        else if(strcmp(tmpCStr, "-enable-match-priority") == 0)
+        { // Else if disabling match priority
+            alnSetST->matchPriorityBl = !defMatchPriority;
+            --intArg;
+        } // Else if disabling match priority
+
+        else if(strcmp(tmpCStr, "-match-ins-del") == 0)
+        { // Else if user wants matches->insertions->deletions
+            alnSetST->diagnolPriorityC = 0;
+            alnSetST->topPriorityC = 1;
+            alnSetST->leftPriorityC = 2;
+            --intArg;
+        } // Else if user wants matches->insertions->deletions
+
+        else if(strcmp(tmpCStr, "-match-del-ins") == 0)
+        { // Else if user wants matches->deletions->insertions
+            alnSetST->diagnolPriorityC = 0;
+            alnSetST->topPriorityC = 2;
+            alnSetST->leftPriorityC = 1;
+            --intArg;
+        } // Else if user wants matches->deletions->insertions
+
+        else if(strcmp(tmpCStr, "-ins-match-del") == 0)
+        { // Else if user wants insertions->matches->deletions
+            alnSetST->diagnolPriorityC = 1;
+            alnSetST->topPriorityC = 0;
+            alnSetST->leftPriorityC = 2;
+            --intArg;
+        } // Else if user wants insertions->matches->deletions
+
+        else if(strcmp(tmpCStr, "-del-match-ins") == 0)
+        { // Else if user wants deletions->matches->insertions
+            alnSetST->diagnolPriorityC = 1;
+            alnSetST->topPriorityC = 2;
+            alnSetST->leftPriorityC = 0;
+            --intArg;
+        } // Else if user wants deletions->matches->insertions
+
+        else if(strcmp(tmpCStr, "-ins-del-match") == 0)
+        { // Else if user wants insertions->deletions->matches
+            alnSetST->diagnolPriorityC = 2;
+            alnSetST->topPriorityC = 0;
+            alnSetST->leftPriorityC = 1;
+            --intArg;
+        } // Else if user wants insertions->deletions->matches
+
+        else if(strcmp(tmpCStr, "-del-ins-match") == 0)
+        { // Else if user wants deletions->insertions->matches
+            alnSetST->diagnolPriorityC = 2;
+            alnSetST->topPriorityC = 1;
+            alnSetST->leftPriorityC = 0;
+            --intArg;
+        } // Else if user wants deletions->insertions->matches
 
         else if(strcmp(tmpCStr, "-score-matrix") == 0)
         { // else if the user supplied a scoring matrix

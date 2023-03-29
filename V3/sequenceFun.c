@@ -19,7 +19,7 @@
 '     o Reads a fastq sequence from a fastq file
 '  - fun-04 readFaSeq:
 '     o Grabs the next read in the fasta file
-'  - fun-05 addLineToBuff:
+'  - fun-05 addLineToBuffSeqFun:
 '     o Add characters from file to buffer, if needed resize. This
 '       will only read in till the end of the line
 '  - fun-06 reverseCStr;
@@ -71,7 +71,7 @@ char complementBase(
 
     switch(*baseC & (~32)) // remove 32 to convert to upper case
     { // switch, reverse complement
-        case 'A': return 'C';
+        case 'A': return 'T';
         case 'C': return 'G';
         case 'G': return 'C';
         case 'T': return 'A';
@@ -146,7 +146,7 @@ uint8_t readFqSeq(
         return 2;    /*No file provided*/
 
     errUC =
-        addLineToBuff(
+        addLineToBuffSeqFun(
             headerCStr,            // C-string to hold the header
             lenHeadUI,             // Length of the header buffer
             &bytesInBuffUL,        // Number of bytes in the buffer
@@ -170,7 +170,7 @@ uint8_t readFqSeq(
         tmpBuffUL = bytesInBuffUL; // So can get to this position later
 
         errUC =
-            addLineToBuff(
+            addLineToBuffSeqFun(
                 seqCStr,          // Buffer to hold the sequence entry
                 lenSeqUI,         // Size of the sequence buffer
                 &bytesInBuffUL,   // Number of bytes in the buffer
@@ -227,7 +227,7 @@ uint8_t readFqSeq(
     while(numLinesUC > 0)
     { // While I need to read in the Q-score entry
         errUC =
-            addLineToBuff(
+            addLineToBuffSeqFun(
                 qCStr,             // Buffer to hold the Q-score entry
                 lenQUI,            // Size of the q-score entry buffer
                 &bytesInBuffUL,    // Number of bytes in q-score buffer
@@ -312,7 +312,7 @@ uint8_t readFaSeq(
         return 2;    /*No file provided*/
 
     errUC =
-        addLineToBuff(
+        addLineToBuffSeqFun(
             headerCStr,            // C-string to hold the header
             lenHeadUI,             // Length of the header buffer
             &bytesInBuffUL,        // Number of bytes in the buffer
@@ -337,7 +337,7 @@ uint8_t readFaSeq(
         tmpBuffUL = bytesInBuffUL; // So can get to this position later
 
         errUC =
-            addLineToBuff(
+            addLineToBuffSeqFun(
                 seqCStr,          // Buffer to hold the sequence entry
                 lenSeqUI,         // Size of the sequence buffer
                 &bytesInBuffUL,   // Number of bytes in the buffer
@@ -392,14 +392,14 @@ uint8_t readFaSeq(
 |     o 1 if read in the next line
 |     o 64 if had a memory allocation error
 \---------------------------------------------------------------------*/
-unsigned char addLineToBuff(
+unsigned char addLineToBuffSeqFun(
     char **buffCStr,          /*Buffer to add data to*/
     uint32_t *lenBuffUL, /*Size of the buffer*/
     unsigned long *curBuffUL, /*Length buffer with valid data*/
     unsigned long resBuffUL,  /*Amount to resize buffer by if full*/
     FILE *inFILE              /*File to grab data from*/
 ){ /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-05 TOC: addLineToBuff
+   ' Fun-05 TOC: addLineToBuffSeqFun
    '  - Add characters from file to buffer, if needed resize. This
    '    will only read in till the end of the line
    '   o fun-05 sec-1: variable declerations
@@ -426,7 +426,7 @@ unsigned char addLineToBuff(
     { /*If need to resize the buffer (-1 for 0 index)*/
         *lenBuffUL += resBuffUL - 1;
             /*-1 to account for adding two index one items*/
-        *buffCStr = realloc(*buffCStr, sizeof(char) * *lenBuffUL);
+        *buffCStr = realloc(*buffCStr, sizeof(char) * (*lenBuffUL + 1));
 
         if(*buffCStr == 0)
             return 64; /*Memory allocation error*/
@@ -471,7 +471,7 @@ unsigned char addLineToBuff(
             /*-1 to account for 0 index*/
         *lenBuffUL += resBuffUL - 1;
            /*-1 to account for adding two index 1 items*/
-        *buffCStr = realloc(*buffCStr, sizeof(char) * *lenBuffUL);
+        *buffCStr = realloc(*buffCStr, sizeof(char) * (*lenBuffUL + 1));
 
         if(*buffCStr == 0)
             return 64; /*Memory allocation error*/
@@ -498,7 +498,7 @@ unsigned char addLineToBuff(
     } /*Else only read in part of the buffer*/
 
     return 0; /*End of file*/
-} /*addLineToBuff*/
+} /*addLineToBuffSeqFun*/
 
 /*---------------------------------------------------------------------\
 | Output: Modifies inCStr to be backwards (end at start, start at end)
@@ -526,4 +526,3 @@ void reverseCStr(
 
     return;
 } // reverseCStr
-

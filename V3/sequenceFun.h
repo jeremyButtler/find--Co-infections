@@ -19,7 +19,7 @@
 '    o Reads a fastq sequence from a fastq file
 '  - fun-04 readFaSeq:
 '     o Grabs the next read in the fasta file
-'  - fun-05 addLineToBuff:
+'  - fun-05 addLineToBuffSeqFun:
 '     o Add characters from file to buffer, if needed resize. This
 '       will only read in till the end of the line
 '  - fun-06 reverseCStr;
@@ -131,14 +131,14 @@ uint8_t readFaSeq(
 |     o 1 if read in the next line
 |     o 64 if had a memory allocation error
 \---------------------------------------------------------------------*/
-unsigned char addLineToBuff(
+unsigned char addLineToBuffSeqFun(
     char **buffCStr,          /*Buffer to add data to*/
     uint32_t *lenBuffUL, /*Size of the buffer*/
     unsigned long *curBuffUL, /*Length buffer with valid data*/
     unsigned long resBuffUL,  /*Amount to resize buffer by if full*/
     FILE *inFILE              /*File to grab data from*/
 ); /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-   ' Fun-05 TOC: addLineToBuff
+   ' Fun-05 TOC: addLineToBuffSeqFun
    '  - Add characters from file to buffer, if needed resize. This
    '    will only read in till the end of the line
    '   o fun-3 sec-1: variable declerations

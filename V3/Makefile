@@ -153,6 +153,7 @@ extractReadsGcc=-Wall \
     -o extractTopReads
 
 alignSeqGcc=-Wall\
+    twoBitArrays.c \
     sequenceFun.c \
     cStrToNumberFun.c \
     alignmentsFun.c \

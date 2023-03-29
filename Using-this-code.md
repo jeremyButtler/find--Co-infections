@@ -169,15 +169,17 @@ After you list is built you can then build the hash table using
 
 ### AlignSeq
 
-This is the docuemetation for alignSeq, which uses a two bit
+This is the documentation for alignSeq, which uses a two bit
   Needleman Wunsch alignment algorithm. Most of the functions can be
-  found in alignments.c/h. It also requries cStrToNumberFun.c/h and
-  defaultSettings.h (sec-9 holds the gap pentalies and scoring matrix
+  found in alignments.c/h. It also requires cStrToNumberFun.c/h and
+  defaultSettings.h (sec-9 holds the gap penalties and scoring matrix
   settings).
    
    - Uses the alnSet structure for storing alignment settings.
        - gapStartPenaltyI: penatly for opening new gaps.
        - gapExtendPenaltyI: penalty for extending a gap
+       - It also has the scoring matrix and variables that set the
+         priorities for alignments
    - initAlnSet:
        - Initalizes the alnSet structure to default values.
        - Input pointer to an alnSet structure to initalize.
@@ -192,13 +194,21 @@ This is the docuemetation for alignSeq, which uses a two bit
        - Input: Pointer to the reference base
        - Input: Score to add to the scoring matrix
        - Input: Pointer to alnSet structer with the scoring matrix
+   - WatermanSmithAln
+       - Performs a Waterman Smith alignment on a pair of sequences.
+       - This version only finds a single answer and so is not really
+         that great (a Hirschberg Waterman Smith is much better).
+       - The only difference for input and output from the
+         NeedleManWunschAln (next entry) is that the alignment array
+         also has soft mask flags (defSoftRefFlag, defSoftQueryFlag, or
+         defSoftRefFlag + defSoftQueryFlag).
    - NeedleManWunschAln
        - Performs a Needleman Wunsch alignment on a pair of sequences
        - Returns: an alignment array with flags marking if the base is
                   an match, snp, insertion or deltion
            - This array needs to be freeded (on heap)
-           - Use: defMatchFlag, defBaseFlag (snp), defInsFlag,
-                  defDelFlag to identify the error type.
+           - Use: defBaseFlag (snp/match), defInsFlag, defDelFlag to
+             identify the error type.
        - Input: c-string with the query sequence to align
        - Input: Starting point on the query sequence (index 1)
        - Input: Ending point on the query sequence (index 1)
@@ -220,7 +230,13 @@ This is the docuemetation for alignSeq, which uses a two bit
     - cnvtAlnErrAryToLetter
        - Converts an error array (from NeedleManWunschAln) to have a
          human readable format (I is insertion, = is match, X is SNP,
-         D is deletion).
+         D is deletion). This will only count matches if a reference
+         and query sequence is provided, otherise it will print X for
+         SNPs and matches.
+       - Input: Reference sequence used in the alignment.
+         Used to detect matches (use 0 to ignore matches).
+       - Input: Query sequence used in the alignment.
+         Used to detect matches (use 0 to ignore matches).
        - Input: error Array (from NeedleManWunschAln) to convert to
          human readable format.
     - readFaSeq (from sequence.c)
@@ -235,9 +251,11 @@ This is the docuemetation for alignSeq, which uses a two bit
        - Input: length of sequence entry (0 will allocate more memory)
        - Input: Variable to hold the length of the inptu sequence
     - twoBit functions:
+       - Found in twoBirArrays.c/h
        - These functions are here for working with two bit arrays. I
-         will only mention they exist, so you can check them and use
-         them if you are interested.
+         will mention that they exist, but will not list them, since 
+         most people would not be interested (see SOF or SOP in
+         alignments.c/h for a list).
 
 # Documentation method
 

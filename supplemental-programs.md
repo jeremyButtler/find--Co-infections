@@ -282,9 +282,14 @@ AlignSeq is a Needleman Wunsch alignment algorithm that I am planning to
   (insertion), and then left move (deletions). This allows keeping track
   of only one direction per score.
 
+AlignSeq can also do a Waterman Smith alignment to get a single answer.
+  However this Waterman Smith only keeps track of a single best entry
+  (the one that is nearest to the bottom right of the matrix), so it
+  will not give multiple alignments. A Hirschberg is a better option.
+
 AlignSeq is only memory efficent when compared to other Needleman-Wunsch
   alignments (N^2/4 instead of N^2). However, it will never be as
-  efficant than Hirschenberg.
+  efficant than Hirschberg alignment.
 
 AlignSeq does not use decimals, so if you want decimals for the gap
   extension penatly you will have to multiply all scores by 10.
@@ -300,5 +305,9 @@ make alignSeq
 mv alignSeq /path/to/install
 chmod a+x /path/to/install/alignSeq
 
+# For a global alignment (Needleman Wunsch)
 alignSeq -query query.fasta -ref ref.fasta > alignment.aln
+
+# For a single local alignment (Waterman Smith)
+alignSeq -use-water -query query.fasta -ref ref.fasta > alignment.aln
 ```
