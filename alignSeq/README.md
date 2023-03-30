@@ -40,7 +40,7 @@ Note: This program is more set up for noisy reads. This means that the
   penalty higher and lower the gap extension penalty.
 
 The help message can be called with -h. For an exmaple of the scoring
-  matrix see V3/scoring-matrix.txt.
+  matrix see scoring-matrix.txt.
 
 #### How to build alignSeq
 

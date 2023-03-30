@@ -276,8 +276,7 @@ These functions probably have little use, but might of use in some
 This is the documentation for alignSeq, which uses a two bit
   Needleman Wunsch alignment algorithm. Most of the functions can be
   found in alignments.c/h. It also requires cStrToNumberFun.c/h and
-  defaultSettings.h (sec-9 holds the gap penalties and scoring matrix
-  settings).
+  defaultSettings.h
    
    - Uses the alnSet structure for storing alignment settings.
        - gapStartPenaltyI: penatly for opening new gaps.
