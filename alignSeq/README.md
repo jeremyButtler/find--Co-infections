@@ -55,4 +55,4 @@ alignSeq -query query.fasta -ref ref.fasta > alignment.aln
 
 # For a single local alignment (Waterman Smith)
 alignSeq -use-water -query query.fasta -ref ref.fasta > alignment.aln
-`
+```
