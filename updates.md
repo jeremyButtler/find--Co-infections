@@ -20,8 +20,10 @@ The version number for find co-infections V3 now includes the date it
 3. Added fqGetIdsIllumina, which has support for Illumina reads
 4. Added fqGetIdsFast, which was the fqGetIds used for benchmarking.
 5. Other than future bugs, this should be my last update. Their may be
-   a few future updates for figures and the code documentation, but they
-   will not be written here. I am finally have nothing more to add.
+   a few future updates for minor stuff that is not program related,
+   but they will not be recorded here. I finally have nothing more to
+   add. Version thee started at the start of January and ended near the 
+   end of March.
 
 ## 2023-03-28
 

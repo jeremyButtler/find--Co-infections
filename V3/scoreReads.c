@@ -58,7 +58,10 @@
 #    stdout: Line with the read, query, and scores
 # Includes:
 #    - "scoreReadsFun.h"
-#        - "samEntryStruct.h"
+#        - "minAlnStatsStructs.h"
+#        - "fqAndFqFun.h"
+#        - "FCIStatsFun.h"
+#        o "samEntryStruct.h"
 #            - <stdlib.h>
 #            - "cStrToNumberFun.h"
 #                - <sdtint.h>
