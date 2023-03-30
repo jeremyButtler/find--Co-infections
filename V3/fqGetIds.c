@@ -35,6 +35,7 @@
     /*
       Includes:
           - "fqGetIdsFqFun.h"    # Functoions to read fastq file
+              - "fqAndFaFun.h"
               - <stdio.h>            # FILE, fread, printf, & fprintf 
           - "fqGetIdsHash.h"        # functions to build my hash table
               - "fqGetIdsAVLTree.h" # functions to build AVL tree
