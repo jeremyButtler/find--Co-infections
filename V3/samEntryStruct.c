@@ -1689,7 +1689,7 @@ void samEntryToReadStat(
         ++tmpCpCStr;
     } /*While have the query id to copy over*/
 
-    tmpCpCStr = '\0'; /*Mark end of c-string*/
+    *tmpCpCStr = '\0'; /*Mark end of c-string*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-20 Sec-4: Copy the reference id
@@ -1705,7 +1705,7 @@ void samEntryToReadStat(
         ++tmpCpCStr;
     } /*While have the reference id to copy over*/
 
-    tmpCpCStr = '\0'; /*Mark end of c-string*/
+    *tmpCpCStr = '\0'; /*Mark end of c-string*/
     return;
 } /*samStructToReadBin*/
 

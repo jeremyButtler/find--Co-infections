@@ -34,6 +34,7 @@
 
 #include <string.h> /*strcmp function*/
 #include "trimSam.h"
+#include "defaultSettings.h" // For version number
 
 /*---------------------------------------------------------------------\
 | Output: Modifies: Each input variable to hold user input
@@ -133,14 +134,29 @@ int main(int lenArgsInt, char *argsPtrCStr[])
     if(errChar & 2)
     { /*if the user input an invalid input*/
         if(
-            strcmp(samPathCStr, "-h") ||
-            strcmp(samPathCStr, "--h") ||
-            strcmp(samPathCStr, "-help") ||
-            strcmp(samPathCStr, "--help")
+            strcmp(samPathCStr, "-h") == 0 ||
+            strcmp(samPathCStr, "--h") == 0 ||
+            strcmp(samPathCStr, "-help") == 0 ||
+            strcmp(samPathCStr, "--help") == 0
         ) { /*If user requested the help message*/
-            fprintf(stderr, "%s\n", helpMesgCStr);
+            fprintf(stdout, "%s\n", helpMesgCStr);
             exit(0);
         } /*If user requested the help message*/
+
+        if(
+            strcmp(samPathCStr, "-v") == 0 ||
+            strcmp(samPathCStr, "-V") == 0 ||
+            strcmp(samPathCStr, "-Version") == 0 ||
+            strcmp(samPathCStr, "-version") == 0
+        ) { /*If the user is requesting the version number*/
+            fprintf(
+                stdout,
+                "trimSamFile built from findCoInft version: %.8f\n",
+                defVersion
+            );
+            exit(0);
+        } /*If the user is requesting the version number*/
+
 
         fprintf(
             stderr,

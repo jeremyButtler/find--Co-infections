@@ -151,12 +151,21 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
+            \n    -min-con-length:                               [500]\
+            \n       - Discard consensuses that are under the\
+            \n         input length.\
+            \n       - If you lower this your should also lower\
+            \n         -min-read-read-map-length &\
+            \n         -min-read-con-map-length\
             \n Additional Help messages:\
             \n    -h-build-consensus:\
             \n        - Print paramaters for building the consensus\
-            \n    -h-read-map:\
-            \n        - Print out the parameters for the read mapping\
-            \n          step.\
+            \n    -h-read-con-map:\
+            \n        - Print out the parameters for the read to\
+            \n          consensus mapping step.\
+            \n    -h-read-read-map:\
+            \n        - Print out the parameters for the read to read\
+            \n          mapping step.\
             \n Output:\
             \n    - File:\
             \n      o Contents: Consensus built from the fasta file\
@@ -189,22 +198,35 @@ int main(
             \n   consensus building method. It handles SNPs and matches\
             \n   well, provided their is enough read depth, but is weak\
             \n   for indels.\
-            \n    -disable-majority-consensus:                   [Yes]\
+            \n    -min-con-length:                               [500]\
+            \n       - Discard consensuses that are under the\
+            \n         input length.\
+            \n       - If you lower this your should also lower\
+            \n         -min-read-read-map-length &\
+            \n         -min-read-con-map-length\
+            \n    -max-reads-per-con:\
+            \n        - Max number of reads to use in        [300]\
+            \n          a consensus.\
+            \n    -extra-consensus-steps:                    [2]\
+            \n        - Number of times to rebuild the\
+            \n          consensus using a new set of best\
+            \n          reads.\
+            \n    -disable-majority-consensus: [Use majority consensus]\
             \n        - Build a consensus using a simple\
             \n          majority consensus. This consensus\
             \n          will be polished with Racon or\
             \n          Medaka if Racon and Medaka set.\
-            \n    -maj-con-min-bases                         [0.4=40%]\
+            \n    -maj-con-min-bases                         [0.35=35%]\
             \n        - When building the majority consesus\
             \n          make a deletion in positions that\
-            \n          have less than x\% of bases (40%).\
-            \n    -maj-con-min-base-q:                       [10]\
+            \n          have less than x\% of bases (35%).\
+            \n    -maj-con-min-base-q:                       [7]\
             \n        - Minimum q-score to keep a base when\
             \n          building a majority consensus.\
-            \n    -maj-con-min-ins                           [0.4=40%]\
+            \n    -maj-con-min-ins                           [0.3=30%]\
             \n        - When building the majority consesus\
             \n          ingore insertions that have support\
-            \n          from less than x\% of reads (40%).\
+            \n          from less than x\% of reads (30%).\
             \n    -maj-con-min-ins-q:                        [5]\
             \n        - Minimum q-score to keep a insertion\
             \n          when building a majority consensus.\
@@ -223,10 +245,106 @@ int main(
        "; /*consensus building parameters*/
 
     char
-        *readMapHelpCStr = "\
+        *readReadMapHelpCStr ="\
+            \n The read mapping step uses a higher quality (by median\
+            \n    Q-score) read in the bin to identify other high\
+            \n    qaulity reads (by median Q-score) that likely came\
+            \n    from the same virus. This is done by mapping reads\
+            \n    to the selected read and removing all reads that are\
+            \n    beneath the quality thresholds. Only the top X\
+            \n    (default 300) are kept to build a consensus with.\
+            \n\
+            \n     -min-read-read-map-length:                     [500]\
+            \n        - Minimum aligned read length needed\
+            \n          to keep a read to read mapping.\
+            \n        - Values less than this will not be\
+            \n          extracted.\
+            \n        - Change this will also require changing\
+            \n          -min-read-con-map-length.\
+            \n     -read-read-snps:                      [0.021 = 2.1%]\
+            \n        - Minimum percentage of snps needed to\
+            \n          discard a read during the read to\
+            \n          read clustering step.\
+            \n     -read-read-diff:                       [0.02 = 2%]\
+            \n        - Minimum percent difference needed to\
+            \n          discard a read during the read to\
+            \n          read clustering step.\
+            \n     -read-read-dels:                       [1 = 100%]\
+            \n        - Minimum percentage of deletions\
+            \n          needed to discard a read during\
+            \n          the read to read clustering step.\
+            \n     -read-read-inss:                       [1 = 100%]\
+            \n        - Minimum percentage of insertions\
+            \n          needed to discard a read during\
+            \n          the read to read clustering step.\
+            \n     -read-read-indels:                     [1 = 100%]\
+            \n        - Minimum percentage of insertions\
+            \n          and deletions needed to discard a\
+            \n          read during the read to read\
+            \n          clustering step.\
+            \n\
+            \n\
+            \n The scoring settings for read mapping only counts SNPs\
+            \n     and indels in reads that are at or above the user\
+            \n     input thresholds. These counts are used to find the\
+            \n     percentages in the comparison step.\
+            \n\
+            \n     -read-read-min-base-q:                 [10]\
+            \n        - Minimum Q-score needed to keep an\
+            \n          SNP or insertion when comparing\
+            \n          reads.\
+            \n     -read-read-min-mapq:                   [20]\
+            \n        - Minimum mapping quality needed to\
+            \n          keep a read when comparing reads.\
+            \n\
+            \n     -read-read-max-a-ins-homo:                [1]\
+            \n        - Maximum A homopolymer size to keep\
+            \n          an insertion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-t-ins-homo:                [1]\
+            \n        - Maximum T homopolymer size to keep\
+            \n          an insertion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-c-ins-homo:                [1]\
+            \n        - Maximum C homopolymer size to keep\
+            \n          an insertion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-g-ins-homo:                [1]\
+            \n        - Maximum G homopolymer size to keep\
+            \n          an insertion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n\
+            \n     -read-read-max-a-del-homo:                [0]\
+            \n        - Maximum A homopolymer size to keep\
+            \n          an deletion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-t-del-homo:                [0]\
+            \n        - Maximum T homopolymer size to keep\
+            \n          an deletion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-c-del-homo:                [0]\
+            \n        - Maximum C homopolymer size to keep\
+            \n          an deletion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            \n     -read-read-max-g-del-homo:                [0]\
+            \n        - Maximum G homopolymer size to keep\
+            \n          an deletion (1 = no hompolymer,\
+            \n          0 = always discard).\
+            "; /*Read mapping help message*/
+
+
+    char
+        *readConMapHelpCStr = "\
             \n These paramaters are for controlling which reads are\
             \n    kept when mapped to the best read or the consensus.\
             \n\
+            \n     -min-read-con-map-length:                   [500]\
+            \n        - Minimum aligned read length needed to\
+            \n          keep a read to consensus mapping.\
+            \n        - Reads that have an alinged length less\
+            \n          than this will not be extracted.\
+            \n        - Change this will also require changing\
+            \n          -min-read-read-map-length.\
             \n     -read-con-snps:                       [0.015 = 1.5%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
@@ -253,7 +371,7 @@ int main(
             \n The scoring settings for only counts SNPs and indels\
             \n     in reads that are at or above the input thresholds.\
             \n\
-            \n     -read-con-min-base-q:                 [13]\
+            \n     -read-con-min-base-q:                 [10]\
             \n        - Minimum Q-score needed to keep an\
             \n          SNP or insertion when clustering\
             \n          reads.\
@@ -278,19 +396,19 @@ int main(
             \n          an insertion (1 = no hompolymer,\
             \n          0 = always discard).\
             \n\
-            \n     -read-con-max-a-del-homo:             [1]\
+            \n     -read-con-max-a-del-homo:             [0]\
             \n        - Maximum A homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-t-del-homo:             [1]\
+            \n     -read-con-max-t-del-homo:             [0]\
             \n        - Maximum T homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-c-del-homo:             [1]\
+            \n     -read-con-max-c-del-homo:             [0]\
             \n        - Maximum C homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-g-del-homo:             [1]\
+            \n     -read-con-max-g-del-homo:             [0]\
             \n        - Maximum G homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
@@ -355,7 +473,7 @@ int main(
             strcmp(tmpCStr, "-version") == 0
         ) { /*If the user is requesting the version number*/
             fprintf(stdout, "buildCon built with findCoInft version:");
-            fprintf(stdout, " %f\n", defVersion);
+            fprintf(stdout, " %.8f\n", defVersion);
             exit(0);
         } /*If the user is requesting the version number*/
 
@@ -364,10 +482,16 @@ int main(
             fprintf(stdout, "%s", conBuildHelpCStr);
             exit(0);
         } /*If the user wants the consensus building options*/
-        
-        if(strcmp(tmpCStr, "-h-read-map") == 0)
+
+        if(strcmp(tmpCStr, "-h-read-read-map") == 0)
         { /*If user wants to know about the read mapping parameters*/
-            fprintf(stdout, "%s", readMapHelpCStr);
+            fprintf(stdout, "%s", readReadMapHelpCStr);
+            exit(0);
+        } /*If user wants to know about the read mapping parameters*/
+        
+        if(strcmp(tmpCStr, "-h-read-con-map") == 0)
+        { /*If user wants to know about the read mapping parameters*/
+            fprintf(stdout, "%s", readConMapHelpCStr);
             exit(0);
         } /*If user wants to know about the read mapping parameters*/
 
@@ -383,7 +507,7 @@ int main(
 
         fprintf(
             stderr,
-            "%s\n\n %s is an invalid parameter\n",
+            "%s\n\n%s is an invalid parameter\n",
             helpCStr,   /*Print out the help message*/
             tmpCStr     /*Print out the error*/
         ); /*Let user know about the invalid parameter*/
@@ -717,6 +841,9 @@ char * getUserInput(
         else if(strcmp(parmCStr, "-extra-consensus-steps") == 0)
             cStrToUInt(inputCStr, &conSet->numRndsToPolishUI);
 
+        else if(strcmp(parmCStr, "-min-con-length") == 0)
+            conSet->minConLenUI = strtoul(inputCStr, &tmpCStr, 10);
+
         else if(strcmp(parmCStr, "-disable-majority-consensus") == 0)
         { /*Else if user is ussing the best read instead of consensus*/
             conSet->majConSet.useMajConBl = 0;
@@ -750,6 +877,12 @@ char * getUserInput(
         /**************************************************************\
         * Fun-1 Sec-2 Sub-2: Percent difference settings
         \**************************************************************/
+
+        else if(strcmp(parmCStr, "-min-read-con-map-length") == 0)
+        { /*Else if the user provided a minimum read length*/
+            minReadConStats->minReadLenULng =
+                strtoul(inputCStr, &tmpCStr, 10);
+        } /*Else if the user provided a minimum read length*/
 
         else if(strcmp(parmCStr, "-read-con-snps") == 0)
             sscanf(inputCStr, "%f", &minReadConStats->minSNPsFlt);
@@ -799,6 +932,12 @@ char * getUserInput(
         /**************************************************************\
         * Fun-1 Sec-2 Sub-2: Percent difference settings
         \**************************************************************/
+
+        else if(strcmp(parmCStr, "-min-read-read-map-length") == 0)
+        { /*Else if the user provided a minimum read length*/
+            readToReadMinStats->minReadLenULng =
+                strtoul(inputCStr, &tmpCStr, 10);
+        } /*Else if the user provided a minimum read length*/
 
         else if(strcmp(parmCStr, "-read-read-snps") == 0)
             sscanf(inputCStr, "%f", &readToReadMinStats->minSNPsFlt);

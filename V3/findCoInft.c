@@ -195,7 +195,7 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
-            \n    -min-read-length:                          [600]\
+            \n    -min-read-length:                          [500]\
             \n       - Minimum read length to keep a read.\
             \n         Discard reads with read lengths under this\
             \n         setting  during the binning step.\
@@ -218,6 +218,11 @@ int main(
             \n    -min-mean-q:                               [10]\
             \n       - Minimum read mean quality score\
             \n         needed to keep a read when binning.\
+            \n    -disable-majority-consensus:                   [Yes]\
+            \n        - Build a consensus using a simple\
+            \n          majority consensus. This consensus\
+            \n          will be polished with Racon or\
+            \n          Medaka if Racon and Medaka set.\
             \n    -enable-racon: [No]\
             \n       - Use Racon in building consensuses.\
             \n    -enable-medaka: [No]\
@@ -290,11 +295,11 @@ int main(
             \n        - Number of times to rebuild the\
             \n          consensus using a new set of best\
             \n          reads.\
-            \n    -maj-con-min-bases                         [0.4=40%]\
+            \n    -maj-con-min-bases                         [0.35=35%]\
             \n        - When building the majority consesus\
             \n          make a deletion in positions that\
             \n          have less than x\% of bases (40%).\
-            \n    -maj-con-min-base-q:                       [10]\
+            \n    -maj-con-min-base-q:                       [7]\
             \n        - Minimum q-score to keep a base when\
             \n          building a majority consensus.\
             \n    -maj-con-min-ins                           [0.3=30%]\
@@ -310,6 +315,12 @@ int main(
             \n    -rounds-racon:\
             \n        - Number of rounds to polish a         [4]\
             \n          consensus with racon\
+            \n    -enable-medaka:                               [No]\
+            \n        - Do not use medaka to polish the\
+            \n          consensus.\
+            \n    -model:\
+            \n        - Model to use with medaka   [r941_min_high_g351]\
+            \n          (calling medaka_consensus)\
        "; /*consensus building parameters*/
 
     char
@@ -335,7 +346,7 @@ int main(
             \n    - Minimum percentage of snps needed to\
             \n      discard a read during the read to\
             \n      reference binning step.\
-            \n -read-ref-diff:                           [0.03 = 3%]\
+            \n -read-ref-diff:                           [1.0 = 1%]\
             \n    - Minimum percent difference needed to\
             \n      discard a read during the read to\
             \n      reference binning step.\
@@ -393,19 +404,19 @@ int main(
             \n      an insertion (1 = no hompolymer,\
             \n      0 = always discard).\
             \n\
-            \n -read-ref-max-a-del-homo:                  [1]\
+            \n -read-ref-max-a-del-homo:                  [0]\
             \n    - Maximum A homopolymer size to keep\
             \n      an deletion (1 = no hompolymer,\
             \n      0 = always discard).\
-            \n -read-ref-max-t-del-homo:                  [1]\
+            \n -read-ref-max-t-del-homo:                  [0]\
             \n    - Maximum T homopolymer size to keep\
             \n      an deletion (1 = no hompolymer,\
             \n      0 = always discard).\
-            \n -read-ref-max-c-del-homo:                  [1]\
+            \n -read-ref-max-c-del-homo:                  [0]\
             \n    - Maximum C homopolymer size to keep\
             \n      an deletion (1 = no hompolymer,\
             \n      0 = always discard).\
-            \n -read-ref-max-g-del-homo:                  [1]\
+            \n -read-ref-max-g-del-homo:                  [0]\
             \n    - Maximum G homopolymer size to keep\
             \n      an deletion (1 = no hompolymer,\
             \n      0 = always discard).\
@@ -426,7 +437,7 @@ int main(
             \n          to keep a read to read mapping.\
             \n        - Values less than this will not be\
             \n          extracted.\
-            \n     -read-read-snps:                       [0.015 = 1.5%]\
+            \n     -read-read-snps:                      [0.021 = 2.1%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
             \n          read clustering step.\
@@ -454,7 +465,7 @@ int main(
             \n     input thresholds. These counts are used to find the\
             \n     percentages in the comparison step.\
             \n\
-            \n     -read-read-min-base-q:                 [13]\
+            \n     -read-read-min-base-q:                 [10]\
             \n        - Minimum Q-score needed to keep an\
             \n          SNP or insertion when comparing\
             \n          reads.\
@@ -479,19 +490,19 @@ int main(
             \n          an insertion (1 = no hompolymer,\
             \n          0 = always discard).\
             \n\
-            \n     -read-read-max-a-del-homo:                [1]\
+            \n     -read-read-max-a-del-homo:                [0]\
             \n        - Maximum A homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-read-max-t-del-homo:                [1]\
+            \n     -read-read-max-t-del-homo:                [0]\
             \n        - Maximum T homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-read-max-c-del-homo:                [1]\
+            \n     -read-read-max-c-del-homo:                [0]\
             \n        - Maximum C homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-read-max-g-del-homo:                [1]\
+            \n     -read-read-max-g-del-homo:                [0]\
             \n        - Maximum G homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
@@ -514,6 +525,8 @@ int main(
             \n          keep a read to consensus mapping.\
             \n        - Reads that have an alinged length less\
             \n          than this will not be extracted.\
+            \n        - Change this will also require changing\
+            \n          -min-read-read-map-length.\
             \n     -read-con-snps:                       [0.015 = 1.5%]\
             \n        - Minimum percentage of snps needed to\
             \n          discard a read during the read to\
@@ -543,7 +556,7 @@ int main(
             \n     the read is a good quality read (belongs to cluster)\
             \n     or a low quality read (discard).\
             \n\
-            \n     -read-con-min-base-q:                 [13]\
+            \n     -read-con-min-base-q:                 [10]\
             \n        - Minimum Q-score needed to keep an\
             \n          SNP or insertion when clustering\
             \n          reads.\
@@ -568,19 +581,19 @@ int main(
             \n          an insertion (1 = no hompolymer,\
             \n          0 = always discard).\
             \n\
-            \n     -read-con-max-a-del-homo:             [1]\
+            \n     -read-con-max-a-del-homo:             [0]\
             \n        - Maximum A homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-t-del-homo:             [1]\
+            \n     -read-con-max-t-del-homo:             [0]\
             \n        - Maximum T homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-c-del-homo:             [1]\
+            \n     -read-con-max-c-del-homo:             [0]\
             \n        - Maximum C homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -read-con-max-g-del-homo:             [1]\
+            \n     -read-con-max-g-del-homo:             [0]\
             \n        - Maximum G homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
@@ -595,11 +608,11 @@ int main(
             \n    the same. The clusters of consensus considered the\
             \n    same are merged into one cluster.\
             \n\
-            \n     -con-con-snps:                        [0.015 = 1.5%]\
+            \n     -con-con-snps:                        [0.01 = 1%]\
             \n        - Minimum percentage of snps needed to\
             \n          merge clusters during the consensus\
             \n          to consensus comparison steps.\
-            \n     -con-con-diff:                        [0.023 = 2.3%]\
+            \n     -con-con-diff:                        [0.03 = 3%]\
             \n        - Minimum percent difference needed to\
             \n          merge clusters during the consensus\
             \n          to consensus comparison steps.\
@@ -643,19 +656,19 @@ int main(
             \n          an insertion (1 = no hompolymer,\
             \n          0 = always discard).\
             \n\
-            \n     -con-con-max-a-del-homo:              [1]\
+            \n     -con-con-max-a-del-homo:              [0]\
             \n        - Maximum A homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -con-con-max-t-del-homo:              [1]\
+            \n     -con-con-max-t-del-homo:              [0]\
             \n        - Maximum T homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -con-con-max-c-del-homo:              [1]\
+            \n     -con-con-max-c-del-homo:              [0]\
             \n        - Maximum C homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
-            \n     -con-con-max-g-del-homo:              [1]\
+            \n     -con-con-max-g-del-homo:              [0]\
             \n        - Maximum G homopolymer size to keep\
             \n          an deletion (1 = no hompolymer,\
             \n          0 = always discard).\
@@ -1197,12 +1210,6 @@ int main(
          "    -min-con-length: %u \\\n",
          conSet.minConLenUI
      ); /*Print out the minimum consensus length*/
-
-     fprintf(
-         logFILE,
-         "    -min-read-read-map-length: %u \\\n",
-         readToReadMinStats.minReadLenULng
-     ); /*Print out the min read to read mapping length*/
 
      fprintf(
          logFILE,

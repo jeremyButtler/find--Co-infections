@@ -106,7 +106,8 @@ int main(
     \******************************************************************/
 
     char *helpCStr = "\
-            \n findCoInfc -fastq reads.fastq -ref refs.fasta [Options]\
+            \n binReads -fastq reads.fastq -ref refs.fasta [Options]\
+            \n Use: Bins reads by a set of input references.\
             \n    -fastq:\
             \n        - Fastq file with reads to search      [Required]\
             \n    -ref:\
@@ -118,11 +119,11 @@ int main(
             \n    -min-reads-per-bin:\
             \n        - Min number of reads needed to keep   [100]\
             \n          a bin or a cluster\
-            \n    -read-ref-min-read-length:                 [600]\
+            \n    -min-read-length:                 [500]\
             \n       - Discard reads with read lengths under\
             \n         this when binning.\
             \n       - Applied after the trimming step.\
-            \n    -read-ref-max-read-length:                 [1000]\
+            \n    -max-read-length:                 [1000]\
             \n       - Discard reads with read lengths over\
             \n         this when binning.\
             \n       - Applied after the trimming step.\
@@ -161,11 +162,11 @@ int main(
             \n    The read is discarded if it does not meet the quality\
             \n    thresholds.\
             \n\
-            \n -read-ref-snps:                           [0.02 = 2%]\
+            \n -read-ref-snps:                           [0.07 = 7%]\
             \n    - Minimum percentage of snps needed to\
             \n      discard a read during the read to\
             \n      reference binning step.\
-            \n -read-ref-diff:                           [0.03 = 3%]\
+            \n -read-ref-diff:                           [1.0 = 1%]\
             \n    - Minimum percent difference needed to\
             \n      discard a read during the read to\
             \n      reference binning step.\
@@ -186,26 +187,26 @@ int main(
             \n -read-ref-min-mapq:                        [20]\
             \n    - Minimum mapping quality needed to\
             \n      keep a read when binning.\
-            \n -read-ref-min-read-length:                 [600]\
+            \n -min-read-length:                 [500]\
             \n    - Discard reads with read lengths under\
             \n      this when binning.\
             \n    - Applied after the trimming step.\
-            \n -read-ref-max-read-length:                 [1000]\
+            \n -max-read-length:                 [1000]\
             \n    - Discard reads with read lengths over\
             \n      this when binning.\
             \n    - Applied after the trimming step.\
             \n\
-            \n -read-ref-min-median-q:                    [13]\
+            \n -read-ref-min-median-q:                    [10]\
             \n    - Minimum read median quality score\
             \n      needed to keep a read when binning.\
-            \n -read-ref-min-mean-q:                      [13]\
+            \n -read-ref-min-mean-q:                      [10]\
             \n    - Minimum read mean quality score\
             \n      needed to keep a read when binning.\
-            \n -read-ref-min-aligned-median-q:            [13]\
+            \n -read-ref-min-aligned-median-q:            [10]\
             \n    - Minimum read median quality score\
             \n      of the aligned region of a read\
             \n      needed to keep a read when binning.\
-            \n -read-ref-min-aligned-mean-q:              [13]\
+            \n -read-ref-min-aligned-mean-q:              [10]\
             \n    - Minimum read mean quality score\
             \n      of the aligned region of a read\
             \n      needed to keep a read when binning.\
@@ -216,7 +217,7 @@ int main(
             \n     thresholds. These counts are used to find the\
             \n     percentages in the comparison step.\
             \n\
-            \n -read-ref-min-base-q:                      [13]\
+            \n -read-ref-min-base-q:                      [10]\
             \n    - Minimum Q-score needed to keep an\
             \n      SNP or insertion when binning.\
             \n\
@@ -296,7 +297,7 @@ int main(
         ) { /*If the user is requesting the version number*/
             fprintf(
                 stdout,
-                "binReads built from findCoInft version: %f\n",
+                "binReads built from findCoInft version: %.8f\n",
                 defVersion
             );
             exit(0);
@@ -320,7 +321,7 @@ int main(
 
         fprintf(
             stderr,
-            "%s\n\n %s is an invalid parameter\n",
+            "%s\n\n%s is an invalid parameter\n",
             helpCStr,   /*Print out the help message*/
             inputErrC     /*Print out the error*/
         ); /*Let user know about the invalid parameter*/
@@ -559,11 +560,11 @@ char * getUserInput(
                 &readToRefMinStats->minAlignedMeanQFlt
             );
 
-        else if(strcmp(parmCStr, "-read-ref-min-read-length") == 0)
+        else if(strcmp(parmCStr, "-min-read-length") == 0)
             readToRefMinStats->minReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
 
-         else if(strcmp(parmCStr, "-read-ref-max-read-length") == 0)
+         else if(strcmp(parmCStr, "-max-read-length") == 0)
             readToRefMinStats->maxReadLenULng =
                 strtoul(inputCStr, &tmpCStr, 10);
 

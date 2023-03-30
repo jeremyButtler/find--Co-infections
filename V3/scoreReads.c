@@ -151,25 +151,25 @@ int main(int lenArgsInt, char *argsPtrCStr[])
             \n    - Like -ref, but only uses reference for  [None]\
             \n      for evaluating deletions\
             \n  -min-q:\
-            \n    - Min Q-score to keep SNP or indel        [13]\
+            \n    - Min Q-score to keep SNP or indel        [10]\
             \n  -min-map-q:\
             \n    - Min mapping quality needed for read     [20]\
             \n  -min-read-length:\
-            \n    - Min aligned read length                 [600]\
+            \n    - Min aligned read length                 [500]\
             \n  -max-read-length:\
             \n    - Max read length (0 = no max)            [1000]\
             \n  -min-mean-q:\
-            \n    - Min mean Q-score to keep read           [13]\
+            \n    - Min mean Q-score to keep read           [10]\
             \n  -min-median-q:\
-            \n    - Min median Q-score to keep read         [13]\
+            \n    - Min median Q-score to keep read         [10]\
             \n  -min-aligned-mean-q:\
-            \n    - Min mean Q of alinged read              [1]\
+            \n    - Min mean Q of alinged read              [10]\
             \n  -min-aligned-median-q:\
-            \n    - Min read med aligned Q                  [13]\
+            \n    - Min read med aligned Q                  [10]\
             \n  -ins-A:\
-            \n    - Max A homopolymer length to keep insert [2]\
+            \n    - Max A homopolymer length to keep insert [1]\
             \n  -ins-T:\
-            \n    - Max T homopolymer length to keep insert [2]\
+            \n    - Max T homopolymer length to keep insert [1]\
             \n  -ins-G:\
             \n    - Max G homopolymer length to keep insert [1]\
             \n  -ins-C:\
@@ -202,16 +202,35 @@ int main(int lenArgsInt, char *argsPtrCStr[])
         ) == 0 /*Check if input is valid (also get input)*/
     ) { /*if the user input an invalid input*/
         if(
-            strcmp(samPathCStr, "-h") ||
-            strcmp(samPathCStr, "--h") ||
-            strcmp(samPathCStr, "-help") ||
-            strcmp(samPathCStr, "--help")
+            strcmp(samPathCStr, "-h") == 0 ||
+            strcmp(samPathCStr, "--h") == 0 ||
+            strcmp(samPathCStr, "-help") == 0 ||
+            strcmp(samPathCStr, "--help") == 0
         ) { /*If user requested the help message*/
             fprintf(stdout, "%s\n", helpMesgCStr);
             exit(0);
         } /*If user requested the help message*/
 
-        fprintf(stderr, "%s\n", helpMesgCStr);
+        if(
+            strcmp(samPathCStr, "-v") == 0 ||
+            strcmp(samPathCStr, "-V") == 0 ||
+            strcmp(samPathCStr, "-Version") == 0 ||
+            strcmp(samPathCStr, "-version") == 0
+        ) { /*If the user is requesting the version number*/
+            fprintf(
+                stdout,
+                "scoreReads built from findCoInft version: %.8f\n",
+                defVersion
+            );
+            exit(0);
+        } /*If the user is requesting the version number*/
+
+        fprintf(
+            stderr,
+            "%s\nInvalid paramter (%s)",
+            helpMesgCStr,
+            samPathCStr
+        );
         exit(-1);
     } /*if the user input an invalid input*/
 

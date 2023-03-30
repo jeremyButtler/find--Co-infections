@@ -160,7 +160,7 @@ int main(int lenArgsInt, char *argsCStr[])
     ) { /*Else if the user wanted the version number*/
         fprintf(
             stdout,                  /*stdout so user can pipe & grab easily*/
-            "fastqGrep version: 1\n" /*Version number*/
+            "fqGetIds from find co-infections verions: 3.20230329\n"
         ); /*Print out the version number*/
         exit(0);
     } /*Else if the user wanted the version number*/

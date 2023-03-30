@@ -98,7 +98,7 @@ int main(int lenArgsInt, char *argsCStr[])
     FILE *testFILE = 0;       /*Input file*/
 
     char
-        *helpMesgCStr = "grepFastq -f filter.txt -fastq file.fastq [options...]\
+        *helpMesgCStr = "fqGetIds -f filter.txt -fastq file.fastq [options...]\
             \n Use: grabs selected reads from a fastq file\
             \n Input:\
             \n    -f file.txt:\
@@ -154,14 +154,18 @@ int main(int lenArgsInt, char *argsCStr[])
 
     else if(
         inputChar != 0 &&
-        strcmp(
-            inputChar, /*Paremeter checkInput exited on*/
-            "-V"       /*Input for version number*/
-        ) == 0         /*String was a match*/
+        ( strcmp(inputChar, "-V") == 0 ||
+           strcmp(inputChar, "--V") == 0 ||
+           strcmp(inputChar, "--v") == 0 ||
+           strcmp(inputChar, "-version") == 0 ||
+           strcmp(inputChar, "-Version") == 0 ||
+           strcmp(inputChar, "--version") == 0 ||
+           strcmp(inputChar, "--Version") == 0
+        )
     ) { /*Else if the user wanted the version number*/
         fprintf(
-            stdout,                  /*stdout so user can pipe & grab easily*/
-            "fastqGrep version: 1\n" /*Version number*/
+            stdout,  /*stdout so user can pipe & grab easily*/
+            "fqGetIds from findCoInft version: %.8f\n",
         ); /*Print out the version number*/
         exit(0);
     } /*Else if the user wanted the version number*/
