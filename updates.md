@@ -8,14 +8,20 @@ The version number for find co-infections V3 now includes the date it
   So, the version number 3.20230309 would mean that find co-infections
   was last updated on March 29th, 2023.
 
-# Standing problems:
-
-1. Racon (-enable-racon) errors out on occasion (planning on looking at
-   after I finsh the alignment step for the majority consensus step).
-2. fqGetIds and Illumina reads (see bottom of page, less likely to be
-   resolved).
-
 # Changes
+
+## 2023-03-29
+
+1. Found a bug were buidCon was not reporting that it failed to build a
+   consensus. This is why Racon crashed when I benchmarked the ASHURE
+   dataset.
+2. Fixed some issues were sofmasking extended beyond the alignment in
+   the Waterman Smith alignment.
+3. Added fqGetIdsIllumina, which has support for Illumina reads
+4. Added fqGetIdsFast, which was the fqGetIds used for benchmarking.
+5. Other than future bugs, this should be my last update. Their may be
+   a few future updates for figures and the code documentation, but they
+   will not be written here. I am finally have nothing more to add.
 
 ## 2023-03-28
 

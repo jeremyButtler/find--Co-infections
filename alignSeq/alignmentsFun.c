@@ -188,8 +188,11 @@ uint8_t * WatermanSmithAln(
 
    char *tmpQueryCStr = queryStartCStr;
    char *tmpRefCStr = refStartCStr;
+
    char *bestQueryCStr = 0;  // Best end start for the query sequence
    char *bestRefCStr = 0;    // Best end for the reference sequence
+   char *endQueryAlnCStr = 0;
+   char *endRefAlnCStr = 0;
 
    // Find the length of the reference and query
    unsigned long lenQueryUL = queryEndI - queryStartI + 1;
@@ -260,7 +263,7 @@ uint8_t * WatermanSmithAln(
    } // If I do not have a direction matrix for each cell
 
    *lenErrAryUI = lenQueryUL + lenRefUL;
-   alnErrAryUC = malloc(sizeof(uint8_t) * *lenErrAryUI);
+   alnErrAryUC = calloc(*lenErrAryUI, sizeof(uint8_t));
 
    if(alnErrAryUC == 0) 
    { /*If I had a memory allocation error*/
@@ -440,6 +443,10 @@ uint8_t * WatermanSmithAln(
    bitElmUC = getTwoBitAryElm(dirOnUCPtr, &bitUC);
    // Move to bottom right base to trace back the path
 
+   // Record the ending point of the alignment
+   endQueryAlnCStr = bestQueryCStr;
+   endRefAlnCStr = bestRefCStr;
+
    /*******************************************************************\
    * Fun-04 Sec-5 Sub-2: Find the best path
    \*******************************************************************/
@@ -509,8 +516,6 @@ uint8_t * WatermanSmithAln(
    tmpQueryCStr = queryCStr;
    tmpRefCStr = refCStr;
    endUCPtr = (alnErrAryUC + numErrUI);
-   lenRefUL = 0; // So can softmask the end bases
-   lenQueryUL = 0; // So can softmask the end bases
 
    // Apply softmasking to the start region
    while(1)
@@ -519,13 +524,11 @@ uint8_t * WatermanSmithAln(
        { // IF have a query base to mask
            *endUCPtr |= defSoftQueryFlag;
            ++tmpQueryCStr;
-           ++lenQueryUL;
 
            if(tmpRefCStr != bestRefCStr)
            { // IF have a query base to mask
                *endUCPtr |= defSoftRefFlag;
                ++tmpRefCStr;
-               ++lenRefUL;
            } // IF have a query base to mask
 
            ++endUCPtr;
@@ -538,7 +541,6 @@ uint8_t * WatermanSmithAln(
            ++tmpRefCStr;
            ++numErrUI;
            ++endUCPtr;
-           ++lenRefUL;
        } // IF have a query base to mask
 
        else break; // Done
@@ -582,38 +584,6 @@ uint8_t * WatermanSmithAln(
 
    while(startUCPtr < endUCPtr)
    { // While I have elements to inver
-       switch(*endUCPtr)
-       { // Switch; Check if I need to count a base
-           case defBaseFlag:
-               ++lenQueryUL;
-               ++lenRefUL;
-               break;
-
-           case defInsFlag:
-               ++lenQueryUL;
-               break;
-
-           case defDelFlag:
-               ++lenRefUL;
-               break;
-       } // Switch; Check if I need to count a base
-
-       switch(*startUCPtr)
-       { // Switch; Check if I need to count a base
-           case defBaseFlag:
-               ++lenQueryUL;
-               ++lenRefUL;
-               break;
-
-           case defInsFlag:
-               ++lenQueryUL;
-               break;
-
-           case defDelFlag:
-               ++lenRefUL;
-               break;
-       } // Switch; Check if I need to count a base
-
        swapUC = *endUCPtr;
        *endUCPtr = *startUCPtr;
        *startUCPtr = swapUC;
@@ -625,39 +595,40 @@ uint8_t * WatermanSmithAln(
    ^ Fun-04 Sec-9: Add softmasking to the end and return the array
    \<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 
-   // Add softmasking to the end
-   tmpQueryCStr = queryCStr + lenQueryUL + 1;
-   tmpRefCStr = refCStr + lenRefUL + 1;
+   // Move to the first base to sofmask
+   ++endQueryAlnCStr;
+   ++endRefAlnCStr;
    endUCPtr = alnErrAryUC + numErrUI;
 
    // Apply softmasking to the start region
    while(1)
    { // While I have softmasking to do
-       if(*tmpQueryCStr != '\0')
+       *endUCPtr = 0;
+
+       if(*endQueryAlnCStr != '\0')
        { // IF have a query base to mask
            *endUCPtr |= defSoftQueryFlag;
-           ++tmpQueryCStr;
+           ++endQueryAlnCStr;
 
-           if(*tmpRefCStr != '\0')
+           if(*endRefAlnCStr != '\0')
            { // IF have a query base to mask
                *endUCPtr |= defSoftRefFlag;
+               ++endRefAlnCStr;
                ++tmpRefCStr;
            } // IF have a query base to mask
 
            ++endUCPtr;
        } // IF have a query base to mask
 
-       else if(*tmpRefCStr != '\0')
+       else if(*endRefAlnCStr != '\0')
        { // IF have a query base to mask
            *endUCPtr |= defSoftRefFlag;
-           ++tmpRefCStr;
+           ++endRefAlnCStr;
            ++endUCPtr;
        } // IF have a query base to mask
 
        else break; // Done
    } // While I have softmasking to do
-
-   endUCPtr = 0; // Add end of sequence
 
    return alnErrAryUC;
 } // WatermanSmithAln

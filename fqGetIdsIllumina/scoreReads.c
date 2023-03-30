@@ -204,7 +204,7 @@ int main(int lenArgsInt, char *argsPtrCStr[])
             strcmp(samPathCStr, "-help") ||
             strcmp(samPathCStr, "--help")
         ) { /*If user requested the help message*/
-            fprintf(stdout, "%s\n", helpMesgCStr);
+            fprintf(stderr, "%s\n", helpMesgCStr);
             exit(0);
         } /*If user requested the help message*/
 

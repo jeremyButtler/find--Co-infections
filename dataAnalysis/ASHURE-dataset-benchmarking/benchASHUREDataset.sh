@@ -193,14 +193,14 @@ if [[ "$altConCmd" == "" ]]; then
       "$findCoInftPathStr" \
         -skip-bin \
         -prefix "$prefixStr--$suffixStr" \
-	-extra-consensus-steps "$numPolishRndsI" \
+        -extra-consensus-steps "$numPolishRndsI" \
         -model "$modelStr" \
         -maj-con-min-base-q "$majMinBaseQI" \
         -maj-con-min-bases "$majMinBaseSupportI" \
         -maj-con-min-ins-q "$majMinInsQ" \
         -maj-con-min-ins "$majMinInsSupportI" \
         -min-perc-reads "$minPercReadsFlt" \
-	-max-read-length "$maxReadLen" \
+        -max-read-length "$maxReadLen" \
         -fastq "$fqPathStr";
 else
     /usr/bin/time \
@@ -209,7 +209,7 @@ else
         -a \
       "$findCoInftPathStr" \
         -skip-bin \
-	-extra-consensus-steps "$numPolishRndsI" \
+        -extra-consensus-steps "$numPolishRndsI" \
         -prefix "$prefixStr--$suffixStr" \
         -model "$modelStr" \
         -maj-con-min-base-q "$majMinBaseQI" \
@@ -217,7 +217,7 @@ else
         -maj-con-min-ins-q "$majMinInsQ" \
         -maj-con-min-ins "$majMinInsSupportI" \
         -min-perc-reads "$minPercReadsFlt" \
-	-max-read-length "$maxReadLen" \
+        -max-read-length "$maxReadLen" \
         -fastq "$fqPathStr" \
         $altConCmd; # removeing "" because I want it to process spaces
 fi # check if using alternative consensus commands

@@ -136,7 +136,10 @@ One thing I should note is that fqGetIds currently only compares the hex
 
 Also I am not sure how well fqGetIds would work if you merged Illumina
   fastq files, since the Illumina sequencer id and flow cell ids include
-  non-hex characters.
+  non-hex characters. These Illumina issues should be reduced with
+  fqGetIdsIllumina, which recognizes ":" and the letters A-V. I would
+  like to say this has no affect on Nanopore reads, but for some odd
+  reason it does.
 
 FqGetIds was first seen as fastqGrep in find co-infections. It is mainly
   here to remove additional dependencies.
@@ -146,18 +149,18 @@ The help message is called with -h.
 #### How to build fqGetIds
 
 ```
-cd V3
-make fqGetIds
-mv fqGetIds /path/to/install
-chmod a+x /path/to/install/fqGetIds
+cd fqGetIdsFast
+make
+mv fqGetIdsFast /path/to/install/fqGetIdsFast
+chmod a+x /path/to/install/fqGetIdsFast
 ```
 
 #### how to run fqGetIds
 
 ```
-fqGetIds -fastq reads.fastq -f ids.txt > extractedReads.fastq
-cat reads.fastq | fqGetIds -stdin-fastq -f ids.txt > extractReads.fastq
-cat ids.txt | fqGetIds -fastq reads.fastq -stdin-filt > extReads.fastq
+fqGetIdsFast -fastq reads.fastq -f ids.txt > extractedReads.fastq
+cat reads.fastq | fqGetIdsFast -stdin-fastq -f ids.txt > extractReads.fastq
+cat ids.txt | fqGetIdsFast -fastq reads.fastq -stdin-filt > extReads.fastq
 ```
 
 ### BinReads
@@ -273,23 +276,20 @@ extractTopReads -fastq reads.fastq > top-reads.fastq
 
 ### alignSeq
 
-AlignSeq is a Needleman Wunsch alignment algorithm that I am planning to
-  use for improving my majority consensus step. It uses a two bit
-  direction matrix, which results in at least 4x less memory than a 
-  traditional Needleman Wunsch. During scoring it decides the direction
-  to travel back and ignores any other potentailly equal possiblities.
-  The preference for equal scores are diagnol moves (SNPs), top moves
-  (insertion), and then left move (deletions). This allows keeping track
-  of only one direction per score.
+AlignSeq has a Needleman Wunsch and Waterman Smith alignment algorithm
+  that I was originally hoping to use to improve my majority consensus
+  step. This did not work out very well, so I scrapped the idea, but
+  kept the alignment programs here in case any one finds them useful. I
+  was hoping to code in a Hirschberg, but at this point I have no reason
+  to try.
 
-AlignSeq can also do a Waterman Smith alignment to get a single answer.
-  However this Waterman Smith only keeps track of a single best entry
-  (the one that is nearest to the bottom right of the matrix), so it
-  will not give multiple alignments. A Hirschberg is a better option.
-
-AlignSeq is only memory efficent when compared to other Needleman-Wunsch
-  alignments (N^2/4 instead of N^2). However, it will never be as
-  efficant than Hirschberg alignment.
+Both alignments uses a two bit direction matrix, which results in at
+  least 4x less memory than a traditional Needleman Wunsch. During
+  scoring it decides the direction to travel back and ignores any other
+  potentially equal paths. However, this is only compared to other
+  Needleman Wunsch and Waterman Smith alignments. When this is compared
+  to a Hirschberg, which uses a linear instead of N^2 memory usage, it
+  is very memory heavy and slow.
 
 AlignSeq does not use decimals, so if you want decimals for the gap
   extension penatly you will have to multiply all scores by 10.
@@ -306,9 +306,9 @@ The help message can be called with -h. For an exmaple of the scoring
 #### How to build alignSeq
 
 ```
-cd V3
-make alignSeq
-mv alignSeq /path/to/install
+cd alignSeq
+make
+mv alignSeq /path/to/install/alignSeq
 chmod a+x /path/to/install/alignSeq
 
 # For a global alignment (Needleman Wunsch)
