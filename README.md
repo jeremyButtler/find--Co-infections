@@ -2,6 +2,10 @@
 
 Finds co-infections in nanopore sequenced reads.
 
+I updated the license to CCO because it has the same terms
+  and conditions as the unlicense (none), but is more
+  acknowledged than the unlicense. 
+
 ## Requirements:
 
   - Required
