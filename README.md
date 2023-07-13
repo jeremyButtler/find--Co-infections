@@ -6,6 +6,14 @@ I updated the license to CCO because it has the same terms
   and conditions as the unlicense (none), but is more
   acknowledged than the unlicense. 
 
+## Notes:
+
+The install for fqGetIds was removed, due seqkit version
+  2.x being faster and using less memory than fqGetIds.
+  fqGetIds was benchmarked against seqkit version 0.15,
+  which did not have the speed or memory upgrades of
+  version 2.
+
 ## Requirements:
 
   - Required
