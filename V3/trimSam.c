@@ -222,7 +222,6 @@ uint8_t trimSamEntry(
     incSamUCStr += lenEndTrimUInt + 1; /*Move off trimed bases & tab*/
     *delUCStr = *(incSamUCStr - 1);    /*Save the tab*/
     ++delUCStr;                        /*Move past tab*/
-    samStruct->qCStr = delUCStr;    /*new start of q-score entry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-2 Sec-4: Trim the q-score entry
@@ -230,6 +229,7 @@ uint8_t trimSamEntry(
 
     if(*(samStruct->qCStr) != '*' || *(samStruct->qCStr + 1) != '\t')
     { /*If their is a Q-score entry to trim*/
+        samStruct->qCStr = delUCStr;    /*new start of q-score entry*/
         incSamUCStr += lenStartTrimUInt; /*skip starting trim region*/
 
         for(
@@ -244,6 +244,8 @@ uint8_t trimSamEntry(
 
         incSamUCStr += lenEndTrimUInt; /*Move off end trim to tab*/
     } /*If their is a Q-score entry to trim*/
+
+    else samStruct->qCStr = delUCStr;    /*new start of q-score entry*/
 
     /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\
     ^ Fun-2 Sec-5: Shift characters for other parts of the cigar

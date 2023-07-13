@@ -10,6 +10,12 @@ The version number for find co-infections V3 now includes the date it
 
 # Changes
 
+## 2023-08-13
+
+1. Fixed an error were trimSamFile would truncate the sam
+   file entry after the sequence when their was no Q-score
+   entry (Q-score = "\*").
+
 ## 2023-03-29
 
 1. Found a bug were buidCon was not reporting that it failed to build a
