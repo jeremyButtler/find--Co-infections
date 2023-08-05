@@ -369,7 +369,10 @@ unsigned char addLineToBuff(
         if(*buffCStr == 0)
             return 64; /*Memory allocation error*/
 
-        spareBuffUL = resBuffUL; /*Amount of extra space in the buffer*/
+        spareBuffUL = resBuffUL - 1; /*Amount of extra space in the buffer*/
+        /*-1 because resBuffUL is index 1, while
+        ` spareBuffUL is index 0
+        */
     } /*If need to resize the buffer*/
 
     else

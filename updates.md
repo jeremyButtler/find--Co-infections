@@ -12,6 +12,12 @@ The version number for find co-infections V3 now includes the date it
 
 ## 2023-08-13
 
+1. Fixed an error in fqAndFqFun.c addLineToBuff which would
+   cause the 1024 base to be deleted if the sequence was
+   over 1024 bases. (found this error in alnSeq).
+
+## 2023-07-13
+
 1. Fixed an error were trimSamFile would truncate the sam
    file entry after the sequence when their was no Q-score
    entry (Q-score = "\*").

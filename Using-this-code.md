@@ -246,7 +246,7 @@ stack[255].readNode = 0;
 ```
 
 You can also write new read ids to an existing bigNum structure by
-  calling  strToBackwardsBigNum(bigNum pointer, new ID, &lenght of ID).
+  calling  strToBackwardsBigNum(bigNum pointer, new ID, &length of ID).
   This structure can then be freed with
   freeBigNumStruct(&bigNum pointer).
 
